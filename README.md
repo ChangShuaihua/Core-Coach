@@ -8,16 +8,16 @@ Core Strength 是一款核心力量训练助手小程序，为用户提供 AI �
 
 ## 技术栈
 
-| 分类 | 技术 |
-|------|------|
-| 框架 | Taro 4.x |
-| UI 库 | NutUI |
-| 语言 | TypeScript |
-| 状态管理 | Zustand |
-| 数据请求 | TanStack React Query |
+| 分类     | 技术                  |
+| -------- | --------------------- |
+| 框架     | Taro 4.x              |
+| UI 库    | NutUI                 |
+| 语言     | TypeScript            |
+| 状态管理 | Zustand               |
+| 数据请求 | TanStack React Query  |
 | 表单验证 | React Hook Form + Zod |
-| 样式 | Tailwind CSS + Sass |
-| 包管理 | pnpm |
+| 样式     | Tailwind CSS + Sass   |
+| 包管理   | pnpm                  |
 
 ## 项目结构
 
@@ -86,32 +86,32 @@ pnpm install
 
 ### 开发命令
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm dev:weapp` | 微信小程序开发模式 |
-| `pnpm dev:h5` | H5 开发模式 |
+| 命令              | 说明                 |
+| ----------------- | -------------------- |
+| `pnpm dev:weapp`  | 微信小程序开发模式   |
+| `pnpm dev:h5`     | H5 开发模式          |
 | `pnpm dev:alipay` | 支付宝小程序开发模式 |
-| `pnpm dev:tt` | 抖音小程序开发模式 |
+| `pnpm dev:tt`     | 抖音小程序开发模式   |
 
 ### 构建命令
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm build:weapp` | 构建微信小程序 |
-| `pnpm build:h5` | 构建 H5 |
-| `pnpm build:alipay` | 构建支付宝小程序 |
-| `pnpm build:rn` | 构建 React Native |
+| 命令                | 说明              |
+| ------------------- | ----------------- |
+| `pnpm build:weapp`  | 构建微信小程序    |
+| `pnpm build:h5`     | 构建 H5           |
+| `pnpm build:alipay` | 构建支付宝小程序  |
+| `pnpm build:rn`     | 构建 React Native |
 
 ## 路由配置
 
 项目使用 Taro 原生路由系统，页面配置位于 `src/app.config.ts`。
 
-| 路径 | 页面 |
-|------|------|
-| `/pages/chat/index` | AI 助手（首页） |
-| `/pages/creation/index` | 创作中心 |
-| `/pages/profile/index` | 个人中心 |
-| `/pages/login/index` | 登录页 |
+| 路径                    | 页面            |
+| ----------------------- | --------------- |
+| `/pages/chat/index`     | AI 助手（首页） |
+| `/pages/creation/index` | 创作中心        |
+| `/pages/profile/index`  | 个人中心        |
+| `/pages/login/index`    | 登录页          |
 
 ## 环境变量
 

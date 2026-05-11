@@ -37,7 +37,7 @@ const ChatInput = ({ onSend, onSkillClick }: ChatInputProps) => {
             placeholderClass="text-gray-400"
             confirmType="send"
             onConfirm={handleSend}
-            adjustPosition
+            adjustPosition={false}
             cursorSpacing={20}
             className="flex-1 text-sm h-full bg-transparent"
           />
