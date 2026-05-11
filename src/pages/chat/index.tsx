@@ -65,13 +65,14 @@ export default function ChatPage() {
         </View>
 
         {/* 底部栏 */}
-        <View className="flex-shrink-0">
-          {/* 快捷操作弹窗 */}
-          <QuickActionsPopup
-            visible={showPopup}
-            onClose={() => setShowPopup(false)}
-            onSelect={handleSelectAction}
-          />
+        <View className="relative flex-shrink-0">
+          <View className="absolute left-6" style={{ bottom: '100px' }}>
+            <QuickActionsPopup
+              visible={showPopup}
+              onClose={() => setShowPopup(false)}
+              onSelect={handleSelectAction}
+            />
+          </View>
           <ChatInput onSend={handleSend} onSkillClick={() => setShowPopup(true)} />
         </View>
       </View>

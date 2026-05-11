@@ -13,42 +13,32 @@ export default function QuickActionsPopup({ visible, onClose, onSelect }: QuickA
   return (
     <>
       {visible && (
-        <View className="fixed inset-0 z-10" onClick={onClose}>
-          {/* 遮罩层 */}
-          <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }} />
-
-          {/* 弹窗内容 */}
+        <View onClick={onClose}>
+          {/* 卡片主体 */}
           <View
-            className="absolute bottom-0 left-0 right-0"
-            style={{ padding: '16px' }}
-            onClick={(e) => e.stopPropagation()}
+            className="rounded-2xl bg-white"
+            style={{
+              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+            }}
           >
-            {/* 卡片主体 */}
-            <View
-              className="overflow-hidden rounded-2xl bg-white"
-              style={{
-                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-              }}
-            >
-              <Cell.Group>
-                {QUICK_ACTIONS.map((action, index) => (
-                  <Cell
-                    key={action.id}
-                    title={action.title}
-                    clickable
-                    onClick={() => {
-                      onSelect(action)
-                      onClose()
-                    }}
-                    style={{
-                      borderBottom: index < QUICK_ACTIONS.length - 1 ? '1px solid #f5f5f5' : 'none',
-                      padding: '14px 16px',
-                      fontSize: '14px',
-                    }}
-                  />
-                ))}
-              </Cell.Group>
-            </View>
+            <Cell.Group>
+              {QUICK_ACTIONS.map((action, index) => (
+                <Cell
+                  key={action.id}
+                  title={action.title}
+                  clickable
+                  onClick={() => {
+                    onSelect(action)
+                    onClose()
+                  }}
+                  style={{
+                    borderBottom: index < QUICK_ACTIONS.length - 1 ? '1px solid #f5f5f5' : 'none',
+                    padding: '14px 16px',
+                    fontSize: '14px',
+                  }}
+                />
+              ))}
+            </Cell.Group>
           </View>
         </View>
       )}
