@@ -1,4 +1,5 @@
 import { Edit, Setting, Order, Star, Tips, Failure } from '@nutui/icons-react-taro'
+import { ROUTES } from '@/config/routes'
 import type { MenuGroup } from '../types'
 
 // 主菜单配置
@@ -9,7 +10,7 @@ export const MAIN_MENU_ITEMS: MenuGroup = {
       id: 'edit-profile',
       title: '编辑资料',
       icon: <Edit color="#fe6601" size={20} />,
-      path: '/pages/profile/edit/index',
+      path: ROUTES.EDIT_INFO,
     },
     {
       id: 'account-settings',
