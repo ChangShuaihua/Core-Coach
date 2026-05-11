@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
@@ -15,6 +16,17 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+
+  // 监听键盘高度变化
+  useEffect(() => {
+    Taro.onKeyboardHeightChange((res) => {
+      setKeyboardHeight(res.height)
+    })
+    return () => {
+      Taro.offKeyboardHeightChange(() => {})
+    }
+  }, [])
 
   const handleSend = async (content: string) => {
     // 1. 创建用户消息
@@ -79,7 +91,10 @@ export default function ChatPage() {
         </View>
 
         {/* 底部栏 */}
-        <View className="relative flex-shrink-0">
+        <View
+          className="relative flex-shrink-0"
+          style={{ paddingBottom: `${keyboardHeight - 60}px` }}
+        >
           <View className="absolute left-6" style={{ bottom: '100px' }}>
             <QuickActionsPopup
               visible={showPopup}
