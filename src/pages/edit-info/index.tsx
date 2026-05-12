@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Edit } from '@nutui/icons-react-taro'
+import { Edit, ArrowLeft } from '@nutui/icons-react-taro'
 import { Avatar, Button } from '@nutui/nutui-react-taro'
 import defaultAvatar from '@/assets/images/avatar.png'
 import Card from '@/components/Card'
@@ -41,7 +41,15 @@ export default function EditInfoPage() {
   }
 
   return (
-    <Layout title="编辑资料" showTabBar={false}>
+    <Layout
+      title="编辑资料"
+      showTabBar={false}
+      renderLeft={
+        <View onClick={() => Taro.navigateBack()}>
+          <ArrowLeft />
+        </View>
+      }
+    >
       <View className="p-4">
         {/* 头像区域 */}
         <Card className="mb-4">
