@@ -16,7 +16,7 @@ export const MAIN_MENU_ITEMS: MenuGroup = {
       id: 'account-settings',
       title: '账号设置',
       icon: <Setting color="#fe6601" size={20} />,
-      path: '/pages/profile/settings/index',
+      path: ROUTES.ACCOUNT_SETTINGS,
     },
     {
       id: 'favorite-lessons',
