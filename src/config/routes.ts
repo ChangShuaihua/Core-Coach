@@ -10,6 +10,9 @@ export const PAGES = [
   'pages/login/index',
   'pages/edit-info/index',
   'pages/account-settings/index',
+  'pages/about/index',
+  'pages/favorite-games/index',
+  'pages/favorite-lessons/index',
 ] as const
 
 // 所有页面合并（app.config.ts 用这个）
@@ -23,4 +26,7 @@ export const ROUTES = {
   PROFILE: '/pages/profile/index',
   EDIT_INFO: '/pages/edit-info/index',
   ACCOUNT_SETTINGS: '/pages/account-settings/index',
+  ABOUT: '/pages/about/index',
+  FAVORITE_GAMES: '/pages/favorite-games/index',
+  FAVORITE_LESSONS: '/pages/favorite-lessons/index',
 } as const

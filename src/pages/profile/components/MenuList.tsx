@@ -24,8 +24,8 @@ export default function MenuList({ menuGroup }: MenuListProps) {
           <Cell
             key={item.id}
             title={
-              <View style={{ display: 'flex', alignItems: 'center' }}>
-                <View style={{ marginRight: '12px' }}>{item.icon}</View>
+              <View className="flex flex-row items-center">
+                <View className="mr-3">{item.icon}</View>
                 <View style={{ color: item.iconColor === '#ee0a24' ? '#ee0a24' : '#323233' }}>
                   {item.title}
                 </View>

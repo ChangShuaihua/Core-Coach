@@ -95,12 +95,12 @@ export default function AccountSettingsPage() {
       >
         <View className="p-4">
           <View className="flex flex-row items-center justify-center mb-4">
-            <Text className="text-base text-gray-8">修改密码</Text>
+            <Text className="text-base text-gray-9">修改密码</Text>
           </View>
 
           <Form>
             <View className="mb-4">
-              <Text className="text-sm text-gray-6 mb-2 block">新密码</Text>
+              <Text className="text-sm text-gray-7 mb-2 block">新密码</Text>
               <View className="relative">
                 <Input
                   value={passwordData.password}
@@ -112,8 +112,8 @@ export default function AccountSettingsPage() {
               </View>
             </View>
 
-            <View className="mb-6">
-              <Text className="text-sm text-gray-6 mb-2 block">确认密码</Text>
+            <View className="mb-4">
+              <Text className="text-sm text-gray-7 mb-2 block">确认密码</Text>
               <Input
                 value={passwordData.confirmPassword}
                 type="text"
@@ -128,7 +128,8 @@ export default function AccountSettingsPage() {
             type="primary"
             size="large"
             color="var(--gradient-orange)"
-            className="w-full mb-3"
+            className="w-full"
+            style={{ marginBottom: '12px' }}
             onClick={handleSubmit}
           >
             <Text className="text-base">确认修改</Text>
