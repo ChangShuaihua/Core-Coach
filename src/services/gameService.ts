@@ -1,5 +1,5 @@
 import type { Game } from '@/data/mock/games'
-import { mockGames, mockGamesDetail } from '@/data/mock/games'
+import { mockGames } from '@/data/mock/games'
 
 const BASE_URL = '/api'
 
@@ -16,7 +16,7 @@ export async function getFavoriteGames(): Promise<Game[]> {
 
 export async function getGameDetail(id: number): Promise<Game | undefined> {
   if (useMock) {
-    return Promise.resolve(mockGamesDetail[id])
+    return Promise.resolve(mockGames.find((g) => g.id === id))
   }
 
   const response = await fetch(`${BASE_URL}/games/${id}`)
