@@ -1,9 +1,19 @@
-// 示例代码
-import { z } from 'zod'
+export interface LoginFormData {
+  account: string
+  password: string
+}
 
-export const loginSchema = z.object({
-  phone: z.string().min(11, '手机号不能少于11位').max(11, '手机号不能超过11位'),
-  password: z.string().min(6, '密码不能少于6位'),
-})
-
-export type LoginFormData = z.infer<typeof loginSchema>
+/**
+ * 校验登录表单，返回第一个错误信息，通过返回 null
+ */
+export function validateLogin(data: LoginFormData): string | null {
+  if (!data.account) return '请输入账号'
+  if (data.account.length !== 8) return '账号必须为8位'
+  if (!/^[a-zA-Z0-9]+$/.test(data.account)) return '账号仅限数字和字母'
+  if (!data.password) return '请输入密码'
+  if (data.password.length < 6) return '密码不能少于6位'
+  if (data.password.length > 18) return '密码不能超过18位'
+  if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]+$/.test(data.password))
+    return '密码包含非法字符'
+  return null
+}
