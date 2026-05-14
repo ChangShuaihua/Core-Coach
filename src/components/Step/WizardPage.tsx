@@ -84,7 +84,7 @@ export default function WizardPage({
             className={classNames(
               'flex-1 py-3 px-4 rounded-lg font-semibold transition-all border-2',
               {
-                'border-gray-300 text-gray-700 bg-white hover:bg-gray-50': !isFirstStep,
+                'border-gray-300 text-gray-700 bg-white': !isFirstStep,
                 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed': isFirstStep,
               }
             )}
@@ -99,8 +99,8 @@ export default function WizardPage({
             className={classNames(
               'flex-1 py-3 px-4 rounded-lg font-semibold transition-all text-white',
               {
-                'bg-orange-500 hover:bg-orange-600': !isLastStep,
-                'bg-green-500 hover:bg-green-600': isLastStep,
+                'bg-orange-500': !isLastStep,
+                'bg-green-500': isLastStep,
               }
             )}
             onClick={handleNext}

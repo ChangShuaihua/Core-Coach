@@ -36,7 +36,7 @@ export default function DifficultySelectorCard({ data, updateData }: DifficultyS
               key={difficulty.id}
               className={classNames('p-4 rounded-lg cursor-pointer transition-all border-2', {
                 'bg-green-50 border-green-500 ring-2 ring-green-300': isSelected,
-                'bg-white border-gray-200 hover:border-gray-300': !isSelected,
+                'bg-white border-gray-200': !isSelected,
               })}
               onClick={() => handleDifficultySelect(difficulty.id)}
             >

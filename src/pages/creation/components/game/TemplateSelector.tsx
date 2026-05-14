@@ -33,7 +33,7 @@ export default function TemplateSelector({ data, updateData }: TemplateSelectorP
                 'relative rounded-2xl overflow-hidden cursor-pointer transition-all',
                 {
                   'ring-4 ring-orange-500 scale-105': isSelected,
-                  'hover:shadow-lg': !isSelected,
+                  'shadow-md': !isSelected,
                 }
               )}
               onClick={() => handleTemplateSelect(template.id)}

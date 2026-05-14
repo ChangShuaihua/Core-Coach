@@ -95,7 +95,7 @@ export default function ResultPreviewCard({ data, updateData }: ResultPreviewCar
       <View className="flex gap-3">
         <Button
           className={classNames('flex-1 py-3 px-4 rounded-lg font-semibold transition-all', {
-            'bg-orange-500 text-white hover:bg-orange-600': !isLoading,
+            'bg-orange-500 text-white': !isLoading,
             'bg-gray-400 text-white cursor-not-allowed': isLoading,
           })}
           onClick={handleGenerate}
@@ -105,7 +105,7 @@ export default function ResultPreviewCard({ data, updateData }: ResultPreviewCar
         </Button>
 
         <Button
-          className="flex-1 py-3 px-4 rounded-lg font-semibold border-2 border-orange-500 text-orange-500 hover:bg-orange-50 transition-all"
+          className="flex-1 py-3 px-4 rounded-lg font-semibold border-2 border-orange-500 text-orange-500 transition-all"
           onClick={handleExport}
           disabled={isLoading}
         >

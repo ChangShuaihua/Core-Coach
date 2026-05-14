@@ -65,14 +65,14 @@ export default function MovementSelectorCard({ data, updateData }: MovementSelec
         </View>
         <View className="flex items-center justify-between">
           <View
-            className="w-10 h-10 rounded-lg bg-white border border-gray-300 flex items-center justify-center cursor-pointer hover:bg-gray-50"
+            className="w-10 h-10 rounded-lg bg-white border border-gray-300 flex items-center justify-center cursor-pointer"
             onClick={() => handlePlayerCountChange(-1)}
           >
             <Text className="text-lg font-bold text-gray-600">−</Text>
           </View>
           <Text className="text-2xl font-bold text-orange-500">{playerCount}人</Text>
           <View
-            className="w-10 h-10 rounded-lg bg-white border border-gray-300 flex items-center justify-center cursor-pointer hover:bg-gray-50"
+            className="w-10 h-10 rounded-lg bg-white border border-gray-300 flex items-center justify-center cursor-pointer"
             onClick={() => handlePlayerCountChange(1)}
           >
             <Text className="text-lg font-bold text-gray-600">+</Text>
@@ -95,8 +95,7 @@ export default function MovementSelectorCard({ data, updateData }: MovementSelec
                 'flex-1 py-2 px-3 rounded-lg text-center cursor-pointer transition-all border-2',
                 {
                   'bg-orange-500 text-white border-orange-500': selectedAgeGroup === group.id,
-                  'bg-white text-gray-700 border-gray-300 hover:border-gray-400':
-                    selectedAgeGroup !== group.id,
+                  'bg-white text-gray-700 border-gray-300': selectedAgeGroup !== group.id,
                 }
               )}
               onClick={() => handleAgeGroupChange(group.id)}
@@ -151,7 +150,7 @@ export default function MovementSelectorCard({ data, updateData }: MovementSelec
                         'p-3 rounded-lg cursor-pointer transition-all border-2',
                         {
                           'bg-orange-100 border-orange-500 ring-2 ring-orange-300': isSelected,
-                          'bg-white border-gray-200 hover:border-gray-300': !isSelected,
+                          'bg-white border-gray-200': !isSelected,
                         }
                       )}
                       onClick={() => handleMovementToggle(movement.id)}

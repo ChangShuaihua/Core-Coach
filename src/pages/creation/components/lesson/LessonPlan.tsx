@@ -69,7 +69,7 @@ export default function LessonPlanCard({ data, updateData }: LessonPlanCardProps
               {selectedMovementDetails.map((movement) => (
                 <View
                   key={movement.id}
-                  className="flex items-center gap-2 pb-2 border-b border-blue-100 last:border-b-0"
+                  className="flex items-center gap-2 pb-2 border-b border-blue-100"
                 >
                   <Text className="text-xl">{movement.emoji}</Text>
                   <View className="flex-1">
@@ -125,7 +125,7 @@ export default function LessonPlanCard({ data, updateData }: LessonPlanCardProps
       <View className="flex gap-3">
         <Button
           className={classNames('flex-1 py-3 px-4 rounded-lg font-semibold transition-all', {
-            'bg-orange-500 text-white hover:bg-orange-600': !isLoading,
+            'bg-orange-500 text-white': !isLoading,
             'bg-gray-400 text-white cursor-not-allowed': isLoading,
           })}
           onClick={handleGenerate}
@@ -135,7 +135,7 @@ export default function LessonPlanCard({ data, updateData }: LessonPlanCardProps
         </Button>
 
         <Button
-          className="flex-1 py-3 px-4 rounded-lg font-semibold border-2 border-orange-500 text-orange-500 hover:bg-orange-50 transition-all"
+          className="flex-1 py-3 px-4 rounded-lg font-semibold border-2 border-orange-500 text-orange-500 transition-all"
           onClick={handleExport}
           disabled={isLoading}
         >

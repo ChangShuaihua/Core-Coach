@@ -206,7 +206,11 @@ module.exports = {
       })(),
     },
   },
-  plugins: [],
+  plugins: [
+      require('tailwindcss/plugin')(({ addUtilities }) => {
+      // 禁用 last:、hover: 等特殊选择器的转义，或者用小程序兼容写法
+    })
+  ],
   corePlugins: {
     preflight: false, // 禁用 Tailwind 的基础样式重置，避免和小程序冲突
     backdropFilter: false, // 禁用可能不兼容的特性

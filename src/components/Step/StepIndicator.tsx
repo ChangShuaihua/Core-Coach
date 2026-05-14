@@ -106,7 +106,7 @@ export default function StepIndicator({
                   'bg-orange-500 text-white': isStepActive(index),
                   'bg-orange-400 text-white': isStepCompleted(index),
                   'bg-gray-300 text-gray-600': isStepUpcoming(index),
-                  'cursor-pointer hover:shadow-lg': clickable,
+                  'cursor-pointer': clickable,
                 }
               )}
               onClick={() => handleStepClick(step.id)}
