@@ -95,7 +95,7 @@ export default function ChatPage() {
           className="relative flex-shrink-0"
           style={{ paddingBottom: `${keyboardHeight - 60}px` }}
         >
-          <View className="absolute left-6" style={{ bottom: '100px' }}>
+          <View className="absolute left-6" style={{ top: '-150px' }}>
             <QuickActionsPopup
               visible={showPopup}
               onClose={() => setShowPopup(false)}

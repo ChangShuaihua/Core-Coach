@@ -60,6 +60,8 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
         // 配置 Babel 转译 node_modules 中包含私有字段的包
         chain.module
           .rule('script')
+          .rule('image')
+          .set('parser', { dataUrlCondition: { maxSize: 50 * 1024 } }) // 50KB
           .test(/\.(js|jsx|ts|tsx)$/)
           .include.add(/node_modules[\\/]@tanstack/)
           .end()
