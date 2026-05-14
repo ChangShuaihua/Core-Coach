@@ -1,63 +1,62 @@
-import { useState } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { useState, useEffect } from 'react'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ArrowLeft, Star, Clock, User, Failure } from '@nutui/icons-react-taro'
+import { ArrowLeft, Star } from '@nutui/icons-react-taro'
+import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-
-interface Game {
-  id: number
-  name: string
-  description: string
-  cover: string
-  duration: string
-  players: number
-  category: string
-}
-
-const mockGames: Game[] = [
-  {
-    id: 1,
-    name: '数字猜猜乐',
-    description: '通过提问猜测数字',
-    cover: '',
-    duration: '10分钟',
-    players: 2,
-    category: '益智类',
-  },
-  {
-    id: 2,
-    name: '词语接龙',
-    description: '根据词语最后一字接龙',
-    cover: '',
-    duration: '15分钟',
-    players: 4,
-    category: '语言类',
-  },
-  {
-    id: 3,
-    name: '你画我猜',
-    description: '通过绘画猜词语',
-    cover: '',
-    duration: '20分钟',
-    players: 4,
-    category: '创意类',
-  },
-]
+import type { Game } from '@/data/mock/games'
+import { getFavoriteGames, removeFavoriteGame } from '@/services/gameService'
+import GameDetail from './components/GameDetail'
 
 export default function FavoriteGamesPage() {
-  const [games, setGames] = useState<Game[]>(mockGames)
+  const [games, setGames] = useState<Game[]>([])
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
+
+  useEffect(() => {
+    loadGames()
+  }, [])
+
+  const loadGames = async () => {
+    try {
+      const data = await getFavoriteGames()
+      setGames(data)
+    } catch (error) {
+      console.error('加载游戏失败:', error)
+    }
+  }
 
   const handleRemove = (id: number) => {
     Taro.showModal({
       title: '提示',
       content: '确定取消收藏？',
-      success: (res) => {
+      success: async (res) => {
         if (res.confirm) {
-          setGames(games.filter((g) => g.id !== id))
-          Taro.showToast({ title: '已取消', icon: 'success' })
+          try {
+            await removeFavoriteGame(id)
+            setGames(games.filter((g) => g.id !== id))
+            Taro.showToast({ title: '已取消', icon: 'success' })
+          } catch (error) {
+            console.error('取消收藏失败:', error)
+          }
         }
       },
     })
+  }
+
+  const handleGameClick = (game: Game) => {
+    setSelectedGame(game)
+  }
+
+  const handleBack = () => {
+    if (selectedGame) {
+      setSelectedGame(null)
+    } else {
+      Taro.navigateBack()
+    }
+  }
+
+  if (selectedGame) {
+    return <GameDetail game={selectedGame} />
   }
 
   return (
@@ -65,76 +64,46 @@ export default function FavoriteGamesPage() {
       title="收藏游戏"
       showTabBar={false}
       renderLeft={
-        <View onClick={() => Taro.navigateBack()}>
+        <View onClick={handleBack}>
           <ArrowLeft />
         </View>
       }
     >
-      <View style={{ minHeight: '100vh', backgroundColor: '#f7f8fa', padding: '16px' }}>
+      <View className="p-4 bg-gray-1 min-h-screen">
         {games.length > 0 ? (
           <View>
-            <Text style={{ color: '#86909c', fontSize: '14px', marginBottom: '16px' }}>
-              共 {games.length} 个收藏
-            </Text>
+            <Text className="text-sm text-gray-6 mb-4">共 {games.length} 个收藏</Text>
             {games.map((game) => (
-              <View
-                key={game.id}
-                style={{
-                  backgroundColor: '#fff',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '12px',
-                }}
-              >
-                <View
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px',
-                  }}
-                >
-                  <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#1d2129' }}>
-                    {game.name}
-                  </Text>
-                  <View onClick={() => handleRemove(game.id)}>
-                    <Failure color="#ff6b6b" size={16} />
+              <Card key={game.id} className="mb-3" onClick={() => handleGameClick(game)}>
+                <View className="px-4 py-3">
+                  <View className="flex items-center justify-between mb-2">
+                    <Text className="text-base font-semibold text-gray-10">{game.name}</Text>
+                    <Text
+                      className="text-sm text-red"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemove(game.id)
+                      }}
+                    >
+                      删除
+                    </Text>
+                  </View>
+                  <Text className="text-sm text-gray-5 mb-2">{game.description}</Text>
+                  <View className="flex gap-4">
+                    <Text className="text-xs text-gray-7">{game.duration}</Text>
+                    <Text className="text-xs text-gray-7">{game.players}人</Text>
+                    <View className="px-2 py-1 bg-orange-1 rounded-full">
+                      <Text className="text-xs text-orange-6">{game.category}</Text>
+                    </View>
                   </View>
                 </View>
-                <Text style={{ color: '#a9aeb8', fontSize: '14px', marginBottom: '8px' }}>
-                  {game.description}
-                </Text>
-                <View style={{ display: 'flex', gap: '16px' }}>
-                  <View style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock color="#6b7785" size={12} />
-                    <Text style={{ color: '#6b7785', fontSize: '12px' }}>{game.duration}</Text>
-                  </View>
-                  <View style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <User color="#6b7785" size={12} />
-                    <Text style={{ color: '#6b7785', fontSize: '12px' }}>{game.players}人</Text>
-                  </View>
-                  <View
-                    style={{ padding: '2px 6px', backgroundColor: '#fff3eb', borderRadius: '10px' }}
-                  >
-                    <Text style={{ color: '#fe6601', fontSize: '12px' }}>{game.category}</Text>
-                  </View>
-                </View>
-              </View>
+              </Card>
             ))}
           </View>
         ) : (
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              paddingTop: '100px',
-            }}
-          >
+          <View className="flex flex-col items-center justify-center pt-24">
             <Star color="#c9cdd4" size={48} />
-            <Text style={{ color: '#a9aeb8', fontSize: '16px', marginTop: '16px' }}>
-              暂无收藏游戏
-            </Text>
+            <Text className="text-base text-gray-5 mt-4">暂无收藏游戏</Text>
           </View>
         )}
       </View>
