@@ -10,6 +10,7 @@ interface LayoutProps {
   children: ReactNode
   showTabBar?: boolean // 是否显示底部 TabBar，默认 true
   renderCustomHeader?: Parameters<typeof Header>[0]['renderCustomHeader']
+  renderLeft?: Parameters<typeof Header>[0]['renderLeft']
 }
 
 export default function Layout({
@@ -17,6 +18,7 @@ export default function Layout({
   children,
   showTabBar = true,
   renderCustomHeader,
+  renderLeft,
 }: LayoutProps) {
   const [safeAreaBottom, setSafeAreaBottom] = useState(0)
 
@@ -42,7 +44,7 @@ export default function Layout({
   return (
     <View className="h-screen flex flex-col bg-white overflow-hidden">
       {/* 顶部导航栏 */}
-      <Header title={title} renderCustomHeader={renderCustomHeader} />
+      <Header title={title} renderCustomHeader={renderCustomHeader} renderLeft={renderLeft} />
 
       {/* 页面内容区，底部留出 TabBar 的高度 + 安全区域 */}
       <View

@@ -18,6 +18,7 @@ interface HeaderProps {
     statusBarHeight: number,
     horizontalPadding: number
   ) => ReactNode
+  renderLeft?: ReactNode
 }
 
 // 内部 NavBar，拿到胶囊信息后才渲染
@@ -25,6 +26,7 @@ function NavBar({
   title,
   menuButton,
   renderCustomHeader,
+  renderLeft,
 }: HeaderProps & { menuButton: MenuButtonInfo }) {
   const capsuleBottomY = menuButton.top + menuButton.height
   const capsuleMarginTop = Math.max(menuButton.top - menuButton.statusBarHeight, 0)
@@ -37,6 +39,19 @@ function NavBar({
     <>
       {/* 固定在顶部的导航栏 */}
       <View className="fixed left-0 right-0 top-0 z-800 bg-white">
+        {/* 左侧自定义内容 */}
+        {renderLeft && (
+          <View
+            className="absolute flex items-center"
+            style={{
+              left: '20px',
+              top: `${menuButton.top}px`,
+              height: `${menuButton.height}px`,
+            }}
+          >
+            {renderLeft}
+          </View>
+        )}
         <View
           style={{
             height: `${navHeight}px`,
@@ -72,7 +87,7 @@ function NavBar({
   )
 }
 
-export default function Header({ title, renderCustomHeader }: HeaderProps) {
+export default function Header({ title, renderCustomHeader, renderLeft }: HeaderProps) {
   const [menuButton, setMenuButton] = useState<MenuButtonInfo | null>(null)
 
   useEffect(() => {
@@ -107,5 +122,12 @@ export default function Header({ title, renderCustomHeader }: HeaderProps) {
     return null
   }
 
-  return <NavBar title={title} menuButton={menuButton} renderCustomHeader={renderCustomHeader} />
+  return (
+    <NavBar
+      title={title}
+      menuButton={menuButton}
+      renderCustomHeader={renderCustomHeader}
+      renderLeft={renderLeft}
+    />
+  )
 }
