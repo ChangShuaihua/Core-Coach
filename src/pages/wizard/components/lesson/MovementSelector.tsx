@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { View, Text, Input } from '@tarojs/components'
 import classNames from 'classnames'
-import { MOVEMENTS, AGE_GROUPS, DIFFICULTY_LABELS } from '../../constants/movements'
-import type { Movement } from '../../constants/movements'
+import { MOVEMENTS, AGE_GROUPS, DIFFICULTY_LABELS } from '../../../wizard/constants/movements'
+import type { Movement } from '../../../wizard/constants/movements'
 
 export interface MovementSelectorCardProps {
   data: Record<string, any>

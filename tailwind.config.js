@@ -181,19 +181,23 @@ module.exports = {
     preflight: false,
     backdropFilter: false,
     backgroundClip: false,
-    // 禁用所有伪类/变体相关的插件
-    hoverModifier: false,
-    focusModifier: false,
-    activeModifier: false,
-    disabledModifier: false,
-    groupHover: false,
-    groupFocus: false,
-    focusWithin: false,
-    focusVisible: false,
+    // 禁用所有可能生成转义字符的插件
+    divideOpacity: false,
+    divideStyle: false,
+    divideWidth: false,
+    divideColor: false,
+    // 禁用 space 插件，因为它使用嵌套 calc() 在微信小程序中不支持
+    space: false,
   },
   safelist: [],
-  // 禁用所有变体
+  // 完全禁用所有变体，微信小程序不支持带转义字符的类名
   variants: {
     extend: {},
   },
+  // 禁用所有伪类变体
+  future: {
+    hoverOnlyWhenSupported: false,
+  },
+  // 移除所有变体修饰符
+  separator: '__', // 使用不会产生转义字符的分隔符
 }

@@ -3,15 +3,19 @@ import Taro from '@tarojs/taro'
 import Layout from '@/components/Layout'
 import { useCreationStore } from '@/store'
 
-export default function CreationHomePage() {
+/**
+ * 创作工坊入口页面（Tab 页面）
+ * 用户选择创作类型：游戏生成、教案生成、视频分析
+ */
+export default function CreationPage() {
   const setMode = useCreationStore((state) => state.setMode)
 
   const handleModeSelect = (mode: 'game' | 'lesson' | 'video') => {
     // 存储选择的模式到 Store
     setMode(mode)
-    // 跳转到创作流程页面
+    // 跳转到创作向导页面
     Taro.navigateTo({
-      url: '/pages/creation-wizard/index',
+      url: '/pages/wizard/index',
     })
   }
 

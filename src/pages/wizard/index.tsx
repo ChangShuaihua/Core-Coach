@@ -2,12 +2,16 @@ import { useEffect } from 'react'
 import { Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Layout from '@/components/Layout'
-import WizardPage from '@/components/Step/WizardPage'
-import { GAME_CREATION_CONFIG } from '@/pages/creation/configs/game'
-import { LESSON_GENERATION_CONFIG } from '@/pages/creation/configs/lesson'
-import type { WizardConfig } from '@/pages/creation/types/wizard'
+import Wizard from '@/components/Wizard'
 import { useCreationStore } from '@/store'
+import { GAME_CREATION_CONFIG } from './configs/game'
+import { LESSON_GENERATION_CONFIG } from './configs/lesson'
+import type { WizardConfig } from './types/wizard'
 
+/**
+ * 创作向导页面（普通页面）
+ * 通用多步骤流程，根据 mode 显示不同的配置
+ */
 export default function CreationWizardPage() {
   const { mode, isValid, clearMode } = useCreationStore()
 
@@ -21,7 +25,7 @@ export default function CreationWizardPage() {
         duration: 2000,
       })
       Taro.switchTab({
-        url: '/pages/creation-home/index',
+        url: '/pages/creation/index',
       })
     }
   }, [isValid])
@@ -56,7 +60,7 @@ export default function CreationWizardPage() {
     // 返回创作工坊首页
     setTimeout(() => {
       Taro.switchTab({
-        url: '/pages/creation-home/index',
+        url: '/pages/creation/index',
       })
     }, 2000)
   }
@@ -70,7 +74,7 @@ export default function CreationWizardPage() {
           // 用户确认取消时清除 Store
           clearMode()
           Taro.switchTab({
-            url: '/pages/creation-home/index',
+            url: '/pages/creation/index',
           })
         }
       },
@@ -92,7 +96,7 @@ export default function CreationWizardPage() {
         </Text>
       }
     >
-      <WizardPage
+      <Wizard
         config={config}
         onFinish={handleFinish}
         finishButtonText={mode === 'lesson' ? '生成教案' : '生成游戏'}

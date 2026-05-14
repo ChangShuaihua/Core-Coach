@@ -1,6 +1,6 @@
 import { View, Text, Button } from '@tarojs/components'
 import classNames from 'classnames'
-import { MOVEMENTS, AGE_GROUPS } from '../../constants/movements'
+import { MOVEMENTS, AGE_GROUPS } from '../../../wizard/constants/movements'
 
 export interface LessonPlanCardProps {
   data: Record<string, any>
