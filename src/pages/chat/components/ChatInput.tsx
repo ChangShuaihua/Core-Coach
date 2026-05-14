@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Input, Text } from '@tarojs/components'
+import { View, Textarea, Text } from '@tarojs/components'
 import SkillButton from './SkillButton'
 
 interface ChatInputProps {
@@ -25,30 +25,30 @@ const ChatInput = ({ onSend, onSkillClick }: ChatInputProps) => {
       )}
 
       <View className="px-4 pb-3 bg-white flex flex-row items-center gap-2">
-        {/* 2. 输入框容器 */}
         <View
-          className="shadow-md flex-1 rounded-full px-4 h-10 flex items-center"
-          style={{ border: '1px solid #d1d5db' }}
+          className="shadow-md flex-1 rounded-2xl px-4 py-3"
+          style={{
+            border: '1px solid #d1d5db',
+          }}
         >
-          <Input
+          <Textarea
             value={value}
             onInput={(e) => setValue(e.detail.value)}
             placeholder="发送消息..."
             placeholderClass="text-gray-400"
-            confirmType="send"
-            onConfirm={handleSend}
-            adjustPosition
-            cursorSpacing={20}
-            className="flex-1 text-sm h-full bg-transparent"
+            adjustPosition={false}
+            showConfirmBar={false}
+            autoHeight
+            maxlength={2000}
+            className="text-sm bg-transparent w-full"
+            style={{ minHeight: '50px', maxHeight: '98px', fontSize: '16px' }}
           />
         </View>
 
         <View
           onClick={handleSend}
-          className="shadow w-7 h-7 rounded-full flex items-center justify-center"
-          style={{
-            backgroundColor: value.trim() ? '#f97316' : '#d1d5db',
-          }}
+          className="shadow w-7 rounded-xl flex items-center justify-center"
+          style={{ backgroundColor: value.trim() ? '#f97316' : '#d1d5db', minHeight: '70px' }}
         >
           <Text style={{ color: '#ffffff', fontSize: '18px', fontWeight: 'bold' }}>↑</Text>
         </View>

@@ -77,9 +77,12 @@ importers:
       axios:
         specifier: ^1.16.0
         version: 1.16.0
+<<<<<<< HEAD
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
+=======
+>>>>>>> db11f0247a0a80213bee8df39f67cc750a353d5d
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -8232,7 +8235,11 @@ snapshots:
   '@isaacs/cliui@8.0.2':
     dependencies:
       string-width: 5.1.2
+<<<<<<< HEAD
       string-width-cjs: string-width@4.2.3
+=======
+      string-width-cjs: string-width@4.2.0
+>>>>>>> db11f0247a0a80213bee8df39f67cc750a353d5d
       strip-ansi: 7.2.0
       strip-ansi-cjs: strip-ansi@6.0.1
       wrap-ansi: 8.1.0

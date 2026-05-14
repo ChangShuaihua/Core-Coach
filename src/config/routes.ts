@@ -17,4 +17,9 @@ export const ROUTES = {
   CHAT: '/pages/chat/index',
   CREATION: '/pages/creation/index',
   PROFILE: '/pages/profile/index',
+  EDIT_INFO: '/pages/edit-info/index',
+  ACCOUNT_SETTINGS: '/pages/account-settings/index',
+  ABOUT: '/pages/about/index',
+  FAVORITE_GAMES: '/pages/favorite-games/index',
+  FAVORITE_LESSONS: '/pages/favorite-lessons/index',
 } as const

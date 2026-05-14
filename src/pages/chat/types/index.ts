@@ -23,3 +23,12 @@ export interface ChatState {
   isLoading: boolean // 是否正在加载
   error: string | null // 错误信息
 }
+
+// 会话接口
+export interface Conversation {
+  id: string // 会话唯一ID
+  title: string // 会话标题（取第一条用户消息）
+  lastMessage: string // 最后一条消息预览
+  updatedAt: number // 最后更新时间戳
+  messageCount: number // 消息数量
+}
