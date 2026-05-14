@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "strict": true,
-    "target": "es2017",
+    "target": "es2015",
+    "useDefineForClassFields": false,
     "module": "commonjs",
     "removeComments": false,
     "preserveConstEnums": true,

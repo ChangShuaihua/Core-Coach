@@ -3,14 +3,14 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, Clock, User, Star } from '@nutui/icons-react-taro'
 import Layout from '@/components/Layout'
 import type { Game } from '@/data/mock/games'
-import { mockGamesDetail } from '@/data/mock/games'
+import { mockGames } from '@/data/mock/games'
 
 interface GameDetailProps {
   game: Game
 }
 
 export default function GameDetail({ game }: GameDetailProps) {
-  const detailGame = mockGamesDetail[game.id] || game
+  const detailGame = mockGames.find((g) => g.id === game.id) || game
 
   return (
     <Layout
@@ -42,7 +42,7 @@ export default function GameDetail({ game }: GameDetailProps) {
             </View>
           </View>
 
-          <Text className="text-base text-gray-7 leading-relaxed">{detailGame.description}</Text>
+          <Text className="text-base text-gray-7 leading-relaxed">{detailGame.allDescription}</Text>
         </View>
 
         <View className="bg-white rounded-xl p-6">
