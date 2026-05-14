@@ -21,7 +21,7 @@ export default defineAppConfig({
         text: '问答',
       },
       {
-        pagePath: 'pages/creation/index',
+        pagePath: 'pages/creation-home/index',
         text: '创作',
       },
       {

@@ -11,8 +11,19 @@ import type { WizardConfig } from '../types/wizard'
  */
 export const LESSON_GENERATION_CONFIG: WizardConfig = {
   steps: [
-    { id: 'movement', label: '选动作', description: '选择教学动作和参数' },
-    { id: 'lesson', label: '生成教案', description: '预览生成的教案' },
+    {
+      id: 'movement',
+      label: '选动作',
+      description: '选择教学动作和参数',
+      requiredFields: ['selectedMovements', 'playerCount', 'difficulty'],
+      validationMessage: '请完成动作选择和参数设置',
+    },
+    {
+      id: 'lesson',
+      label: '生成教案',
+      description: '预览生成的教案',
+      // 预览步骤不需要验证
+    },
   ],
   contentComponents: [MovementSelectorCard, LessonPlanCard],
 }

@@ -14,10 +14,32 @@ import type { WizardConfig } from '../types/wizard'
  */
 export const GAME_CREATION_CONFIG: WizardConfig = {
   steps: [
-    { id: 'template', label: '选模板', description: '选择游戏模板' },
-    { id: 'params', label: '参数设置', description: '配置游戏参数' },
-    { id: 'preview', label: '生成结果', description: '预览游戏规则' },
-    { id: 'music', label: '音乐音效', description: '配置音乐音效' },
+    {
+      id: 'template',
+      label: '选模板',
+      description: '选择游戏模板',
+      requiredFields: ['selectedTemplate'],
+      validationMessage: '请选择一个游戏模板',
+    },
+    {
+      id: 'params',
+      label: '参数设置',
+      description: '配置游戏参数',
+      requiredFields: ['gameName', 'age', 'playerCount'],
+      validationMessage: '请完成游戏参数设置',
+    },
+    {
+      id: 'preview',
+      label: '生成结果',
+      description: '预览游戏规则',
+      // 预览步骤不需要验证，因为是展示生成的结果
+    },
+    {
+      id: 'music',
+      label: '音乐音效',
+      description: '配置音乐音效',
+      // 音乐设置是可选的，不需要验证
+    },
   ],
   contentComponents: [
     TemplateSelectorCard,

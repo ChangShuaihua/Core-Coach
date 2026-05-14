@@ -17,7 +17,7 @@ const TAB_LIST = [
   {
     key: 'creation',
     text: '创作',
-    path: ROUTES.CREATION,
+    path: ROUTES.CREATION_HOME,
     icon: <Edit size="18" color="#999" />,
     activeIcon: <Edit size="20" color="#fe6601" />,
   },
