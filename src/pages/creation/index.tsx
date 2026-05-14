@@ -1,8 +1,8 @@
 import { useRouter } from '@tarojs/taro'
 import Layout from '@/components/Layout'
 import WizardPage from '@/components/Step/WizardPage'
-import { GAME_CREATION_CONFIG } from './configs/gameCreationConfig'
-import { LESSON_GENERATION_CONFIG } from './configs/lessonGenerationConfig'
+import { GAME_CREATION_CONFIG } from './configs/game'
+import { LESSON_GENERATION_CONFIG } from './configs/lesson'
 import type { WizardConfig } from './types/wizard'
 
 export default function CreationPage() {

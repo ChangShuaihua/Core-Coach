@@ -1,4 +1,13 @@
-import type { GameTemplate } from '../components/TemplateSelector'
+export interface GameTemplate {
+  id: string
+  name: string
+  description: string
+  image?: string
+  emoji?: string
+  category: 'outdoor' | 'castle' | 'space' | 'ocean'
+  tags?: string[]
+  isNew?: boolean
+}
 
 export const GAME_TEMPLATES: GameTemplate[] = [
   {
