@@ -1,4 +1,3 @@
-// tailwind.config.js
 module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
   theme: {
@@ -176,46 +175,42 @@ module.exports = {
         enter: 'var(--animation-timing-function-enter)',
         leave: 'var(--animation-timing-function-leave)',
       },
+      spacing: (() => {
+        const map = {}
+        // Tailwind spacing 1 ~ 100 对应 px 单位（Taro 自动转 rpx）
+        for (let i = 1; i <= 100; i++) {
+          map[i] = `${i * 4}px` // 1 -> 4px, 2 -> 8px ...
+        }
+        return map
+      })(),
+      width: (() => {
+        const map = {}
+        for (let i = 1; i <= 100; i++) {
+          map[i] = `${i * 4}px`
+        }
+        return map
+      })(),
+      height: (() => {
+        const map = {}
+        for (let i = 1; i <= 100; i++) {
+          map[i] = `${i * 4}px` // 12 -> 48px
+        }
+        return map
+      })(),
+      fontSize: (() => {
+        const map = {}
+        for (let i = 12; i <= 48; i += 2) {
+          map[i] = `${i}px` // 16 -> 16px
+        }
+        return map
+      })(),
     },
   },
   plugins: [],
-  // Taro 小程序需要的配置
   corePlugins: {
     preflight: false, // 禁用 Tailwind 的基础样式重置，避免和小程序冲突
-  },
-  extend: {
-    spacing: (() => {
-      const map = {}
-      // Tailwind spacing 1 ~ 100 对应 px 单位（Taro 自动转 rpx）
-      for (let i = 1; i <= 100; i++) {
-        map[i] = `${i * 4}px` // 1 -> 4px, 2 -> 8px ...
-      }
-      return map
-    })(),
-    width: (() => {
-      const map = {}
-      for (let i = 1; i <= 100; i++) {
-        map[i] = `${i * 4}px`
-      }
-      return map
-    })(),
-    height: (() => {
-      const map = {}
-      for (let i = 1; i <= 100; i++) {
-        map[i] = `${i * 4}px` // 12 -> 48px
-      }
-      return map
-    })(),
-    fontSize: (() => {
-      const map = {}
-      for (let i = 12; i <= 48; i += 2) {
-        map[i] = `${i}px` // 16 -> 16px
-      }
-      return map
-    })(),
+    backdropFilter: false, // 禁用可能不兼容的特性
+    backgroundClip: false,
   },
   safelist: [],
-  variants: {
-    extend: {},
-  },
 }
