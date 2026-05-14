@@ -27,7 +27,7 @@ export default function DifficultySelectorCard({ data, updateData }: DifficultyS
         <Text className="text-sm text-gray-600">根据学生水平选择合适的难度</Text>
       </View>
 
-      <View className="space-y-3">
+      <View className="flex flex-col gap-3">
         {DIFFICULTIES.map((difficulty) => {
           const isSelected = selectedDifficulty === difficulty.id
 

@@ -36,7 +36,7 @@ export default function MusicSettings({
   }
 
   return (
-    <View className="w-full bg-white rounded-lg p-4 space-y-4">
+    <View className="w-full bg-white rounded-lg p-4 flex flex-col gap-4">
       {/* Header */}
       <View className="mb-4">
         <Text className="text-lg font-semibold text-gray-900">音乐音效设置</Text>
@@ -83,7 +83,7 @@ export default function MusicSettings({
 
         {/* Sound Effects List */}
         {musicSettings?.soundEffects && musicSettings.soundEffects.length > 0 && (
-          <View className="mt-3 space-y-2">
+          <View className="mt-3 flex flex-col gap-2">
             {musicSettings.soundEffects.map((effect, index) => (
               <View
                 key={index}
@@ -99,7 +99,7 @@ export default function MusicSettings({
       {/* Volume Control */}
       <View className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
         <Text className="text-sm font-semibold text-gray-900 mb-3">音量设置</Text>
-        <View className="space-y-3">
+        <View className="flex flex-col gap-3">
           <View className="flex items-center justify-between">
             <Text className="text-sm text-gray-700">背景音乐音量</Text>
             <View className="flex items-center gap-2">

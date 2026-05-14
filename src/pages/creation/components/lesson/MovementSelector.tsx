@@ -191,7 +191,7 @@ export default function MovementSelectorCard({ data, updateData }: MovementSelec
       {selectedMovements.length > 0 && (
         <View className="p-4 bg-blue-50 rounded-lg border border-blue-200">
           <Text className="text-sm font-semibold text-gray-900 mb-3">参数总结</Text>
-          <View className="space-y-2">
+          <View className="flex flex-col gap-2">
             <View className="flex justify-between text-xs">
               <Text className="text-gray-600">参与人数：</Text>
               <Text className="font-medium text-gray-900">{playerCount}人</Text>

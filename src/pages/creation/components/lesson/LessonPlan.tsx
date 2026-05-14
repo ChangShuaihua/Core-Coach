@@ -39,11 +39,11 @@ export default function LessonPlanCard({ data, updateData }: LessonPlanCardProps
       </View>
 
       {/* 教案配置总结 */}
-      <View className="space-y-4 mb-6">
+      <View className="flex flex-col gap-4 mb-6">
         {/* 基本信息 */}
         <View className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
           <Text className="text-sm font-semibold text-gray-900 mb-3">基本信息</Text>
-          <View className="space-y-2">
+          <View className="flex flex-col gap-2">
             <View className="flex justify-between">
               <Text className="text-sm text-gray-600">参与人数：</Text>
               <Text className="text-sm font-medium text-gray-900">👥 {playerCount}人</Text>
@@ -65,7 +65,7 @@ export default function LessonPlanCard({ data, updateData }: LessonPlanCardProps
         {selectedMovementDetails.length > 0 && (
           <View className="bg-blue-50 rounded-lg p-4 border border-blue-200">
             <Text className="text-sm font-semibold text-gray-900 mb-3">教学动作列表</Text>
-            <View className="space-y-2">
+            <View className="flex flex-col gap-2">
               {selectedMovementDetails.map((movement) => (
                 <View
                   key={movement.id}
@@ -86,7 +86,7 @@ export default function LessonPlanCard({ data, updateData }: LessonPlanCardProps
         {data.lessonGenerated && (
           <View className="bg-purple-50 rounded-lg p-4 border border-purple-200">
             <Text className="text-sm font-semibold text-gray-900 mb-3">📋 生成的教案内容</Text>
-            <View className="space-y-3">
+            <View className="flex flex-col gap-3">
               <View>
                 <Text className="text-xs font-semibold text-gray-700 mb-1">训练主题</Text>
                 <Text className="text-xs text-gray-600">基础跑酷动作组合训练</Text>

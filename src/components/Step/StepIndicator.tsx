@@ -56,7 +56,7 @@ export default function StepIndicator({
           text: 'text-xs',
           label: 'text-xs',
           description: 'text-xs',
-          line: 'h-0.5',
+          line: 'h-1',
         }
       case 'large':
         return {
@@ -73,7 +73,7 @@ export default function StepIndicator({
           text: 'text-sm',
           label: 'text-sm',
           description: 'text-xs',
-          line: 'h-0.5',
+          line: 'h-1',
         }
     }
   }
@@ -141,11 +141,13 @@ export default function StepIndicator({
             {/* Connecting Line */}
             {index < steps.length - 1 && (
               <View
-                className={classNames(sizeClasses.line, 'absolute top-5 left-1/2 w-full', {
+                className={classNames(sizeClasses.line, 'absolute top-5 w-full', {
                   'bg-orange-400': isStepCompleted(index),
                   'bg-gray-300': !isStepCompleted(index),
                 })}
                 style={{
+                  left: '50%',
+                  transform: 'translateX(-50%)',
                   width: `calc(100% - ${sizeClasses.circle === 'w-10 h-10' ? '40px' : sizeClasses.circle === 'w-8 h-8' ? '32px' : '56px'})`,
                 }}
               />
@@ -168,7 +170,7 @@ export default function StepIndicator({
               />
               {index < steps.length - 1 && (
                 <View
-                  className={classNames('h-0.5 flex-1 mx-1', {
+                  className={classNames('h-1 flex-1 mx-1', {
                     'bg-orange-400': isStepCompleted(index),
                     'bg-gray-300': !isStepCompleted(index),
                   })}

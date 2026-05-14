@@ -32,7 +32,7 @@ export default function ResultPreviewCard({ data, updateData }: ResultPreviewCar
       </View>
 
       {/* Preview Cards */}
-      <View className="space-y-4 mb-6">
+      <View className="flex flex-col gap-4 mb-6">
         {/* Template Info */}
         {selectedTemplate && (
           <View className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
@@ -55,7 +55,7 @@ export default function ResultPreviewCard({ data, updateData }: ResultPreviewCar
         {Object.keys(params).length > 0 && (
           <View className="bg-purple-50 rounded-lg p-4 border border-purple-200">
             <Text className="text-sm font-semibold text-gray-900 mb-3">游戏参数</Text>
-            <View className="space-y-2">
+            <View className="flex flex-col gap-2">
               {params.gameName && (
                 <View className="flex justify-between">
                   <Text className="text-sm text-gray-600">游戏名称：</Text>

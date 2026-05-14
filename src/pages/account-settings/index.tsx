@@ -8,7 +8,7 @@ import Layout from '@/components/Layout'
 
 export default function AccountSettingsPage() {
   const [showPopup, setShowPopup] = useState(false)
-  const [currentPassword] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
   const [passwordData, setPasswordData] = useState({
     password: '',
     confirmPassword: '',
