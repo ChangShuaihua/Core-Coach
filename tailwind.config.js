@@ -15,7 +15,6 @@ module.exports = {
           8: 'var(--gray-8)',
           9: 'var(--gray-9)',
           10: 'var(--gray-10)',
-          // Tailwind 标准命名（可选，兼容 Tailwind 默认习惯）
           100: 'var(--gray-1)',
           200: 'var(--gray-2)',
           300: 'var(--gray-3)',
@@ -175,46 +174,26 @@ module.exports = {
         enter: 'var(--animation-timing-function-enter)',
         leave: 'var(--animation-timing-function-leave)',
       },
-      spacing: (() => {
-        const map = {}
-        // Tailwind spacing 1 ~ 100 对应 px 单位（Taro 自动转 rpx）
-        for (let i = 1; i <= 100; i++) {
-          map[i] = `${i * 4}px` // 1 -> 4px, 2 -> 8px ...
-        }
-        return map
-      })(),
-      width: (() => {
-        const map = {}
-        for (let i = 1; i <= 100; i++) {
-          map[i] = `${i * 4}px`
-        }
-        return map
-      })(),
-      height: (() => {
-        const map = {}
-        for (let i = 1; i <= 100; i++) {
-          map[i] = `${i * 4}px` // 12 -> 48px
-        }
-        return map
-      })(),
-      fontSize: (() => {
-        const map = {}
-        for (let i = 12; i <= 48; i += 2) {
-          map[i] = `${i}px` // 16 -> 16px
-        }
-        return map
-      })(),
     },
   },
-  plugins: [
-      require('tailwindcss/plugin')(({ addUtilities }) => {
-      // 禁用 last:、hover: 等特殊选择器的转义，或者用小程序兼容写法
-    })
-  ],
+  plugins: [],
   corePlugins: {
-    preflight: false, // 禁用 Tailwind 的基础样式重置，避免和小程序冲突
-    backdropFilter: false, // 禁用可能不兼容的特性
+    preflight: false,
+    backdropFilter: false,
     backgroundClip: false,
+    // 禁用所有伪类/变体相关的插件
+    hoverModifier: false,
+    focusModifier: false,
+    activeModifier: false,
+    disabledModifier: false,
+    groupHover: false,
+    groupFocus: false,
+    focusWithin: false,
+    focusVisible: false,
   },
   safelist: [],
+  // 禁用所有变体
+  variants: {
+    extend: {},
+  },
 }
