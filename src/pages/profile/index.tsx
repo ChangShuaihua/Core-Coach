@@ -10,12 +10,12 @@ import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
 import type { UserInfo } from './types'
 
 export default function ProfilePage() {
-  const { clearToken } = useUserStore()
+  const { clearToken, userInfo: storeUserInfo } = useUserStore()
 
-  const userInfo: UserInfo = {
-    id: 1,
-    uid: '10086',
-    nickname: '跑酷教练大鹏',
+  const userInfo: UserInfo = storeUserInfo ?? {
+    id: 0,
+    uid: '',
+    nickname: '未登录',
     avatar: '',
   }
 
@@ -55,7 +55,6 @@ export default function ProfilePage() {
             hoverStayTime={100}
             onClick={handleLogout}
           >
-            {/* 左侧：图标 + 文字 */}
             <View className="flex flex-row items-center">
               <View className="mr-3 flex">{LOGOUT_MENU_ITEM.icon}</View>
               <Text className="text-sm" style={{ color: '#ee0a24' }}>
@@ -63,7 +62,6 @@ export default function ProfilePage() {
               </Text>
             </View>
 
-            {/* 右侧：箭头 */}
             <ArrowRight size={16} color="#c8c9cc" />
           </View>
         </Card>
