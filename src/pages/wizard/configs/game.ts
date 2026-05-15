@@ -1,7 +1,7 @@
-import MusicSettingsCard from '../../creation/components/MusicSettings'
 import ParamSettingsCard from '../components/game/ParamSettings'
 import ResultPreviewCard from '../components/game/ResultPreview'
 import TemplateSelectorCard from '../components/game/TemplateSelector'
+import MusicSettingsCard from '../components/MusicSettings'
 import type { WizardConfig } from '../types/wizard'
 
 /**
