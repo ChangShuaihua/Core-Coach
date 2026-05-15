@@ -12,13 +12,13 @@ interface RequestOptions {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   data?: Record<string, any>
   header?: Record<string, string>
-  /** 是否需要携带 token，默认 true */
+  // 是否需要携带 token，默认 true
   withToken?: boolean
-  /** 是否显示 loading，默认 true */
+  // 是否显示 loading，默认 true
   showLoading?: boolean
-  /** 失败重试次数，默认 0（不重试） */
+  // 失败重试次数，默认 0（不重试）
   retryCount?: number
-  /** 是否为内部重试调用，跳过 loading 展示 */
+  // 是否为内部重试调用，跳过 loading 展示
   _isRetry?: boolean
 }
 

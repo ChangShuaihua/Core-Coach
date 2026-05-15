@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { View, Text, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { Marshalling, Eye } from '@nutui/icons-react-taro'
 import { Button, Image } from '@nutui/nutui-react-taro'
+import { wechatLogin, accountLogin } from '@/api/login'
 import LOGO from '@/assets/images/logo.png'
+import { validateLogin } from '@/schemas/user'
 import { useUserStore } from '@/store/useUserStore'
 
 type LoginMode = 'wechat' | 'account'
@@ -11,37 +14,31 @@ export default function Login() {
   const [mode, setMode] = useState<LoginMode>('wechat')
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
-  const { setToken } = useUserStore()
+  const [showPassword, setShowPassword] = useState(false)
+  const { setToken, setUserInfo } = useUserStore()
 
-  // 微信登录
-  const handleWechatLogin = () => {
-    Taro.showLoading({ title: '登录中...' })
-    // TODO: 调用微信登录接口
-    setTimeout(() => {
-      Taro.hideLoading()
-      setToken('mock-token')
+  const handleWechatLogin = async () => {
+    try {
+      const res = await wechatLogin()
+      setToken(res.token)
+      setUserInfo(res.userInfo)
       Taro.switchTab({ url: '/pages/chat/index' })
-    }, 1000)
+    } catch {}
   }
 
-  // 账号密码登录
-  const handleAccountLogin = () => {
-    if (!account.trim()) {
-      Taro.showToast({ title: '请输入账号或邮箱', icon: 'none' })
-      return
-    }
-    if (!password.trim()) {
-      Taro.showToast({ title: '请输入密码', icon: 'none' })
+  const handleAccountLogin = async () => {
+    const error = validateLogin({ account, password })
+    if (error) {
+      Taro.showToast({ title: error, icon: 'none' })
       return
     }
 
-    Taro.showLoading({ title: '登录中...' })
-    // TODO: 调用账号密码登录接口
-    setTimeout(() => {
-      Taro.hideLoading()
-      setToken('mock-token')
+    try {
+      const res = await accountLogin(account, password)
+      setToken(res.token)
+      setUserInfo(res.userInfo)
       Taro.switchTab({ url: '/pages/chat/index' })
-    }, 1000)
+    } catch {}
   }
 
   return (
@@ -78,7 +75,7 @@ export default function Login() {
         <View className="w-full">
           <View className="mb-4">
             <Input
-              placeholder="请输入账号或邮箱"
+              placeholder="请输入账号"
               placeholderClass="text-gray-400"
               value={account}
               onInput={(e) => setAccount(e.detail.value)}
@@ -90,19 +87,32 @@ export default function Login() {
             />
           </View>
 
-          <View className="mb-4">
+          <View className="mb-4" style={{ position: 'relative' }}>
             <Input
               placeholder="请输入密码"
               placeholderClass="text-gray-400"
-              password
+              password={!showPassword}
               value={password}
               onInput={(e) => setPassword(e.detail.value)}
-              className="text-sm px-6 py-3"
+              className="text-sm pl-6 pr-9 py-3"
               style={{
                 border: '2px solid #333',
                 borderRadius: '24px',
               }}
             />
+            <View
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '24rpx',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: '36rpx',
+                lineHeight: 1,
+              }}
+            >
+              <Text>{showPassword ? <Eye /> : <Marshalling />}</Text>
+            </View>
           </View>
 
           <Button
