@@ -8,6 +8,13 @@ import type { Game } from '@/data/mock/games'
 import { getFavoriteGames, removeFavoriteGame } from '@/services/gameService'
 import GameDetail from './components/GameDetail'
 
+const truncateDescription = (text: string, maxLength: number = 10): string => {
+  if (text.length <= maxLength) {
+    return text
+  }
+  return text.slice(0, maxLength) + '...'
+}
+
 export default function FavoriteGamesPage() {
   const [games, setGames] = useState<Game[]>([])
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
@@ -88,7 +95,9 @@ export default function FavoriteGamesPage() {
                       删除
                     </Text>
                   </View>
-                  <Text className="text-sm text-gray-5 mb-2">{game.description}</Text>
+                  <Text className="text-sm text-gray-5 mb-2">
+                    {truncateDescription(game.allDescription)}
+                  </Text>
                   <View className="flex gap-4">
                     <Text className="text-xs text-gray-7">{game.duration}</Text>
                     <Text className="text-xs text-gray-7">{game.players}人</Text>
