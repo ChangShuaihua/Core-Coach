@@ -9,9 +9,10 @@ import { mockGames } from '@/data/mock/games'
 
 interface GameDetailProps {
   game: Game
+  onBack?: () => void
 }
 
-export default function GameDetail({ game }: GameDetailProps) {
+export default function GameDetail({ game, onBack }: GameDetailProps) {
   const detailGame = mockGames.find((g) => g.id === game.id) || game
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -98,7 +99,7 @@ export default function GameDetail({ game }: GameDetailProps) {
       title="游戏详情"
       showTabBar={false}
       renderLeft={
-        <View onClick={() => Taro.navigateBack()}>
+        <View onClick={() => (onBack ? onBack() : Taro.navigateBack())}>
           <ArrowLeft />
         </View>
       }
@@ -111,12 +112,7 @@ export default function GameDetail({ game }: GameDetailProps) {
               <Text className="text-sm text-orange-6">{detailGame.category}</Text>
             </View>
           </View>
-
           <View className="flex gap-6 mb-4">
-            <View className="flex items-center gap-2">
-              <Clock size={16} className="text-gray-5" />
-              <Text className="text-sm text-gray-6">{detailGame.duration}</Text>
-            </View>
             <View className="flex items-center gap-2">
               <User size={16} className="text-gray-5" />
               <Text className="text-sm text-gray-6">{detailGame.players}人</Text>

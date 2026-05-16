@@ -63,7 +63,7 @@ export default function FavoriteGamesPage() {
   }
 
   if (selectedGame) {
-    return <GameDetail game={selectedGame} />
+    return <GameDetail game={selectedGame} onBack={handleBack} />
   }
 
   return (
@@ -99,7 +99,6 @@ export default function FavoriteGamesPage() {
                     {truncateDescription(game.allDescription)}
                   </Text>
                   <View className="flex gap-4">
-                    <Text className="text-xs text-gray-7">{game.duration}</Text>
                     <Text className="text-xs text-gray-7">{game.players}人</Text>
                     <View className="px-2 py-1 bg-orange-1 rounded-full">
                       <Text className="text-xs text-orange-6">{game.category}</Text>
