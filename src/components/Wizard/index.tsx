@@ -10,8 +10,8 @@ export interface SkillStepConfig {
   steps: StepConfig[]
   resultCard?: {
     title: string
-    template: string
-    actions?: Array<{ label: string; action: string }>
+    previewTemplate: string
+    actions?: Array<{ label: string; action: string; api?: string }>
   }
 }
 
@@ -23,34 +23,17 @@ export interface WizardProps {
 /**
  * Wizard - 动态多步骤向导容器组件
  *
- * 职责：
- * - 管理当前步骤索引
- * - 管理表单数据状态
- * - 验证当前步骤的数据
- * - 处理上一步/下一步/完成逻辑
- * - 协调 StepIndicator 和 StepRenderer 的交互
+ * 根据 JSON 配置动态渲染不同的组件
+ *
+ * 支持的组件类型：
+ * - selector: 道具/动作选择（通用选择器）
+ * - template_grid: 模板选择
+ * - param_settings: 参数设置
+ * - upload: 文件上传
  */
 export default function Wizard({ stepConfig, onFinish }: WizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
-
-  // 初始化默认值
-  const initializeDefaultValues = () => {
-    const defaultData: Record<string, any> = {}
-
-    stepConfig.steps?.forEach((step) => {
-      if (step.type === 'form' && step.fields) {
-        step.fields.forEach((field) => {
-          if (field.default !== undefined) {
-            defaultData[field.key] = field.default
-          }
-        })
-      }
-    })
-
-    return defaultData
-  }
-
-  const [data, setData] = useState<Record<string, any>>(initializeDefaultValues())
+  const [data, setData] = useState<Record<string, any>>({})
 
   const steps = stepConfig.steps || []
   const currentStep = steps[currentStepIndex]
@@ -73,34 +56,11 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
 
     // 根据步骤类型进行验证
     switch (currentStep.type) {
-      // form 类型：检查所有必填字段
-      case 'form': {
-        if (!currentStep.fields) return true
-
-        for (const field of currentStep.fields) {
-          // 如果字段标记为必填或表单本身必填，则检查
-          if (field.required !== false) {
-            const fieldValue = data[field.key]
-            if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
-              Taro.showToast({
-                title: `请填写${field.label}`,
-                icon: 'none',
-                duration: 2000,
-              })
-              return false
-            }
-          }
-        }
-        return true
-      }
-
-      // selector 类型：检查是否有选择
       case 'selector': {
         const fieldKey = `step_${currentStep.step}`
         const selectedValue = data[fieldKey]
 
         if (currentStep.multiple) {
-          // 多选：检查是否有选择
           if (!Array.isArray(selectedValue) || selectedValue.length === 0) {
             Taro.showToast({
               title: `请选择${currentStep.title}`,
@@ -109,7 +69,6 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
             })
             return false
           }
-          // 检查是否超过最大选择数
           if (currentStep.maxSelect && selectedValue.length > currentStep.maxSelect) {
             Taro.showToast({
               title: `最多只能选择${currentStep.maxSelect}项`,
@@ -119,7 +78,6 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
             return false
           }
         } else {
-          // 单选：检查是否有选择
           if (!selectedValue) {
             Taro.showToast({
               title: `请选择${currentStep.title}`,
@@ -132,7 +90,6 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
         return true
       }
 
-      // template_grid 类型：检查是否有选择
       case 'template_grid': {
         const fieldKey = `step_${currentStep.step}`
         if (!data[fieldKey]) {
@@ -146,31 +103,26 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
         return true
       }
 
-      // radio_group 类型：检查是否有选择
-      case 'radio_group': {
-        const fieldKey = `step_${currentStep.step}`
-        if (!data[fieldKey]) {
-          Taro.showToast({
-            title: `请选择${currentStep.title}`,
-            icon: 'none',
-            duration: 2000,
-          })
-          return false
+      case 'param_settings': {
+        const requiredFields = ['gameName', 'age', 'playerCount', 'gameType']
+        for (const field of requiredFields) {
+          if (!data[field]) {
+            Taro.showToast({
+              title: `请完成所有必填项`,
+              icon: 'none',
+              duration: 2000,
+            })
+            return false
+          }
         }
         return true
       }
 
-      // slider 类型：通常不需要验证，但可以检查是否有值
-      case 'slider': {
-        return true
-      }
-
-      // textarea 类型：检查是否有内容
-      case 'textarea': {
+      case 'upload': {
         const fieldKey = `step_${currentStep.step}`
         if (!data[fieldKey]) {
           Taro.showToast({
-            title: `请输入${currentStep.title}`,
+            title: `请上传${currentStep.title}`,
             icon: 'none',
             duration: 2000,
           })
@@ -190,6 +142,7 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
     }
 
     if (isLastStep) {
+      console.log('📊 最终提交数据:', data)
       onFinish?.(data)
     } else {
       setCurrentStepIndex((prev) => prev + 1)
@@ -230,7 +183,7 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
         />
       </View>
 
-      {/* 中间内容区 */}
+      {/* 中间内容区 - 根据 JSON 配置动态渲染组件 */}
       <View className="flex-1 overflow-y-auto px-4 py-6">
         <View className="max-w-2xl mx-auto">
           <StepRenderer config={currentStep} value={data} onChange={updateData} />

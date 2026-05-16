@@ -1,11 +1,9 @@
 import { Text } from '@tarojs/components'
 import Card from '@/components/Card'
-import FormComponent from '../FormComponent'
-import RadioGroupComponent from '../RadioGroupComponent'
+import ParamSettings from '../ParamSettings'
 import Selector from '../Selector'
-import SliderComponent from '../SliderComponent'
-import TemplateGrid from '../TemplateGridComponent'
-import TextareaComponent from '../TextareaComponent'
+import TemplateGrid from '../TemplateSelector'
+import UploadComponent from '../UploadComponent'
 
 export interface SelectorOption {
   label: string
@@ -16,27 +14,24 @@ export interface SelectorOption {
 export interface StepConfig {
   step: number
   title: string
-  type: 'selector' | 'template_grid' | 'form' | 'radio_group' | 'slider' | 'textarea'
+  type: 'selector' | 'template_grid' | 'param_settings' | 'upload'
   required?: boolean
+  // selector 配置
   options?: string[] | SelectorOption[]
   multiple?: boolean
   maxSelect?: number
-  templates?: Array<{ id: string; name: string; preview: string }>
-  fields?: Array<{
-    label: string
-    key: string
-    type: 'text' | 'number' | 'switch' | 'radio'
-    default?: any
-    options?: string[]
-    required?: boolean
-    placeholder?: string
-    min?: number
-    max?: number
+  // template_grid 配置
+  templates?: Array<{
+    id: string
+    name: string
+    preview?: string
+    emoji?: string
+    description?: string
+    isNew?: boolean
   }>
-  min?: number
-  max?: number
-  placeholder?: string
-  minHeight?: number
+  // upload 配置
+  accept?: string
+  maxSize?: number
 }
 
 interface StepRendererProps {
@@ -46,25 +41,23 @@ interface StepRendererProps {
 }
 
 /**
- * StepRenderer - 页面私有的步骤渲染器
+ * StepRenderer - 步骤渲染器
  *
- * 职责：根据 config.type 路由到对应的具体组件
+ * 根据 config.type 动态渲染对应的组件
  *
- * 支持的类型：
- * - selector: 单选/多选（支持字符串数组或对象数组格式）
- * - template_grid: 模板网格
- * - form: 动态表单
- * - radio_group: 单选按钮组
- * - slider: 滑动条
- * - textarea: 多行文本
+ * 支持的组件类型：
+ * - selector: 道具/动作选择器（支持单选/多选）
+ * - template_grid: 模板网格选择
+ * - param_settings: 参数设置表单
+ * - upload: 文件上传
  */
 export default function StepRenderer({ config, value, onChange }: StepRendererProps) {
   const handleChange = (key: string, val: any) => {
     onChange({ [key]: val })
   }
 
-  const handleFormChange = (data: Record<string, any>) => {
-    onChange(data)
+  const handleDataUpdate = (key: string, val: any) => {
+    onChange({ [key]: val })
   }
 
   switch (config.type) {
@@ -86,30 +79,12 @@ export default function StepRenderer({ config, value, onChange }: StepRendererPr
         />
       )
 
-    case 'form':
-      return <FormComponent config={config as any} value={value} onChange={handleFormChange} />
+    case 'param_settings':
+      return <ParamSettings data={value} updateData={handleDataUpdate} currentStep={config} />
 
-    case 'radio_group':
+    case 'upload':
       return (
-        <RadioGroupComponent
-          config={config as any}
-          value={value}
-          onChange={(val) => handleChange(`step_${config.step}`, val)}
-        />
-      )
-
-    case 'slider':
-      return (
-        <SliderComponent
-          config={config as any}
-          value={value}
-          onChange={(val) => handleChange(`step_${config.step}`, val)}
-        />
-      )
-
-    case 'textarea':
-      return (
-        <TextareaComponent
+        <UploadComponent
           config={config as any}
           value={value}
           onChange={(val) => handleChange(`step_${config.step}`, val)}
@@ -120,6 +95,9 @@ export default function StepRenderer({ config, value, onChange }: StepRendererPr
       return (
         <Card className="p-6">
           <Text className="text-red-500">未知组件类型: {config.type}</Text>
+          <Text className="text-sm text-gray-600 mt-2">
+            支持的类型: selector, template_grid, param_settings, upload
+          </Text>
         </Card>
       )
   }
