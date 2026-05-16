@@ -1,0 +1,292 @@
+/**
+ * Mock 数据 - 技能配置
+ * 用于本地开发和测试，模拟后端 API 返回的数据
+ */
+
+export const GAME_SKILL_CONFIG = {
+  id: 1,
+  name: '游戏生成',
+  step_config: {
+    steps: [
+      {
+        step: 1,
+        title: '选择道具',
+        type: 'selector',
+        options: [
+          { label: '跨栏', value: 'hurdle', icon: 'https://via.placeholder.com/80?text=hurdle' },
+          { label: '独木桥', value: 'bridge', icon: 'https://via.placeholder.com/80?text=bridge' },
+          { label: '钻圈', value: 'hoop', icon: 'https://via.placeholder.com/80?text=hoop' },
+          { label: '跳绳', value: 'rope', icon: 'https://via.placeholder.com/80?text=rope' },
+          { label: '平衡木', value: 'beam', icon: 'https://via.placeholder.com/80?text=beam' },
+        ],
+        multiple: true,
+        maxSelect: 5,
+        required: true,
+      },
+      {
+        step: 2,
+        title: '选择模板',
+        type: 'template_grid',
+        templates: [
+          {
+            id: 'forest',
+            name: '森林探险',
+            preview: 'https://via.placeholder.com/200x150?text=forest',
+            emoji: '🌲',
+            description: '适合户外场景，趣味探索',
+            isNew: false,
+          },
+          {
+            id: 'desert',
+            name: '沙漠寻宝',
+            preview: 'https://via.placeholder.com/200x150?text=desert',
+            emoji: '🏜️',
+            description: '沙漠主题，寻找宝藏',
+            isNew: true,
+          },
+          {
+            id: 'ocean',
+            name: '海洋冒险',
+            preview: 'https://via.placeholder.com/200x150?text=ocean',
+            emoji: '🌊',
+            description: '海洋主题，趣味互动',
+            isNew: false,
+          },
+          {
+            id: 'mountain',
+            name: '山峰挑战',
+            preview: 'https://via.placeholder.com/200x150?text=mountain',
+            emoji: '⛰️',
+            description: '登山主题，挑战自我',
+            isNew: false,
+          },
+        ],
+        required: true,
+      },
+      {
+        step: 3,
+        title: '参数设置',
+        type: 'form',
+        fields: [
+          {
+            label: '游戏名称',
+            key: 'gameName',
+            type: 'text',
+            placeholder: '请输入游戏名称',
+            required: true,
+          },
+          {
+            label: '游戏时长(秒)',
+            key: 'duration',
+            type: 'number',
+            default: 60,
+            min: 10,
+            max: 300,
+            required: true,
+          },
+          {
+            label: '背景音乐',
+            key: 'bgm',
+            type: 'switch',
+            default: true,
+          },
+          {
+            label: '难度',
+            key: 'difficulty',
+            type: 'radio',
+            options: ['简单', '中等', '困难'],
+            default: '中等',
+            required: true,
+          },
+        ],
+        required: true,
+      },
+      {
+        step: 4,
+        title: '游戏规则',
+        type: 'textarea',
+        placeholder: '请输入游戏规则描述',
+        minHeight: 150,
+        required: false,
+      },
+    ],
+    resultCard: {
+      title: '生成成功！',
+      previewTemplate:
+        '游戏名称：{{gameName}}\n难度：{{difficulty}}\n时长：{{duration}}秒\n背景音乐：{{bgm}}',
+      actions: [
+        {
+          label: '生成配音音乐',
+          action: 'generateAudio',
+          api: '/api/generateAudio',
+        },
+        {
+          label: '保存到游戏库',
+          action: 'saveToLibrary',
+          api: '/api/saveGame',
+        },
+        {
+          label: '导出图片',
+          action: 'exportImage',
+        },
+        {
+          label: '导出PDF',
+          action: 'exportPDF',
+        },
+      ],
+    },
+  },
+}
+
+export const LESSON_SKILL_CONFIG = {
+  id: 2,
+  name: '教案生成',
+  step_config: {
+    steps: [
+      {
+        step: 1,
+        title: '选择运动类型',
+        type: 'selector',
+        options: [
+          { label: '跑步', value: 'running', icon: 'https://via.placeholder.com/80?text=running' },
+          { label: '跳跃', value: 'jumping', icon: 'https://via.placeholder.com/80?text=jumping' },
+          {
+            label: '投掷',
+            value: 'throwing',
+            icon: 'https://via.placeholder.com/80?text=throwing',
+          },
+          { label: '平衡', value: 'balance', icon: 'https://via.placeholder.com/80?text=balance' },
+        ],
+        multiple: true,
+        maxSelect: 3,
+        required: true,
+      },
+      {
+        step: 2,
+        title: '选择教学模板',
+        type: 'template_grid',
+        templates: [
+          {
+            id: 'beginner',
+            name: '初级教学',
+            preview: 'https://via.placeholder.com/200x150?text=beginner',
+            emoji: '🌱',
+            description: '适合初学者，循序渐进',
+            isNew: false,
+          },
+          {
+            id: 'intermediate',
+            name: '中级教学',
+            preview: 'https://via.placeholder.com/200x150?text=intermediate',
+            emoji: '🎯',
+            description: '进阶训练，提升技能',
+            isNew: false,
+          },
+          {
+            id: 'advanced',
+            name: '高级教学',
+            preview: 'https://via.placeholder.com/200x150?text=advanced',
+            emoji: '🏆',
+            description: '专业训练，挑战极限',
+            isNew: true,
+          },
+        ],
+        required: true,
+      },
+      {
+        step: 3,
+        title: '教案信息',
+        type: 'form',
+        fields: [
+          {
+            label: '教案标题',
+            key: 'lessonTitle',
+            type: 'text',
+            placeholder: '请输入教案标题',
+            required: true,
+          },
+          {
+            label: '学生年龄',
+            key: 'studentAge',
+            type: 'number',
+            default: 6,
+            min: 3,
+            max: 18,
+            required: true,
+          },
+          {
+            label: '课程时长(分钟)',
+            key: 'lessonDuration',
+            type: 'number',
+            default: 45,
+            min: 15,
+            max: 120,
+            required: true,
+          },
+          {
+            label: '包含热身运动',
+            key: 'warmup',
+            type: 'switch',
+            default: true,
+          },
+          {
+            label: '教学方式',
+            key: 'teachingMethod',
+            type: 'radio',
+            options: ['讲授法', '示范法', '练习法', '游戏法'],
+            default: '示范法',
+            required: true,
+          },
+        ],
+        required: true,
+      },
+      {
+        step: 4,
+        title: '教学目标',
+        type: 'textarea',
+        placeholder: '请输入教学目标和重点',
+        minHeight: 150,
+        required: false,
+      },
+    ],
+    resultCard: {
+      title: '教案生成成功！',
+      previewTemplate:
+        '教案标题：{{lessonTitle}}\n学生年龄：{{studentAge}}岁\n课程时长：{{lessonDuration}}分钟\n教学方式：{{teachingMethod}}',
+      actions: [
+        {
+          label: '下载教案',
+          action: 'downloadLesson',
+          api: '/api/downloadLesson',
+        },
+        {
+          label: '保存到教案库',
+          action: 'saveToLibrary',
+          api: '/api/saveLesson',
+        },
+        {
+          label: '分享教案',
+          action: 'shareLesson',
+        },
+        {
+          label: '打印教案',
+          action: 'printLesson',
+        },
+      ],
+    },
+  },
+}
+
+/**
+ * 根据 mode 获取对应的 mock 配置
+ */
+export function getMockSkillConfig(mode: string | null) {
+  switch (mode) {
+    case 'game':
+      return GAME_SKILL_CONFIG
+    case 'lesson':
+      return LESSON_SKILL_CONFIG
+    default:
+      return GAME_SKILL_CONFIG
+  }
+}

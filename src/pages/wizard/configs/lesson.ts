@@ -1,5 +1,5 @@
-import LessonPlanCard from '../components/lesson/LessonPlan'
-import MovementSelectorCard from '../components/lesson/MovementSelector'
+import LessonPlanCard from '../components/LessonPlan'
+import MovementSelectorCard from '../components/MovementSelector'
 import type { WizardConfig } from '../types/wizard'
 
 /**

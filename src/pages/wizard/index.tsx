@@ -1,94 +1,125 @@
-import { useEffect } from 'react'
-import { Text } from '@tarojs/components'
+import { useEffect, useState } from 'react'
+import { Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
+import type { SkillStepConfig } from '@/components/Wizard'
+import { getSkillDetail } from '@/services/creation'
 import { useCreationStore } from '@/store'
-import { GAME_CREATION_CONFIG } from './configs/game'
-import { LESSON_GENERATION_CONFIG } from './configs/lesson'
-import type { WizardConfig } from './types/wizard'
 
 /**
- * 创作向导页面（普通页面）
- * 通用多步骤流程，根据 mode 显示不同的配置
+ * 创作向导页面入口
+ *
+ * 职责：
+ * - 验证创作模式是否有效
+ * - 从 API 获取技能配置
+ * - 处理页面级别的导航和生命周期
+ * - 将配置传递给 Wizard 容器组件
  */
 export default function CreationWizardPage() {
   const { mode, isValid, clearMode } = useCreationStore()
+  const [stepConfig, setStepConfig] = useState<SkillStepConfig | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [skillName, setSkillName] = useState('')
 
+  // 初始化：验证 mode 并加载配置
   useEffect(() => {
-    // 检查 mode 是否有效
     if (!isValid()) {
-      // 如果无效或过期，重定向到创作工坊首页
-      Taro.showToast({
-        title: '请先选择创作类型',
-        icon: 'none',
-        duration: 2000,
-      })
-      Taro.switchTab({
-        url: '/pages/creation/index',
-      })
+      showInvalidModeToast()
+      navigateToCreation()
+      return
     }
-  }, [isValid])
 
-  // 根据 mode 选择不同的配置
-  const getConfig = (): WizardConfig => {
-    switch (mode) {
-      case 'lesson':
-        return LESSON_GENERATION_CONFIG
-      case 'game':
-      default:
-        return GAME_CREATION_CONFIG
+    loadSkillConfig()
+  }, [mode, isValid])
+
+  /**
+   * 从 API 加载技能配置
+   */
+  const loadSkillConfig = async () => {
+    try {
+      setLoading(true)
+      const skillId = getSkillIdByMode(mode)
+      const config = await getSkillDetail(skillId)
+
+      if (config?.step_config) {
+        const parsedConfig =
+          typeof config.step_config === 'string'
+            ? JSON.parse(config.step_config)
+            : config.step_config
+
+        setStepConfig(parsedConfig)
+        setSkillName(config.name || getDefaultSkillName(mode))
+      }
+    } catch (error) {
+      console.error('加载技能配置失败:', error)
+      showErrorToast('加载配置失败，请重试')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const config = getConfig()
-
-  const handleFinish = (data: Record<string, any>) => {
+  /**
+   * 处理向导完成
+   */
+  const handleWizardFinish = (data: Record<string, any>) => {
     console.log(`${mode} 创作完成:`, data)
-    // 这里可以调用 API 保存数据
 
-    // 完成后清除 Store
     clearMode()
+    showSuccessToast('生成成功')
 
-    // 显示成功提示
-    Taro.showToast({
-      title: mode === 'lesson' ? '教案生成成功' : '游戏创建成功',
-      icon: 'success',
-      duration: 2000,
-    })
-
-    // 返回创作工坊首页
+    // 延迟导航，让用户看到成功提示
     setTimeout(() => {
-      Taro.switchTab({
-        url: '/pages/creation/index',
-      })
+      navigateToCreation()
     }, 2000)
   }
 
+  /**
+   * 处理取消操作
+   */
   const handleCancel = () => {
     Taro.showModal({
       title: '确认退出',
       content: '退出后当前进度将不会保存，确定要退出吗？',
       success: (res) => {
         if (res.confirm) {
-          // 用户确认取消时清除 Store
           clearMode()
-          Taro.switchTab({
-            url: '/pages/creation/index',
-          })
+          navigateToCreation()
         }
       },
     })
   }
 
-  // 如果 mode 无效，不渲染内容（等待重定向）
+  // 无效的 mode，不渲染
   if (!mode || !isValid()) {
     return null
   }
 
+  // 加载中
+  if (loading) {
+    return (
+      <Layout title="加载中..." showTabBar={false}>
+        <View className="flex items-center justify-center h-screen">
+          <Text>加载配置中...</Text>
+        </View>
+      </Layout>
+    )
+  }
+
+  // 配置加载失败
+  if (!stepConfig) {
+    return (
+      <Layout title="错误" showTabBar={false}>
+        <View className="flex items-center justify-center h-screen">
+          <Text>配置加载失败</Text>
+        </View>
+      </Layout>
+    )
+  }
+
   return (
     <Layout
-      title={mode === 'lesson' ? '教案生成' : '游戏创作'}
+      title={skillName}
       showTabBar={false}
       renderLeft={
         <Text className="text-orange-600 text-base" onClick={handleCancel}>
@@ -96,11 +127,81 @@ export default function CreationWizardPage() {
         </Text>
       }
     >
-      <Wizard
-        config={config}
-        onFinish={handleFinish}
-        finishButtonText={mode === 'lesson' ? '生成教案' : '生成游戏'}
-      />
+      <Wizard stepConfig={stepConfig} onFinish={handleWizardFinish} />
     </Layout>
   )
+}
+
+// ============================================================================
+// 辅助函数
+// ============================================================================
+
+/**
+ * 根据 mode 获取对应的技能 ID
+ */
+function getSkillIdByMode(mode: string | null): number {
+  switch (mode) {
+    case 'game':
+      return 1
+    case 'lesson':
+      return 2
+    default:
+      return 1
+  }
+}
+
+/**
+ * 根据 mode 获取默认的技能名称
+ */
+function getDefaultSkillName(mode: string | null): string {
+  switch (mode) {
+    case 'game':
+      return '游戏生成'
+    case 'lesson':
+      return '教案生成'
+    default:
+      return '创作向导'
+  }
+}
+
+/**
+ * 显示无效 mode 的提示
+ */
+function showInvalidModeToast() {
+  Taro.showToast({
+    title: '请先选择创作类型',
+    icon: 'none',
+    duration: 2000,
+  })
+}
+
+/**
+ * 显示错误提示
+ */
+function showErrorToast(message: string) {
+  Taro.showToast({
+    title: message,
+    icon: 'none',
+    duration: 2000,
+  })
+}
+
+/**
+ * 显示成功提示
+ */
+function showSuccessToast(message: string) {
+  Taro.showToast({
+    title: message,
+    icon: 'success',
+    duration: 2000,
+  })
+}
+
+/**
+ * 导航到创作工坊首页
+ */
+function navigateToCreation() {
+  Taro.switchTab({
+    url: '/pages/creation/index',
+  })
 }

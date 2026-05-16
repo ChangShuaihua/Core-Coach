@@ -1,5 +1,5 @@
 import type { Step } from '../../../components/Step'
-import type { TemplateSelectorProps } from '../components/game/TemplateSelector'
+import type { TemplateSelectorProps } from '../components/TemplateSelector'
 
 export type { Step, TemplateSelectorProps }
 

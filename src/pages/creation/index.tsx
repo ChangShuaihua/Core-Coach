@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import { getSkillList } from '@/services/creation'
 import { useCreationStore } from '@/store'
-import { SKILLS_MOCK_DATA, type Skill } from './constants/skills'
+import { SKILLS_MOCK_DATA, getStatusText } from './constants/skills'
+import type { Skill } from './constants/skills'
 
 /**
  * 创作工坊入口页面（Tab 页面）
@@ -11,20 +14,40 @@ import { SKILLS_MOCK_DATA, type Skill } from './constants/skills'
  */
 export default function CreationPage() {
   const setMode = useCreationStore((state) => state.setMode)
+  const [skills, setSkills] = useState<Skill[]>(SKILLS_MOCK_DATA)
+  const [loading, setLoading] = useState(false)
+
+  // 页面加载时获取技能列表
+  useEffect(() => {
+    fetchSkills()
+  }, [])
+
+  const fetchSkills = async () => {
+    try {
+      setLoading(true)
+      const data = await getSkillList()
+      setSkills(data)
+    } catch (error) {
+      console.error('获取技能列表失败:', error)
+      // 失败时使用 mock 数据
+      setSkills(SKILLS_MOCK_DATA)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSkillClick = (skill: Skill) => {
-    if (skill.status !== 'active') {
-      if (skill.action.type === 'toast') {
-        Taro.showToast({
-          title: skill.action.message || '功能开发中',
-          icon: 'none',
-        })
-      }
+    // status = 0: 未开放，显示 toast
+    if (skill.status === 0) {
+      Taro.showToast({
+        title: getStatusText(skill.status),
+        icon: 'none',
+      })
       return
     }
 
-    // 处理活跃的技能
-    if (skill.action.type === 'navigate' && skill.action.target) {
+    // status = 1: 已开放，跳转到目标页面
+    if (skill.status === 1 && skill.target) {
       // 设置模式到 Store
       if (skill.permissionKey === 'game_gen') {
         setMode('game')
@@ -32,15 +55,15 @@ export default function CreationPage() {
         setMode('lesson')
       }
       Taro.navigateTo({
-        url: skill.action.target,
+        url: skill.target,
       })
     }
   }
 
   // 将技能分组为两个一行
   const skillRows: Skill[][] = []
-  for (let i = 0; i < SKILLS_MOCK_DATA.length; i += 2) {
-    skillRows.push(SKILLS_MOCK_DATA.slice(i, i + 2))
+  for (let i = 0; i < skills.length; i += 2) {
+    skillRows.push(skills.slice(i, i + 2))
   }
 
   return (
@@ -50,7 +73,7 @@ export default function CreationPage() {
         {skillRows.map((row, rowIndex) => (
           <View key={rowIndex} className="flex gap-4">
             {row.map((skill) => {
-              const isActive = skill.status === 'active'
+              const isActive = skill.status === 1
 
               return (
                 <Card
@@ -76,15 +99,6 @@ export default function CreationPage() {
                       <Text className="text-4xl">{skill.icon}</Text>
                     </View>
 
-                    {/* Badge */}
-                    {skill.badge && (
-                      <View className="absolute top-2 right-2 px-2 py-1 bg-red-500 rounded-full">
-                        <Text className="text-xs text-white font-semibold">
-                          {skill.badge === 'hot' ? '热门' : '新'}
-                        </Text>
-                      </View>
-                    )}
-
                     {/* Content */}
                     <View>
                       <Text
@@ -99,7 +113,7 @@ export default function CreationPage() {
                           isActive ? 'text-green-600' : 'text-gray-500'
                         }`}
                       >
-                        {skill.statusText}
+                        {getStatusText(skill.status)}
                       </Text>
                     </View>
                   </View>
