@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components'
-import { Message } from '../types/index'
+import { Message } from '@/types/chat'
 
 interface MessageBubbleProps {
   message: Message

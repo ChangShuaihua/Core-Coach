@@ -4,12 +4,12 @@ import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
+import { Message, QuickAction } from '@/types/chat'
 import ChatInput from './components/ChatInput'
 import ConversationList from './components/ConversationList'
 import MessageList from './components/MessageList'
 import QuickActionsPopup from './components/QuickActions'
 import WelcomeScreen from './components/WelcomeScreen'
-import { Message, QuickAction } from './types'
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])

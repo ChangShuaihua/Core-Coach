@@ -1,7 +1,6 @@
-// src/pages/chat/components/MessageList.tsx
 import { useState, useEffect } from 'react'
 import { ScrollView, View, Text } from '@tarojs/components'
-import { Message } from '../types'
+import { Message } from '@/types/chat'
 import MessageBubble from './MessageBubble'
 
 interface MessageListProps {

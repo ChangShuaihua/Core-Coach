@@ -1,6 +1,6 @@
 import { Edit, Setting, Order, Star, Tips, Failure } from '@nutui/icons-react-taro'
 import { ROUTES } from '@/config/routes'
-import type { MenuGroup } from '../types'
+import type { MenuGroup } from '@/types/profile'
 
 // 主菜单配置
 export const MAIN_MENU_ITEMS: MenuGroup = {
