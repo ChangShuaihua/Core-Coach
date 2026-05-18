@@ -1,18 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { Popup, Form, Input, Button } from '@nutui/nutui-react-taro'
+import { getAccountInfo, updatePassword, type AccountInfo } from '@/api/account'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 
 export default function AccountSettingsPage() {
   const [showPopup, setShowPopup] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState('')
+  const [accountInfo, setAccountInfo] = useState<AccountInfo>({ phone: '', password: '' })
   const [passwordData, setPasswordData] = useState({
     password: '',
     confirmPassword: '',
   })
+
+  useEffect(() => {
+    loadAccountInfo()
+  }, [])
+
+  const loadAccountInfo = async () => {
+    try {
+      const data = await getAccountInfo()
+      setAccountInfo(data)
+    } catch (error) {
+      console.error('加载账号信息失败:', error)
+    }
+  }
 
   const openPopup = () => {
     setPasswordData({ password: '', confirmPassword: '' })
@@ -23,7 +37,7 @@ export default function AccountSettingsPage() {
     setShowPopup(false)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const { password, confirmPassword } = passwordData
     if (!password) {
       Taro.showToast({ title: '请输入新密码', icon: 'none' })
@@ -41,12 +55,18 @@ export default function AccountSettingsPage() {
       Taro.showToast({ title: '两次密码输入不一致', icon: 'none' })
       return
     }
+
     Taro.showLoading({ title: '保存中...' })
-    setTimeout(() => {
+    try {
+      await updatePassword(password)
       Taro.hideLoading()
       Taro.showToast({ title: '修改成功', icon: 'success' })
       closePopup()
-    }, 1000)
+    } catch (error) {
+      Taro.hideLoading()
+      Taro.showToast({ title: '修改失败', icon: 'none' })
+      console.error('修改密码失败:', error)
+    }
   }
 
   return (
@@ -65,7 +85,7 @@ export default function AccountSettingsPage() {
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-9">账号</Text>
             </View>
-            <Text className="text-sm text-gray-400">189536545515</Text>
+            <Text className="text-sm text-gray-400">{accountInfo.phone || '暂无'}</Text>
           </View>
 
           <View className="bg-gray-100" style={{ height: '1px' }} />
@@ -80,7 +100,9 @@ export default function AccountSettingsPage() {
               <Text className="text-sm text-gray-9">密码</Text>
             </View>
             <View className="flex flex-row items-center">
-              <Text className="text-sm text-gray-8 mr-2">{currentPassword || '暂未设置密码'}</Text>
+              <Text className="text-sm text-gray-8 mr-2">
+                {accountInfo.password || '暂未设置密码'}
+              </Text>
             </View>
           </View>
         </Card>
