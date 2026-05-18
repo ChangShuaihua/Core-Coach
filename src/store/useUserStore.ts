@@ -1,14 +1,14 @@
 import Taro from '@tarojs/taro'
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { UserInfo } from '@/pages/profile/types'
+import type { UserInfo } from '@/types/profile'
 
 interface UserState {
-  token: string
+  accessToken: string
   userInfo: UserInfo | null
-  setToken: (token: string) => void
+  setAccessToken: (accessToken: string) => void
   setUserInfo: (userInfo: UserInfo) => void
-  clearToken: () => void
+  clearAuth: () => void
 }
 
 const taroStorage = createJSONStorage<UserState>(() => ({
@@ -20,16 +20,16 @@ const taroStorage = createJSONStorage<UserState>(() => ({
 export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
-      token: '',
+      accessToken: '',
       userInfo: null,
-      setToken: (token) => set({ token }),
+      setAccessToken: (accessToken) => set({ accessToken }),
       setUserInfo: (userInfo) => set({ userInfo }),
-      clearToken: () => set({ token: '', userInfo: null }),
+      clearAuth: () => set({ accessToken: '', userInfo: null }),
     }),
     {
       name: 'user-storage',
       storage: taroStorage,
-      partialize: (state) => ({ token: state.token }),
+      partialize: (state) => ({ accessToken: state.accessToken }),
     }
   )
 )

@@ -1,7 +1,7 @@
 import { View, Text } from '@tarojs/components'
 import { Avatar } from '@nutui/nutui-react-taro'
 import defaultAvatar from '@/assets/images/avatar.png'
-import type { UserInfo } from '../types'
+import type { UserInfo } from '@/types/profile'
 
 interface UserInfoCardProps {
   userInfo: UserInfo

@@ -5,13 +5,14 @@ import SkillButton from './SkillButton'
 interface ChatInputProps {
   onSend: (content: string) => void
   onSkillClick?: () => void
+  disabled?: boolean
 }
 
-const ChatInput = ({ onSend, onSkillClick }: ChatInputProps) => {
+const ChatInput = ({ onSend, onSkillClick, disabled }: ChatInputProps) => {
   const [value, setValue] = useState('')
 
   const handleSend = () => {
-    if (!value.trim()) return
+    if (!value.trim() || disabled) return
     onSend(value)
     setValue('')
   }
@@ -48,7 +49,10 @@ const ChatInput = ({ onSend, onSkillClick }: ChatInputProps) => {
         <View
           onClick={handleSend}
           className="shadow w-7 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: value.trim() ? '#f97316' : '#d1d5db', minHeight: '70px' }}
+          style={{
+            backgroundColor: value.trim() && !disabled ? '#f97316' : '#d1d5db',
+            minHeight: '70px',
+          }}
         >
           <Text style={{ color: '#ffffff', fontSize: '18px', fontWeight: 'bold' }}>↑</Text>
         </View>

@@ -1,7 +1,6 @@
-// src/pages/chat/components/MessageList.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ScrollView, View, Text } from '@tarojs/components'
-import { Message } from '../types'
+import { Message } from '@/types/chat'
 import MessageBubble from './MessageBubble'
 
 interface MessageListProps {
@@ -10,16 +9,18 @@ interface MessageListProps {
 }
 
 const MessageList = ({ messages, isLoading }: MessageListProps) => {
-  // scrollIntoView 要求值必须是一个存在的 ID，且不能以数字开头
   const [toView, setToView] = useState('')
+  const scrollCountRef = useRef(0)
 
   // 监听消息变化，自动滚动到底部
   useEffect(() => {
     if (messages.length > 0) {
-      // 在小程序中，必须在数据渲染后的下一帧执行滚动
-      // 使用 setTimeout 0 即可
+      scrollCountRef.current += 1
+      const anchorId = `bottomAnchor-${scrollCountRef.current}`
+      // 先清除，再设置新值，确保 scrollIntoView 的值一定发生变化
+      setToView('')
       setTimeout(() => {
-        setToView('bottomAnchor')
+        setToView(anchorId)
       }, 100)
     }
   }, [messages.length, isLoading])
@@ -48,11 +49,10 @@ const MessageList = ({ messages, isLoading }: MessageListProps) => {
           </View>
         )}
 
-        {/* 
-            重点：底部锚点
-            id 必须是静态的字符串，不要包含任何变量
-        */}
-        <View id="bottomAnchor" style={{ height: '20px', width: '100%' }} />
+        <View
+          id={`bottomAnchor-${scrollCountRef.current}`}
+          style={{ height: '20px', width: '100%' }}
+        />
       </View>
     </ScrollView>
   )
