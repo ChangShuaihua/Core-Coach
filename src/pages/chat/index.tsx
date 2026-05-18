@@ -41,14 +41,14 @@ export default function ChatPage() {
   useEffect(() => {
     loadConversations()
     loadSkills()
-  }, [])
+  }, [loadConversations, loadSkills])
 
   // 切换会话时拉取消息（发送期间跳过，防止覆盖新消息）
   useEffect(() => {
     if (currentConversationId && !sendingRef.current) {
       loadMessages(currentConversationId)
     }
-  }, [currentConversationId])
+  }, [currentConversationId, loadMessages])
 
   // 监听键盘高度变化
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function ChatPage() {
         sendingRef.current = false
       }
     },
-    [isResponding, currentConversationId]
+    [isResponding, currentConversationId, appendMessage, createConversation, updateMessageStatus]
   )
 
   const handleStop = useCallback(() => {

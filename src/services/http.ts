@@ -1,8 +1,7 @@
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/store/useUserStore'
 
-const BASE_URL =
-  process.env.TARO_APP_API_URL || 'http://127.0.0.1:4523/m1/8210003-7970088-default/api'
+const BASE_URL = process.env.TARO_APP_API_URL || 'http://192.168.10.7:8083'
 const REQUEST_TIMEOUT = 10000
 const MAX_RETRY_COUNT = 2
 
@@ -143,6 +142,9 @@ async function requestBase<T = any>(options: RequestOptions): Promise<T> {
     const body = res.data as ApiResponse<T>
 
     if (statusCode === 401) {
+      if (shouldShowLoading) {
+        Taro.hideLoading()
+      }
       // 刷新请求本身 401 → 直接登出，不递归刷新
       if (_isRefreshRetry) {
         useUserStore.getState().clearAuth()
@@ -157,9 +159,15 @@ async function requestBase<T = any>(options: RequestOptions): Promise<T> {
     }
 
     if (statusCode >= 200 && statusCode < 300) {
+      if (shouldShowLoading) {
+        Taro.hideLoading()
+      }
       return body.data
     }
 
+    if (shouldShowLoading) {
+      Taro.hideLoading()
+    }
     Taro.showToast({ title: body.message || '请求失败', icon: 'none' })
     return Promise.reject(new Error(body.message || '请求失败'))
   } catch (err: any) {
@@ -171,16 +179,16 @@ async function requestBase<T = any>(options: RequestOptions): Promise<T> {
       return requestBase<T>({ ...options, retryCount: retryCount - 1, _isRetry: true })
     }
 
+    if (shouldShowLoading) {
+      Taro.hideLoading()
+    }
+
     if (err.errMsg?.includes('timeout') || err.message?.includes('超时')) {
       Taro.showToast({ title: '请求超时，请稍后重试', icon: 'none' })
     } else {
       Taro.showToast({ title: '网络异常，请稍后重试', icon: 'none' })
     }
     return Promise.reject(err)
-  } finally {
-    if (shouldShowLoading) {
-      Taro.hideLoading()
-    }
   }
 }
 
