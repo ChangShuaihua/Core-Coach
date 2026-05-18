@@ -48,7 +48,7 @@ export default function Layout({
 
       {/* 页面内容区，底部留出 TabBar 的高度 + 安全区域 */}
       <View
-        className="flex-1 overflow-hidden"
+        className="flex-1 overflow-y-auto"
         style={showTabBar ? { marginBottom: `${tabBarHeight}px` } : {}}
       >
         {children}
