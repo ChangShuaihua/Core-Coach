@@ -6,7 +6,15 @@ export const TAB_PAGES = [
 ] as const
 
 // 普通页面路径
-export const PAGES = ['pages/login/index', 'pages/wizard/index'] as const
+export const PAGES = [
+  'pages/login/index',
+  'pages/wizard/index',
+  'pages/edit-info/index',
+  'pages/account-settings/index',
+  'pages/about/index',
+  'pages/favorite-games/index',
+  'pages/favorite-lessons/index',
+] as const
 
 // 所有页面合并（app.config.ts 用这个）
 export const ALL_PAGES = [...PAGES, ...TAB_PAGES]
