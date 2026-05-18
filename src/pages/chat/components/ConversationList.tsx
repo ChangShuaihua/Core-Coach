@@ -43,7 +43,7 @@ export default function ConversationList() {
   const conversations = useChatStore((s) => s.conversations)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const switchConversation = useChatStore((s) => s.switchConversation)
-  const refreshConversations = useChatStore((s) => s.refreshConversations)
+  const refreshConversations = useChatStore((s) => s.loadConversations)
 
   // 按更新时间倒序排列
   const sorted = conversations.slice().sort((a, b) => b.updatedAt - a.updatedAt)

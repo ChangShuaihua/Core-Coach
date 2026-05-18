@@ -3,28 +3,52 @@ import { View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
+import { sendMessage, addUserMessageToMock } from '@/api/chat'
 import Layout from '@/components/Layout'
 import { useChatStore } from '@/store/chatStore'
-import { Message, QuickAction } from '@/types/chat'
+import { Message, Skill } from '@/types/chat'
 import ChatInput from './components/ChatInput'
 import ConversationList from './components/ConversationList'
 import MessageList from './components/MessageList'
 import QuickActionsPopup from './components/QuickActions'
 import WelcomeScreen from './components/WelcomeScreen'
 
-// 自增 ID 生成器，避免 Date.now() 重复
 let messageId = 0
 const genId = () => String(++messageId)
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [isLoading, setIsLoading] = useState(false)
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const addMessage = useChatStore((s) => s.addMessage)
+  const sendingRef = useRef(false)
+  const stoppedRef = useRef(false)
+
+  const messages = useChatStore((s) => s.currentMessages)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
+  const skills = useChatStore((s) => s.skills)
+  const loadConversations = useChatStore((s) => s.loadConversations)
+  const loadMessages = useChatStore((s) => s.loadMessages)
+  const createConversation = useChatStore((s) => s.createConversation)
+  const appendMessage = useChatStore((s) => s.appendMessage)
+  const updateMessageStatus = useChatStore((s) => s.updateMessageStatus)
+  const loadSkills = useChatStore((s) => s.loadSkills)
+
+  const isResponding = messages.some(
+    (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
+  )
+
+  // 页面挂载：拉取会话列表和技能列表
+  useEffect(() => {
+    loadConversations()
+    loadSkills()
+  }, [])
+
+  // 切换会话时拉取消息（发送期间跳过，防止覆盖新消息）
+  useEffect(() => {
+    if (currentConversationId && !sendingRef.current) {
+      loadMessages(currentConversationId)
+    }
+  }, [currentConversationId])
 
   // 监听键盘高度变化
   useEffect(() => {
@@ -36,66 +60,72 @@ export default function ChatPage() {
     }
   }, [])
 
-  // 组件卸载时清理定时器
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [])
-
   const handleSend = useCallback(
-    (content: string) => {
-      // 互斥：如果上一条还在等待回复，忽略本次发送
-      if (isLoading) return
+    async (content: string) => {
+      if (isResponding) return
 
-      const userMessage: Message = {
+      const userMsg: Message = {
         id: genId(),
         role: 'user',
         content,
         timestamp: Date.now(),
+        status: 'success',
+      }
+      const aiMsgId = genId()
+      const aiMsg: Message = {
+        id: aiMsgId,
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        status: 'pending',
       }
 
-      setMessages((prev) => [...prev, userMessage])
-      setIsLoading(true)
+      sendingRef.current = true
+      stoppedRef.current = false
 
-      // 同步到 store，更新会话排序
-      if (currentConversationId) {
-        addMessage(userMessage)
+      try {
+        let convId = currentConversationId
+        if (!convId) {
+          convId = await createConversation()
+          useChatStore.setState({ currentMessages: [userMsg, aiMsg] })
+        } else {
+          appendMessage(userMsg)
+          appendMessage(aiMsg)
+        }
+
+        addUserMessageToMock(convId, userMsg)
+
+        const result = await sendMessage(convId, content)
+
+        // 如果在等待期间被停止，不更新状态（已经是 error 了）
+        if (stoppedRef.current) return
+        updateMessageStatus(aiMsgId, 'success', result.content)
+      } catch {
+        updateMessageStatus(aiMsgId, 'error', '发送失败')
+      } finally {
+        sendingRef.current = false
       }
-
-      // 模拟 AI 回复（后续替换为真实 API）
-      timerRef.current = setTimeout(() => {
-        const aiMessage: Message = {
-          id: genId(),
-          role: 'assistant',
-          content: '这是一条模拟的 AI 回复，后续会接入扣子工作流。',
-          timestamp: Date.now(),
-        }
-
-        setMessages((prev) => [...prev, aiMessage])
-        setIsLoading(false)
-        timerRef.current = null
-
-        // 同步 AI 回复到 store
-        if (currentConversationId) {
-          addMessage(aiMessage)
-        }
-      }, 3000)
     },
-    [isLoading, currentConversationId, addMessage]
+    [isResponding, currentConversationId]
   )
 
-  // 选择快捷操作
-  const handleSelectAction = useCallback(
-    (action: QuickAction) => {
-      handleSend(action.prompt)
+  const handleStop = useCallback(() => {
+    stoppedRef.current = true
+    const current = useChatStore.getState().currentMessages
+    current.forEach((m) => {
+      if (m.role === 'assistant' && m.status === 'pending') {
+        updateMessageStatus(m.id, 'error', '已停止生成')
+      }
+    })
+  }, [updateMessageStatus])
+
+  const handleSelectSkill = useCallback(
+    (skill: Skill) => {
+      handleSend(skill.prompt)
     },
     [handleSend]
   )
 
-  // ========== 渲染 ==========
-
-  // 判断是否显示欢迎屏幕
   const showWelcome = messages.length === 0
 
   return (
@@ -111,16 +141,10 @@ export default function ChatPage() {
         className="h-full flex flex-col overflow-hidden"
         onClick={() => showPopup && setShowPopup(false)}
       >
-        {/* 主内容区域：欢迎屏幕 OR 消息列表 */}
         <View className="flex-1 overflow-hidden">
-          {showWelcome ? (
-            <WelcomeScreen />
-          ) : (
-            <MessageList messages={messages} isLoading={isLoading} />
-          )}
+          {showWelcome ? <WelcomeScreen /> : <MessageList messages={messages} />}
         </View>
 
-        {/* 底部栏 */}
         <View
           className="relative flex-shrink-0"
           style={{ paddingBottom: `${keyboardHeight - 60}px` }}
@@ -128,14 +152,16 @@ export default function ChatPage() {
           <View className="absolute left-6" style={{ top: '-150px' }}>
             <QuickActionsPopup
               visible={showPopup}
+              skills={skills}
               onClose={() => setShowPopup(false)}
-              onSelect={handleSelectAction}
+              onSelect={handleSelectSkill}
             />
           </View>
           <ChatInput
             onSend={handleSend}
+            onStop={handleStop}
             onSkillClick={() => setShowPopup((prev) => !prev)}
-            disabled={isLoading}
+            isResponding={isResponding}
           />
         </View>
       </View>
@@ -148,7 +174,13 @@ export default function ChatPage() {
           setShowLeft(false)
         }}
       >
-        <View className="text-white mt-16 mx-6 py-3 flex items-center justify-center bg-orange-5 rounded-lg">
+        <View
+          className="text-white mt-16 mx-6 py-3 flex items-center justify-center bg-orange-5 rounded-lg"
+          onClick={() => {
+            createConversation()
+            setShowLeft(false)
+          }}
+        >
           <Add style={{ marginRight: '4px', color: '#fff' }} /> 添加新对话
         </View>
         <View>
