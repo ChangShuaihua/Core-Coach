@@ -1,4 +1,4 @@
-import { View, Text, Picker, Switch } from '@tarojs/components'
+import { View, Text, Picker } from '@tarojs/components'
 
 export interface MusicSettingsProps {
   data: Record<string, any>
@@ -30,13 +30,6 @@ export default function MusicSettings({ data, updateData }: MusicSettingsProps) 
     updateData('musicSettings', {
       ...musicSettings,
       soundEffect: selectedEffect,
-    })
-  }
-
-  const handleVolumeChange = (type: 'bgm' | 'effect', value: number) => {
-    updateData('musicSettings', {
-      ...musicSettings,
-      [`${type}Volume`]: value,
     })
   }
 

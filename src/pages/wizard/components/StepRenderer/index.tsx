@@ -1,6 +1,7 @@
 import { Text } from '@tarojs/components'
 import Card from '@/components/Card'
 import ParamSettings from '../ParamSettings'
+import ResultPreview from '../ResultPreview'
 import Selector from '../Selector'
 import TemplateGrid from '../TemplateSelector'
 import UploadComponent from '../UploadComponent'
@@ -14,7 +15,7 @@ export interface SelectorOption {
 export interface StepConfig {
   step: number
   title: string
-  type: 'selector' | 'template_grid' | 'param_settings' | 'upload'
+  type: 'selector' | 'template_grid' | 'param_settings' | 'upload' | 'result_preview'
   required?: boolean
   // selector 配置
   options?: string[] | SelectorOption[]
@@ -32,6 +33,13 @@ export interface StepConfig {
   // upload 配置
   accept?: string
   maxSize?: number
+  // result_preview 配置
+  previewTemplate?: string
+  actions?: Array<{
+    label: string
+    action: string
+    api?: string
+  }>
 }
 
 interface StepRendererProps {
@@ -50,6 +58,7 @@ interface StepRendererProps {
  * - template_grid: 模板网格选择
  * - param_settings: 参数设置表单
  * - upload: 文件上传
+ * - result_preview: 结果预览
  */
 export default function StepRenderer({ config, value, onChange }: StepRendererProps) {
   const handleChange = (key: string, val: any) => {
@@ -91,12 +100,15 @@ export default function StepRenderer({ config, value, onChange }: StepRendererPr
         />
       )
 
+    case 'result_preview':
+      return <ResultPreview config={config as any} value={value} onChange={onChange} />
+
     default:
       return (
         <Card className="p-6">
           <Text className="text-red-500">未知组件类型: {config.type}</Text>
           <Text className="text-sm text-gray-600 mt-2">
-            支持的类型: selector, template_grid, param_settings, upload
+            支持的类型: selector, template_grid, param_settings, upload, result_preview
           </Text>
         </Card>
       )

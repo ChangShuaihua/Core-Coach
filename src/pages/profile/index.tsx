@@ -4,13 +4,13 @@ import { ArrowRight } from '@nutui/icons-react-taro'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useUserStore } from '@/store/useUserStore'
+import type { UserInfo } from '@/types/profile'
 import MenuList from './components/MenuList'
 import UserInfoCard from './components/UserInfoCard'
 import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
-import type { UserInfo } from './types'
 
 export default function ProfilePage() {
-  const { clearToken, userInfo: storeUserInfo } = useUserStore()
+  const { clearAuth, userInfo: storeUserInfo } = useUserStore()
 
   const userInfo: UserInfo = storeUserInfo ?? {
     id: 0,
@@ -25,7 +25,7 @@ export default function ProfilePage() {
       content: '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
-          clearToken()
+          clearAuth()
           Taro.reLaunch({
             url: '/pages/login/index',
           })

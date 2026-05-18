@@ -68,7 +68,6 @@ export default function ParamSettings({ data, updateData }: ParamSettingsProps) 
           <View className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
             <Text className="text-sm font-semibold text-gray-900 mb-2">📋 参数总结</Text>
             <View className="flex flex-col gap-1">
-              <Text className="text-xs text-gray-700">🎮 游戏名称：{data.gameName}</Text>
               <Text className="text-xs text-gray-700">👶 适合年龄：{data.age}</Text>
               <Text className="text-xs text-gray-700">👥 参与人数：{data.playerCount}</Text>
               <Text className="text-xs text-gray-700">🎯 游戏类型：{data.gameType}</Text>

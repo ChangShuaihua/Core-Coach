@@ -69,6 +69,28 @@ export const GAME_SKILL_CONFIG = {
         type: 'param_settings',
         required: true,
       },
+      {
+        step: 4,
+        title: '生成结果',
+        type: 'result_preview',
+        required: false,
+        actions: [
+          {
+            label: '生成游戏',
+            action: 'generate',
+            api: '/api/generateGame',
+          },
+          {
+            label: '保存草稿',
+            action: 'saveDraft',
+            api: '/api/saveDraft',
+          },
+          {
+            label: '导出配置',
+            action: 'export',
+          },
+        ],
+      },
     ],
     resultCard: {
       title: '生成成功！',
