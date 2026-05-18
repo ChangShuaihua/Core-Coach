@@ -3,7 +3,7 @@ import { PullToRefresh } from '@nutui/nutui-react-taro'
 import { clsx } from 'clsx'
 import dayjs from 'dayjs'
 import { useChatStore } from '@/store/chatStore'
-import { Conversation } from '../types'
+import { Conversation } from '@/types/chat'
 
 // 按日期分组
 function groupByDate(conversations: Conversation[]) {

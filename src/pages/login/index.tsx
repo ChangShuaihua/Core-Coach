@@ -3,7 +3,7 @@ import { View, Text, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Marshalling, Eye } from '@nutui/icons-react-taro'
 import { Button, Image } from '@nutui/nutui-react-taro'
-import { wechatLogin, accountLogin } from '@/api/login'
+import { login } from '@/api/login'
 import LOGO from '@/assets/images/logo.png'
 import { validateLogin } from '@/schemas/user'
 import { useUserStore } from '@/store/useUserStore'
@@ -15,12 +15,13 @@ export default function Login() {
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const { setToken, setUserInfo } = useUserStore()
+  const { setAccessToken, setUserInfo } = useUserStore()
 
   const handleWechatLogin = async () => {
     try {
-      const res = await wechatLogin()
-      setToken(res.token)
+      const { code } = await Taro.login()
+      const res = await login({ login_type: 'wechat', code, account: '', password: '' })
+      setAccessToken(res.accessToken)
       setUserInfo(res.userInfo)
       Taro.switchTab({ url: '/pages/chat/index' })
     } catch {}
@@ -34,8 +35,8 @@ export default function Login() {
     }
 
     try {
-      const res = await accountLogin(account, password)
-      setToken(res.token)
+      const res = await login({ login_type: 'password', code: '', account, password })
+      setAccessToken(res.accessToken)
       setUserInfo(res.userInfo)
       Taro.switchTab({ url: '/pages/chat/index' })
     } catch {}
