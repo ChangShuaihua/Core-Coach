@@ -20,14 +20,8 @@
     "jsx": "react-jsx",
     "allowJs": true,
     "resolveJsonModule": true,
-<<<<<<< HEAD
-    "typeRoots": [
-      "node_modules/@types"
-    ],
-=======
     "typeRoots": ["node_modules/@types"],
     "types": ["node"],
->>>>>>> 9618432bf1fae91bb768e26170b936cdd2673fdd
     "paths": {
       "@/*": ["./src/*"]
     }
@@ -35,3 +29,4 @@
   "include": ["./src", "./types"],
   "compileOnSave": false
 }
+
