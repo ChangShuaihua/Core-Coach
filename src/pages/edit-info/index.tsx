@@ -1,43 +1,106 @@
-import { useState } from 'react'
-import { View, Text, Input } from '@tarojs/components'
+import { useState, useEffect } from 'react'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Edit, ArrowLeft } from '@nutui/icons-react-taro'
 import { Avatar, Button } from '@nutui/nutui-react-taro'
+import { getUserInfo, updateUserInfo, uploadAvatar } from '@/api/edit-info'
 import defaultAvatar from '@/assets/images/avatar.png'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 
 export default function EditInfoPage() {
-  const [nickname, setNickname] = useState('跑酷教练大鹏')
+  const [nickname, setNickname] = useState('')
   const [avatar, setAvatar] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  // 选择头像
+  useEffect(() => {
+    loadUserInfo()
+  }, [])
+
+  const loadUserInfo = async () => {
+    try {
+      setLoading(true)
+      const data = await getUserInfo()
+      setNickname(data.nickname)
+      setAvatar(data.avatar)
+    } catch (error) {
+      console.error('加载用户信息失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleChooseAvatar = () => {
     Taro.chooseImage({
       count: 1,
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
-      success: (res) => {
-        setAvatar(res.tempFilePaths[0])
+      success: async (res) => {
+        const tempFilePath = res.tempFilePaths[0]
+        try {
+          Taro.showLoading({ title: '上传中...' })
+          const uploadedUrl = await uploadAvatar(tempFilePath)
+          setAvatar(uploadedUrl)
+          Taro.hideLoading()
+          Taro.showToast({ title: '上传成功', icon: 'success' })
+        } catch (error) {
+          Taro.hideLoading()
+          Taro.showToast({ title: '上传失败', icon: 'none' })
+          console.error('上传头像失败:', error)
+        }
       },
     })
   }
 
-  // 保存
-  const handleSave = () => {
+  const handleNicknameClick = () => {
+    Taro.showModal({
+      title: '修改昵称',
+      editable: true as unknown as boolean,
+      placeholderText: '请输入昵称',
+      success: (res: any) => {
+        if (res.confirm && res.content && res.content.trim()) {
+          setNickname(res.content.trim())
+        }
+      },
+    } as unknown as Taro.showModal.Option)
+  }
+
+  const handleSave = async () => {
     if (!nickname.trim()) {
       Taro.showToast({ title: '请输入昵称', icon: 'none' })
       return
     }
     Taro.showLoading({ title: '保存中...' })
-    // TODO: 调用保存接口
-    setTimeout(() => {
+    try {
+      await updateUserInfo(nickname.trim(), avatar)
       Taro.hideLoading()
       Taro.showToast({ title: '保存成功', icon: 'success' })
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)
-    }, 1000)
+    } catch (error) {
+      Taro.hideLoading()
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+      console.error('保存失败:', error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Layout
+        title="编辑资料"
+        showTabBar={false}
+        renderLeft={
+          <View onClick={() => Taro.navigateBack()}>
+            <ArrowLeft />
+          </View>
+        }
+      >
+        <View className="p-4 flex items-center justify-center pt-20">
+          <Text className="text-gray-5">加载中...</Text>
+        </View>
+      </Layout>
+    )
   }
 
   return (
@@ -51,7 +114,6 @@ export default function EditInfoPage() {
       }
     >
       <View className="p-4">
-        {/* 头像区域 */}
         <Card className="mb-4">
           <View className="flex flex-row items-center justify-between px-4 py-4">
             <Text className="text-sm text-gray-8">头像</Text>
@@ -69,22 +131,15 @@ export default function EditInfoPage() {
           </View>
         </Card>
 
-        {/* 昵称区域 */}
         <Card className="mb-6">
           <View className="flex flex-row items-center justify-between px-4 py-4">
             <Text className="text-sm text-gray-8 mr-4">昵称</Text>
-            <Input
-              value={nickname}
-              onInput={(e) => setNickname(e.detail.value)}
-              placeholder="请输入昵称"
-              placeholderClass="text-gray-400"
-              maxlength={20}
-              className="flex-1 text-sm text-right text-gray-8"
-            />
+            <Text className="flex-1 text-sm text-right text-gray-8" onClick={handleNicknameClick}>
+              {nickname || '请输入昵称'}
+            </Text>
           </View>
         </Card>
 
-        {/* 保存按钮 */}
         <Button
           type="primary"
           size="large"
