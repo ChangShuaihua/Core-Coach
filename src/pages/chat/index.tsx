@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
@@ -11,12 +11,17 @@ import MessageList from './components/MessageList'
 import QuickActionsPopup from './components/QuickActions'
 import WelcomeScreen from './components/WelcomeScreen'
 
+// 自增 ID 生成器，避免 Date.now() 重复
+let messageId = 0
+const genId = () => String(++messageId)
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 监听键盘高度变化
   useEffect(() => {
@@ -28,40 +33,52 @@ export default function ChatPage() {
     }
   }, [])
 
-  const handleSend = async (content: string) => {
-    // 1. 创建用户消息
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content,
-      timestamp: Date.now(),
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
     }
+  }, [])
 
-    // 2. 添加到消息列表
-    setMessages((prev) => [...prev, userMessage])
+  const handleSend = useCallback(
+    (content: string) => {
+      // 互斥：如果上一条还在等待回复，忽略本次发送
+      if (isLoading) return
 
-    // 3. 显示加载状态
-    setIsLoading(true)
-
-    // 4. 模拟 AI 回复（后续替换为真实 API）
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '这是一条模拟的 AI 回复，后续会接入扣子工作流。',
+      const userMessage: Message = {
+        id: genId(),
+        role: 'user',
+        content,
         timestamp: Date.now(),
       }
 
-      setMessages((prev) => [...prev, aiMessage])
-      setIsLoading(false)
-    }, 1500)
-  }
+      setMessages((prev) => [...prev, userMessage])
+      setIsLoading(true)
+
+      // 模拟 AI 回复（后续替换为真实 API）
+      timerRef.current = setTimeout(() => {
+        const aiMessage: Message = {
+          id: genId(),
+          role: 'assistant',
+          content: '这是一条模拟的 AI 回复，后续会接入扣子工作流。',
+          timestamp: Date.now(),
+        }
+
+        setMessages((prev) => [...prev, aiMessage])
+        setIsLoading(false)
+        timerRef.current = null
+      }, 3000)
+    },
+    [isLoading]
+  )
 
   // 选择快捷操作
-  const handleSelectAction = (action: QuickAction) => {
-    // 直接发送快捷操作的 prompt
-    handleSend(action.prompt)
-  }
+  const handleSelectAction = useCallback(
+    (action: QuickAction) => {
+      handleSend(action.prompt)
+    },
+    [handleSend]
+  )
 
   // ========== 渲染 ==========
 
@@ -102,7 +119,11 @@ export default function ChatPage() {
               onSelect={handleSelectAction}
             />
           </View>
-          <ChatInput onSend={handleSend} onSkillClick={() => setShowPopup((prev) => !prev)} />
+          <ChatInput
+            onSend={handleSend}
+            onSkillClick={() => setShowPopup((prev) => !prev)}
+            disabled={isLoading}
+          />
         </View>
       </View>
 
