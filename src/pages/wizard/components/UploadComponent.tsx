@@ -74,7 +74,7 @@ export default function UploadComponent({ config, value, onChange }: UploadCompo
 
       {!currentValue ? (
         <View
-          className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:border-orange-500 transition"
+          className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer"
           onClick={handleChooseImage}
         >
           <Text className="text-4xl mb-2">📤</Text>

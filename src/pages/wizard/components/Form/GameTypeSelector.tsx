@@ -33,7 +33,7 @@ export default function GameTypeSelector({
               className={`px-4 py-2 rounded-lg border text-sm transition-colors ${
                 isSelected
                   ? 'border-orange-500 bg-orange-50 text-orange-600 font-medium'
-                  : 'border-gray-300 bg-white text-gray-700 active:bg-gray-50'
+                  : 'border-gray-300 bg-white text-gray-700 '
               }`}
               onClick={() => onChange(type.code)}
             >

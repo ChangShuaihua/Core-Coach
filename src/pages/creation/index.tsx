@@ -80,9 +80,7 @@ export default function CreationPage() {
                   }`}
                 >
                   <View
-                    className={`flex flex-col items-center gap-3 text-center ${
-                      isActive ? 'active:opacity-70' : ''
-                    }`}
+                    className="flex flex-col items-center gap-3 text-center"
                     onClick={() => handleSkillClick(skill)}
                   >
                     <View
@@ -124,7 +122,7 @@ export default function CreationPage() {
           </View>
 
           <View className="flex flex-col gap-3">
-            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 active:bg-gray-50">
+            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 ">
               <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <Text className="text-2xl">🎮</Text>
               </View>
@@ -137,7 +135,7 @@ export default function CreationPage() {
               <Text className="text-gray-400 text-xl">›</Text>
             </View>
 
-            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 active:bg-gray-50">
+            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 ">
               <View className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Text className="text-2xl">🏃</Text>
               </View>
@@ -150,7 +148,7 @@ export default function CreationPage() {
               <Text className="text-gray-400 text-xl">›</Text>
             </View>
 
-            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 active:bg-gray-50">
+            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 ">
               <View className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <Text className="text-2xl">🏰</Text>
               </View>

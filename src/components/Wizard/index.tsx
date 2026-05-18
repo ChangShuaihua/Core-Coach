@@ -195,7 +195,7 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
         <View className="max-w-2xl mx-auto flex gap-3">
           {!isFirstStep && (
             <View
-              className="flex-1 py-3 px-4 rounded-lg font-semibold border-2 border-gray-300 text-gray-700 bg-white text-center cursor-pointer hover:bg-gray-50"
+              className="flex-1 py-3 px-4 rounded-lg font-semibold border-2 border-gray-300 text-gray-700 bg-white text-center cursor-pointer"
               onClick={handlePrev}
             >
               <Text>上一步</Text>
@@ -206,8 +206,8 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
             className={classNames(
               'flex-1 py-3 px-4 rounded-lg font-semibold text-white text-center cursor-pointer transition',
               {
-                'bg-orange-500 hover:bg-orange-600': !isLastStep,
-                'bg-green-500 hover:bg-green-600': isLastStep,
+                'bg-orange-500': !isLastStep,
+                'bg-green-500': isLastStep,
               }
             )}
             onClick={handleNext}
