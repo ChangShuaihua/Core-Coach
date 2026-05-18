@@ -135,8 +135,8 @@ export default function ChatPage() {
           setShowLeft(false)
         }}
       >
-        <View className="mt-16 mx-8 py-3 flex items-center justify-center bg-orange-4 rounded-full">
-          <Add style={{ marginRight: '5px' }} /> 添加新对话
+        <View className="text-white mt-16 mx-6 py-3 flex items-center justify-center bg-orange-5 rounded-lg">
+          <Add style={{ marginRight: '4px', color: '#fff' }} /> 添加新对话
         </View>
         <View>
           <ConversationList />
