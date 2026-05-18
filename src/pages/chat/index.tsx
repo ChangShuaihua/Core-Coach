@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
+import { useChatStore } from '@/store/chatStore'
 import { Message, QuickAction } from '@/types/chat'
 import ChatInput from './components/ChatInput'
 import ConversationList from './components/ConversationList'
@@ -22,6 +23,8 @@ export default function ChatPage() {
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const addMessage = useChatStore((s) => s.addMessage)
+  const currentConversationId = useChatStore((s) => s.currentConversationId)
 
   // 监听键盘高度变化
   useEffect(() => {
@@ -55,6 +58,11 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, userMessage])
       setIsLoading(true)
 
+      // 同步到 store，更新会话排序
+      if (currentConversationId) {
+        addMessage(userMessage)
+      }
+
       // 模拟 AI 回复（后续替换为真实 API）
       timerRef.current = setTimeout(() => {
         const aiMessage: Message = {
@@ -67,9 +75,14 @@ export default function ChatPage() {
         setMessages((prev) => [...prev, aiMessage])
         setIsLoading(false)
         timerRef.current = null
+
+        // 同步 AI 回复到 store
+        if (currentConversationId) {
+          addMessage(aiMessage)
+        }
       }, 3000)
     },
-    [isLoading]
+    [isLoading, currentConversationId, addMessage]
   )
 
   // 选择快捷操作
