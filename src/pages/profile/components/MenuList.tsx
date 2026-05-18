@@ -2,7 +2,7 @@ import { View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowRight } from '@nutui/icons-react-taro'
 import { Cell } from '@nutui/nutui-react-taro'
-import type { MenuGroup } from '../types'
+import type { MenuGroup } from '@/types/profile'
 
 interface MenuListProps {
   menuGroup: MenuGroup

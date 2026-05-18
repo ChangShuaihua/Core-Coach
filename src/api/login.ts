@@ -1,39 +1,56 @@
-import Taro from '@tarojs/taro'
 import { USE_MOCK } from '@/config/mock'
-import type { UserInfo } from '@/pages/profile/types'
 import { post } from '@/services/http'
-
-interface LoginResponse {
-  token: string
-  userInfo: UserInfo
-}
+import type { LoginData, LoginParams, LoginResult } from '@/types/login'
 
 // 模拟延迟
 const mockDelay = (ms = 800) => new Promise((r) => setTimeout(r, ms))
 
-// 微信登录
-export async function wechatLogin(): Promise<LoginResponse> {
-  if (USE_MOCK) {
-    await mockDelay()
-    return {
-      token: 'mock-token-wechat-' + Date.now(),
-      userInfo: { id: 1, uid: '10086', nickname: '微信用户', avatar: '' },
-    }
+function mapLoginData(data: LoginData): LoginResult {
+  return {
+    accessToken: data.access_token,
+    userInfo: {
+      id: data.user.user_id,
+      uid: data.user.open_id,
+      nickname: data.user.nick_name,
+      avatar: data.user.avatar_url,
+    },
   }
-
-  const { code } = await Taro.login()
-  return post<LoginResponse>('/auth/wechat-login', { code }, { withToken: false })
 }
 
-// 账号密码登录
-export async function accountLogin(phone: string, password: string): Promise<LoginResponse> {
+// 统一登录接口
+export async function login(params: LoginParams): Promise<LoginResult> {
   if (USE_MOCK) {
     await mockDelay()
     return {
-      token: 'mock-token-account-' + Date.now(),
-      userInfo: { id: 2, uid: '10010', nickname: '测试账号', avatar: '' },
+      accessToken: 'mock-token-' + params.login_type + '-' + Date.now(),
+      userInfo: {
+        id: params.login_type === 'wechat' ? 1 : 2,
+        uid: params.login_type === 'wechat' ? '10086' : '10010',
+        nickname: params.login_type === 'wechat' ? '微信用户' : '测试账号',
+        avatar: '',
+      },
     }
   }
 
-  return post<LoginResponse>('/auth/login', { phone, password }, { withToken: false })
+  const data = await post<LoginData>(
+    '/v1/app/auth/login',
+    {
+      login_type: params.login_type,
+      code: params.code,
+      account: params.account,
+      password: params.password,
+    },
+    { withToken: false }
+  )
+  return mapLoginData(data)
+}
+
+// 刷新 accessToken
+export async function refreshToken(accessToken: string): Promise<string> {
+  const data = await post<{ accessToken: string }>('/v1/app/auth/refresh', undefined, {
+    withToken: false,
+    showLoading: false,
+    header: { Authorization: `Bearer ${accessToken}` },
+  })
+  return data.accessToken
 }

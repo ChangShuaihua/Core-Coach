@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components'
-import { Message } from '../types/index'
+import { Message } from '@/types/chat'
 
 interface MessageBubbleProps {
   message: Message
@@ -14,7 +14,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
     borderRadius: '12px',
     padding: '10px 14px',
     backgroundColor: isUser ? '#fe8329' : '#f3f4f6',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.2)', // 增加一点点投影，让气泡更立体
+    boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
   }
 
   const textStyle: React.CSSProperties = {
