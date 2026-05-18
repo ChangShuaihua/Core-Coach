@@ -1,44 +1,41 @@
 import { useEffect, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { getSkillList } from '@/api/creation'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import { getSkillList } from '@/services/creation'
 import { useCreationStore } from '@/store'
-import { SKILLS_MOCK_DATA, getStatusText } from './constants/skills'
+import { getStatusText, getModeBySkillId, SKILLS_MOCK_DATA } from './constants/skills'
 import type { Skill } from './constants/skills'
 
-/**
- * 创作工坊入口页面（Tab 页面）
- * 用户选择创作类型：游戏生成、教案生成、视频分析
- */
 export default function CreationPage() {
   const setMode = useCreationStore((state) => state.setMode)
-  const [skills, setSkills] = useState<Skill[]>(SKILLS_MOCK_DATA)
+  const skillList = useCreationStore((state) => state.skillList)
+  const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
+  const setSkillList = useCreationStore((state) => state.setSkillList)
   const [loading, setLoading] = useState(false)
 
-  // 页面加载时获取技能列表
   useEffect(() => {
-    fetchSkills()
+    if (!skillListLoaded) {
+      fetchSkills()
+    }
   }, [])
 
   const fetchSkills = async () => {
     try {
       setLoading(true)
       const data = await getSkillList()
-      setSkills(data)
+      setSkillList(data)
     } catch (error) {
       console.error('获取技能列表失败:', error)
-      // 失败时使用 mock 数据
-      setSkills(SKILLS_MOCK_DATA)
+      setSkillList(SKILLS_MOCK_DATA)
     } finally {
       setLoading(false)
     }
   }
 
   const handleSkillClick = (skill: Skill) => {
-    // status = 0: 未开放，显示 toast
-    if (skill.status === 0) {
+    if (skill.status !== 1) {
       Taro.showToast({
         title: getStatusText(skill.status),
         icon: 'none',
@@ -46,30 +43,28 @@ export default function CreationPage() {
       return
     }
 
-    // status = 1: 已开放，跳转到目标页面
-    if (skill.status === 1 && skill.target) {
-      // 设置模式到 Store
-      if (skill.permissionKey === 'game_gen') {
-        setMode('game')
-      } else if (skill.permissionKey === 'lesson_plan') {
-        setMode('lesson')
-      }
-      Taro.navigateTo({
-        url: skill.target,
-      })
-    }
+    const mode = getModeBySkillId(skill.id)
+    setMode(mode)
+    Taro.navigateTo({
+      url: `/pages/wizard/index?mode=${mode}`,
+    })
   }
 
-  // 将技能分组为两个一行
+  const renderIcon = (skill: Skill) => {
+    if (skill.image_need === 1 && skill.icon.startsWith('http')) {
+      return <Image className="w-10 h-10" src={skill.icon} mode="aspectFit" />
+    }
+    return <Text className="text-4xl">{skill.icon}</Text>
+  }
+
   const skillRows: Skill[][] = []
-  for (let i = 0; i < skills.length; i += 2) {
-    skillRows.push(skills.slice(i, i + 2))
+  for (let i = 0; i < skillList.length; i += 2) {
+    skillRows.push(skillList.slice(i, i + 2))
   }
 
   return (
     <Layout title="创作工坊">
       <View className="flex flex-col gap-4 p-4">
-        {/* 动态渲染技能卡片 - 两个一行 */}
         {skillRows.map((row, rowIndex) => (
           <View key={rowIndex} className="flex gap-4">
             {row.map((skill) => {
@@ -90,23 +85,21 @@ export default function CreationPage() {
                     }`}
                     onClick={() => handleSkillClick(skill)}
                   >
-                    {/* Icon */}
                     <View
                       className={`w-16 h-16 rounded-lg flex items-center justify-center ${
                         isActive ? 'bg-orange-500' : 'bg-gray-400'
                       }`}
                     >
-                      <Text className="text-4xl">{skill.icon}</Text>
+                      {renderIcon(skill)}
                     </View>
 
-                    {/* Content */}
                     <View>
                       <Text
                         className={`text-base font-semibold block mb-1 ${
                           isActive ? 'text-gray-900' : 'text-gray-700'
                         }`}
                       >
-                        {skill.name}
+                        {skill.description}
                       </Text>
                       <Text
                         className={`text-xs font-medium ${
@@ -130,9 +123,7 @@ export default function CreationPage() {
             <Text className="text-sm text-orange-600">全部 ›</Text>
           </View>
 
-          {/* 最近创作列表 */}
           <View className="flex flex-col gap-3">
-            {/* 示例项 1 */}
             <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 active:bg-gray-50">
               <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <Text className="text-2xl">🎮</Text>
@@ -146,7 +137,6 @@ export default function CreationPage() {
               <Text className="text-gray-400 text-xl">›</Text>
             </View>
 
-            {/* 示例项 2 */}
             <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 active:bg-gray-50">
               <View className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Text className="text-2xl">🏃</Text>
@@ -160,7 +150,6 @@ export default function CreationPage() {
               <Text className="text-gray-400 text-xl">›</Text>
             </View>
 
-            {/* 示例项 3 */}
             <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 active:bg-gray-50">
               <View className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <Text className="text-2xl">🏰</Text>

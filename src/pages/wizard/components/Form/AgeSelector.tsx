@@ -1,28 +1,28 @@
-import { View, Text, Picker } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
+import type { AgeConfig } from '@/api/creation'
 
 export interface AgeSelectorProps {
   value: string
   onChange: (value: string) => void
   label?: string
   required?: boolean
-  options?: string[]
+  config?: AgeConfig
 }
 
-/**
- * AgeSelector - 年龄选择器组件
- *
- * 用于选择适合的年龄段
- */
 export default function AgeSelector({
   value,
   onChange,
   label = '适合年龄',
   required = false,
-  options = ['2-3岁', '3-4岁', '4-5岁', '5-6岁', '6-7岁', '7-8岁', '8-10岁', '10-12岁'],
+  config,
 }: AgeSelectorProps) {
-  const handlePickerChange = (e: any) => {
-    const selectedValue = options[e.detail.value]
-    onChange(selectedValue)
+  const min = config?.min ?? 3
+  const max = config?.max ?? 12
+  const unit = config?.unit ?? '岁'
+
+  const options: string[] = []
+  for (let i = min; i <= max; i++) {
+    options.push(`${i}${unit}`)
   }
 
   return (
@@ -31,18 +31,24 @@ export default function AgeSelector({
         {label}
         {required && <Text className="text-red-500"> *</Text>}
       </Text>
-      <Picker
-        mode="selector"
-        range={options}
-        value={options.indexOf(value || '')}
-        onChange={handlePickerChange}
-      >
-        <View className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white">
-          <Text className={value ? 'text-gray-900' : 'text-gray-400'}>
-            {value || '请选择年龄段'}
-          </Text>
-        </View>
-      </Picker>
+      <View className="flex flex-wrap gap-2">
+        {options.map((age) => {
+          const isSelected = value === age
+          return (
+            <View
+              key={age}
+              className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                isSelected
+                  ? 'border-orange-500 bg-orange-50 text-orange-600 font-medium'
+                  : 'border-gray-300 bg-white text-gray-700 active:bg-gray-50'
+              }`}
+              onClick={() => onChange(age)}
+            >
+              {age}
+            </View>
+          )
+        })}
+      </View>
     </View>
   )
 }

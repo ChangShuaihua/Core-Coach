@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
 import { View, Text, Input } from '@tarojs/components'
+import { getGameConfig } from '@/api/creation'
+import type { GameConfig } from '@/api/creation'
 import Card from '@/components/Card'
 import { AgeSelector, PlayerCountSelector, GameTypeSelector } from './Form'
 
@@ -8,23 +11,27 @@ export interface ParamSettingsProps {
   currentStep: any
 }
 
-/**
- * ParamSettings Component
- *
- * 参数设置页：游戏名称、年龄、人数、游戏类型等
- * 使用模块化的 Form 组件来构建表单
- */
 export default function ParamSettings({ data, updateData }: ParamSettingsProps) {
+  const [config, setConfig] = useState<GameConfig | null>(null)
+
+  useEffect(() => {
+    getGameConfig().then((res) => {
+      setConfig(res)
+      // 设置默认年龄
+      if (!data.age && res.age_config) {
+        updateData('age', `${res.age_config.default}${res.age_config.unit}`)
+      }
+    })
+  }, [])
+
   return (
     <Card className="p-6">
-      {/* Header */}
       <View className="mb-6">
         <Text className="text-lg font-semibold text-gray-900 mb-2">参数设置</Text>
         <Text className="text-sm text-gray-600">配置游戏参数</Text>
       </View>
 
       <View className="flex flex-col gap-4">
-        {/* Game Name */}
         <View className="flex flex-col gap-2">
           <Text className="text-sm font-medium text-gray-700">
             游戏名称
@@ -39,15 +46,14 @@ export default function ParamSettings({ data, updateData }: ParamSettingsProps) 
           />
         </View>
 
-        {/* Age Selector */}
         <AgeSelector
           value={data.age}
           onChange={(value) => updateData('age', value)}
           label="适合年龄"
           required
+          config={config?.age_config}
         />
 
-        {/* Player Count Selector */}
         <PlayerCountSelector
           value={data.playerCount}
           onChange={(value) => updateData('playerCount', value)}
@@ -55,15 +61,14 @@ export default function ParamSettings({ data, updateData }: ParamSettingsProps) 
           required
         />
 
-        {/* Game Type Selector */}
         <GameTypeSelector
           value={data.gameType}
           onChange={(value) => updateData('gameType', value)}
           label="游戏类型"
           required
+          options={config?.game_types}
         />
 
-        {/* Summary */}
         {data.gameName && data.age && data.playerCount && data.gameType && (
           <View className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
             <Text className="text-sm font-semibold text-gray-900 mb-2">📋 参数总结</Text>

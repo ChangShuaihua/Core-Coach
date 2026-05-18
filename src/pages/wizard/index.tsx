@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { getSkillDetail } from '@/api/creation'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
 import type { SkillStepConfig } from '@/components/Wizard'
-import { getSkillDetail } from '@/services/creation'
 import { useCreationStore } from '@/store'
 
 /**
