@@ -1,5 +1,4 @@
 import { View, Text } from '@tarojs/components'
-import classNames from 'classnames'
 
 export interface Step {
   id: string | number
@@ -11,79 +10,21 @@ export interface StepIndicatorProps {
   steps: Step[]
   currentStep: string | number
   onStepClick?: (stepId: string | number) => void
-  variant?: 'default' | 'compact'
   size?: 'small' | 'medium' | 'large'
-  showDescription?: boolean
   clickable?: boolean
 }
 
-/**
- * StepIndicator Component
- *
- * A flexible step indicator component that displays progress through a multi-step process.
- *
- * @example
- * ```tsx
- * const steps = [
- *   { id: 1, label: '模板选择', description: '选择模板' },
- *   { id: 2, label: '参数设置', description: '设置参数' },
- *   { id: 3, label: '预览结果', description: '预览结果' },
- * ]
- *
- * <StepIndicator
- *   steps={steps}
- *   currentStep={1}
- *   onStepClick={(id) => setCurrentStep(id)}
- *   showDescription
- *   clickable
- * />
- * ```
- */
 export default function StepIndicator({
   steps,
   currentStep,
   onStepClick,
-  variant = 'default',
   size = 'medium',
-  showDescription = true,
   clickable = false,
 }: StepIndicatorProps) {
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'small':
-        return {
-          circle: 'w-8 h-8',
-          text: 'text-xs',
-          label: 'text-xs',
-          description: 'text-xs',
-          line: 'h-1',
-        }
-      case 'large':
-        return {
-          circle: 'w-14 h-14',
-          text: 'text-lg',
-          label: 'text-base',
-          description: 'text-sm',
-          line: 'h-1',
-        }
-      case 'medium':
-      default:
-        return {
-          circle: 'w-10 h-10',
-          text: 'text-sm',
-          label: 'text-sm',
-          description: 'text-xs',
-          line: 'h-1',
-        }
-    }
-  }
-
-  const sizeClasses = getSizeClasses()
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep)
 
   const isStepCompleted = (index: number) => index < currentStepIndex
   const isStepActive = (index: number) => index === currentStepIndex
-  const isStepUpcoming = (index: number) => index > currentStepIndex
 
   const handleStepClick = (stepId: string | number) => {
     if (clickable && onStepClick) {
@@ -91,95 +32,95 @@ export default function StepIndicator({
     }
   }
 
+  // 统一动态尺寸
+  const dimensions = {
+    small: { circle: 32, font: 12, labelFont: 12 },
+    medium: { circle: 40, font: 14, labelFont: 14 },
+    large: { circle: 56, font: 18, labelFont: 16 },
+  }[size] || { circle: 40, font: 14, labelFont: 14 }
+
   return (
-    <View className="w-full">
-      {/* Horizontal Step Indicator */}
-      <View className="flex items-center justify-between w-full px-2">
-        {steps.map((step, index) => (
-          <View key={step.id} className="flex flex-col items-center flex-1">
-            {/* Step Circle */}
-            <View
-              className={classNames(
-                sizeClasses.circle,
-                'rounded-full flex items-center justify-center font-semibold transition-all duration-300 flex-shrink-0',
-                {
-                  'bg-orange-500 text-white': isStepActive(index),
-                  'bg-orange-400 text-white': isStepCompleted(index),
-                  'bg-gray-300 text-gray-600': isStepUpcoming(index),
-                  'cursor-pointer': clickable,
-                }
-              )}
-              onClick={() => handleStepClick(step.id)}
-            >
-              <Text className={sizeClasses.text}>{isStepCompleted(index) ? '✓' : index + 1}</Text>
-            </View>
-
-            {/* Step Label */}
-            <Text
-              className={classNames(sizeClasses.label, 'mt-2 font-medium text-center', {
-                'text-orange-500': isStepActive(index),
-                'text-orange-400': isStepCompleted(index),
-                'text-gray-600': isStepUpcoming(index),
-              })}
-            >
-              {step.label}
-            </Text>
-
-            {/* Step Description */}
-            {showDescription && step.description && (
-              <Text
-                className={classNames(sizeClasses.description, 'mt-1 text-center', {
-                  'text-orange-400': isStepActive(index),
-                  'text-orange-300': isStepCompleted(index),
-                  'text-gray-500': isStepUpcoming(index),
-                })}
-              >
-                {step.description}
-              </Text>
-            )}
-
-            {/* Connecting Line */}
-            {index < steps.length - 1 && (
-              <View
-                className={classNames(sizeClasses.line, 'absolute top-5 w-full', {
-                  'bg-orange-400': isStepCompleted(index),
-                  'bg-gray-300': !isStepCompleted(index),
-                })}
-                style={{
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: `calc(100% - ${sizeClasses.circle === 'w-10 h-10' ? '40px' : sizeClasses.circle === 'w-8 h-8' ? '32px' : '56px'})`,
-                }}
-              />
-            )}
-          </View>
-        ))}
+    // 整个组件相对定位，方便内部绝对定位线段
+    <View style={{ position: 'relative', width: '100%', padding: '16px 0' }}>
+      {/* ================= 背景连线层 ================= */}
+      {/* 通过 100% 宽度和左右 padding 缩进，完美契合首尾圆圈的中心点 */}
+      <View
+        style={{
+          position: 'absolute',
+          // 顶距 = 圆心所在高度。即：(圆形大小 / 2) + 外层上边距(16px)
+          top: `${dimensions.circle / 2 + 16}px`,
+          // 左右缩进距离为 1/steps.length 的一半，正好落在两端圆形的中心
+          left: `${100 / steps.length / 2}%`,
+          right: `${100 / steps.length / 2}%`,
+          height: '2px',
+          backgroundColor: '#e5e6eb',
+          zIndex: 1, // 确保在圆形和文字下方
+        }}
+      >
+        {/* 已激活/已完成的进度条高亮效果 */}
+        <View
+          style={{
+            width: `${(currentStepIndex / (steps.length - 1)) * 100}%`,
+            height: '100%',
+            backgroundColor: '#ffa052',
+            transition: 'width 0.3s ease', // 切换步骤时附带平滑过渡动画
+          }}
+        />
       </View>
 
-      {/* Compact Variant - Horizontal Line with Dots */}
-      {variant === 'compact' && (
-        <View className="mt-4 flex items-center justify-between w-full px-2">
-          {steps.map((step, index) => (
-            <View key={step.id} className="flex flex-col items-center flex-1">
+      {/* ================= 步骤核心内容层 ================= */}
+      <View style={{ display: 'flex', width: '100%', position: 'relative', zIndex: 2 }}>
+        {steps.map((step, index) => {
+          const active = isStepActive(index)
+          const completed = isStepCompleted(index)
+
+          return (
+            <View
+              key={step.id}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+              onClick={() => handleStepClick(step.id)}
+            >
+              {/* 步骤数字圆圈 */}
               <View
-                className={classNames('w-3 h-3 rounded-full transition-all duration-300', {
-                  'bg-orange-500': isStepActive(index),
-                  'bg-orange-400': isStepCompleted(index),
-                  'bg-gray-300': isStepUpcoming(index),
-                })}
-              />
-              {index < steps.length - 1 && (
-                <View
-                  className={classNames('h-1 flex-1 mx-1', {
-                    'bg-orange-400': isStepCompleted(index),
-                    'bg-gray-300': !isStepCompleted(index),
-                  })}
-                />
-              )}
+                style={{
+                  width: `${dimensions.circle}px`,
+                  height: `${dimensions.circle}px`,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  boxSizing: 'border-box',
+                  // 未激活时为图中的白底灰边效果
+                  backgroundColor: active ? '#fe6601' : completed ? '#ffa052' : '#ffffff',
+                  border: active || completed ? 'none' : '2px solid #e5e6eb',
+                  color: active || completed ? '#ffffff' : '#86909c',
+                  cursor: clickable ? 'pointer' : 'default',
+                }}
+              >
+                <Text style={{ fontSize: `${dimensions.font}px`, lineHeight: 1 }}>{index + 1}</Text>
+              </View>
+
+              {/* 步骤文案 */}
+              <Text
+                style={{
+                  marginTop: '10px',
+                  fontSize: `${dimensions.labelFont}px`,
+                  fontWeight: active ? 'bold' : 'normal',
+                  color: active ? '#fe6601' : completed ? '#ffa052' : '#86909c',
+                }}
+              >
+                {step.label}
+              </Text>
             </View>
-          ))}
-        </View>
-      )}
+          )
+        })}
+      </View>
     </View>
   )
 }

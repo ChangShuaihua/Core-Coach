@@ -25,7 +25,7 @@ interface ResultPreviewProps {
  * 用于处理 type: 'result_preview' 的步骤
  * 显示用户填写的所有数据，并提供操作按钮
  */
-export default function ResultPreview({ config, value, onChange }: ResultPreviewProps) {
+export default function ResultPreview({ config, value }: ResultPreviewProps) {
   const handleAction = (action: string, api?: string) => {
     console.log(`执行操作: ${action}`, { api, data: value })
 
