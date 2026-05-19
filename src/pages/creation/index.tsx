@@ -118,43 +118,57 @@ export default function CreationPage() {
         <View className="mt-6">
           <View className="flex items-center justify-between mb-4">
             <Text className="text-lg font-semibold text-gray-900">最近创作</Text>
-            <Text className="text-sm text-orange-600">全部 ›</Text>
+            <Text
+              className="text-sm text-orange-600"
+              onClick={() => Taro.navigateTo({ url: '/pages/more/index' })}
+            >
+              全部 ›
+            </Text>
           </View>
 
           <View className="flex flex-col gap-3">
-            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 ">
+            <View
+              className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 "
+              onClick={() => Taro.navigateTo({ url: '/pages/detail/index?id=3&type=game' })}
+            >
               <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <Text className="text-2xl">🎮</Text>
               </View>
               <View className="flex-1">
                 <Text className="text-base font-medium text-gray-900 block mb-1">
-                  春红自然探索游戏
+                  小兔子跳跳的森林寻宝大冒险
                 </Text>
                 <Text className="text-xs text-gray-500">2分钟前</Text>
               </View>
               <Text className="text-gray-400 text-xl">›</Text>
             </View>
 
-            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 ">
-              <View className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Text className="text-2xl">🏃</Text>
+            <View
+              className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 "
+              onClick={() => Taro.navigateTo({ url: '/pages/detail/index?id=2&type=game' })}
+            >
+              <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Text className="text-2xl">🎮</Text>
               </View>
               <View className="flex-1">
                 <Text className="text-base font-medium text-gray-900 block mb-1">
-                  海洋探险跑酷教案
+                  小兔子的森林寻宝大冒险
                 </Text>
                 <Text className="text-xs text-gray-500">昨天</Text>
               </View>
               <Text className="text-gray-400 text-xl">›</Text>
             </View>
 
-            <View className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 ">
-              <View className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Text className="text-2xl">🏰</Text>
+            <View
+              className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 "
+              onClick={() => Taro.navigateTo({ url: '/pages/detail/index?id=1&type=game' })}
+            >
+              <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Text className="text-2xl">🎮</Text>
               </View>
               <View className="flex-1">
                 <Text className="text-base font-medium text-gray-900 block mb-1">
-                  城堡勇士闯关游戏
+                  小兔子的森林寻宝游戏
                 </Text>
                 <Text className="text-xs text-gray-500">2天前</Text>
               </View>
