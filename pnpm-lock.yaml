@@ -94,14 +94,7 @@ importers:
         version: 18.3.1(react@18.3.1)
       react-hook-form:
         specifier: ^7.75.0
-<<<<<<< HEAD
-        version: 7.75.0(react@18.3.1)
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-=======
         version: 7.75.0(react@18.0.0)
->>>>>>> dev
       zustand:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@18.3.28)(react@18.3.1)
@@ -14270,13 +14263,7 @@ snapshots:
       toposort: 2.0.2
       type-fest: 2.19.0
 
-<<<<<<< HEAD
-  zod@4.4.3: {}
-
-  zustand@5.0.13(@types/react@18.3.28)(react@18.3.1):
-=======
   zustand@5.0.13(@types/react@18.3.28)(react@18.0.0):
->>>>>>> dev
     optionalDependencies:
       '@types/react': 18.3.28
       react: 18.3.1

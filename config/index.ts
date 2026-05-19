@@ -58,9 +58,7 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
       webpackChain(chain) {
         chain.resolve.plugin('tsconfig-paths').use(TsconfigPathsPlugin)
         // 配置 Babel 转译 node_modules 中包含私有字段的包
-        chain.module
-          .rule('script')
-          .include.add(/node_modules[\\/]@tanstack/)
+        chain.module.rule('script').include.add(/node_modules[\\/]@tanstack/)
       },
     },
     h5: {

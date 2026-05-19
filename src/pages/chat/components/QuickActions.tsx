@@ -1,20 +1,24 @@
 import { View } from '@tarojs/components'
 import { Cell } from '@nutui/nutui-react-taro'
-import { QUICK_ACTIONS } from '../constants/quickActions'
-import type { QuickAction } from '../types'
+import type { Skill } from '@/types/chat'
 
 interface QuickActionsPopupProps {
   visible: boolean
+  skills: Skill[]
   onClose: () => void
-  onSelect: (action: QuickAction) => void
+  onSelect: (skill: Skill) => void
 }
 
-export default function QuickActionsPopup({ visible, onClose, onSelect }: QuickActionsPopupProps) {
+export default function QuickActionsPopup({
+  visible,
+  skills,
+  onClose,
+  onSelect,
+}: QuickActionsPopupProps) {
   return (
     <>
       {visible && (
         <View onClick={onClose}>
-          {/* 卡片主体 */}
           <View
             className="rounded-2xl bg-white"
             style={{
@@ -22,17 +26,17 @@ export default function QuickActionsPopup({ visible, onClose, onSelect }: QuickA
             }}
           >
             <Cell.Group>
-              {QUICK_ACTIONS.map((action, index) => (
+              {skills.map((skill, index) => (
                 <Cell
-                  key={action.id}
-                  title={action.title}
+                  key={skill.id}
+                  title={skill.title}
                   clickable
                   onClick={() => {
-                    onSelect(action)
+                    onSelect(skill)
                     onClose()
                   }}
                   style={{
-                    borderBottom: index < QUICK_ACTIONS.length - 1 ? '1px solid #f5f5f5' : 'none',
+                    borderBottom: index < skills.length - 1 ? '1px solid #f5f5f5' : 'none',
                     padding: '14px 16px',
                     fontSize: '14px',
                   }}
