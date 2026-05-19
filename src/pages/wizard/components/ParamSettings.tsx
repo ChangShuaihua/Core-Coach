@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import { getGameConfig } from '@/api/creation'
 import type { GameConfig } from '@/api/creation'
-import Card from '@/components/Card'
 import { AgeSelector, PlayerCountSelector, GameTypeSelector } from './Form'
 
 export interface ParamSettingsProps {
@@ -27,10 +26,9 @@ export default function ParamSettings({ data, updateData }: ParamSettingsProps) 
   }, [data.age, updateData])
 
   return (
-    <Card className="p-6">
+    <View className="p-6 bg-whit">
       <View className="mb-6">
         <Text className="text-lg font-semibold text-gray-900 mb-2">参数设置</Text>
-        <Text className="text-sm text-gray-600">配置游戏参数</Text>
       </View>
 
       <View className="flex flex-col gap-4">
@@ -68,6 +66,6 @@ export default function ParamSettings({ data, updateData }: ParamSettingsProps) 
           </View>
         )}
       </View>
-    </Card>
+    </View>
   )
 }

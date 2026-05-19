@@ -20,7 +20,7 @@ export default function GameTypeSelector({
 
   return (
     <View className="flex flex-col gap-2">
-      <Text className="text-sm font-medium text-gray-700">
+      <Text className="text-base font-blod text-black">
         {label}
         {required && <Text className="text-red-500"> *</Text>}
       </Text>
@@ -30,11 +30,12 @@ export default function GameTypeSelector({
           return (
             <View
               key={type.code}
-              className={`px-4 py-2 rounded-lg border text-sm transition-colors ${
-                isSelected
-                  ? 'border-orange-500 bg-orange-50 text-orange-600 font-medium'
-                  : 'border-gray-300 bg-white text-gray-700 '
+              className={`flex-1 w-8 h-8 flex items-center justify-center rounded-lg text-sm ${
+                isSelected ? 'bg-orange-50 text-orange-600 font-medium' : 'bg-white text-gray-700'
               }`}
+              style={{
+                border: `1px solid ${isSelected ? '#FF7A2F' : '#d1d5db'}`,
+              }}
               onClick={() => onChange(type.code)}
             >
               {type.name}

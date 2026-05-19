@@ -66,54 +66,52 @@ export default function AgeSelector({
   return (
     <View className="flex flex-col gap-2">
       {/* 标签 */}
-      <Text className="text-sm font-medium text-gray-700">
+      <Text className="text-base font-blod text-black">
         {label}
         {required && <Text className="text-red-500"> *</Text>}
       </Text>
 
-      {/* 步进器容器 */}
-      <View className="flex items-center gap-4">
-        {/* 减号按钮 */}
-        <View
-          className={`w-8 h-8 flex items-center justify-center rounded-full border ${
-            currentValue <= min
-              ? 'border-gray-200 text-gray-300 bg-gray-50'
-              : 'border-orange-500 text-orange-500 bg-orange-50'
-          } transition-colors`}
-          onClick={handleDecrease}
-          style={{ userSelect: 'none' }}
-        >
-          <Text className="text-xl font-bold">−</Text>
+      {/* 步进器容器 - InputNumber 样式 */}
+      <View className="flex items-center">
+        <View className="flex items-center border border-orange-500 rounded-lg bg-white overflow-hidden">
+          {/* 减号按钮 */}
+          <View
+            className={`w-10 h-10 flex items-center justify-center border-r border-orange-200 transition-colors ${
+              currentValue <= min ? 'text-orange-200 bg-orange-50' : 'text-orange-600 bg-orange-50'
+            }`}
+            onClick={handleDecrease}
+            style={{ userSelect: 'none' }}
+          >
+            <Text className="text-xl font-blod">−</Text>
+          </View>
+
+          {/* 数值显示 */}
+          <View className="w-14 h-10 flex items-center justify-center bg-white">
+            <Text className="text-base font-semibold text-block">
+              {currentValue}
+              {unit}
+            </Text>
+          </View>
+
+          {/* 加号按钮 */}
+          <View
+            className={`w-10 h-10 flex items-center justify-center border-l border-orange-200 transition-colors ${
+              currentValue >= max ? 'text-orange-200 bg-orange-50' : 'text-orange-600 bg-orange-50'
+            }`}
+            onClick={handleIncrease}
+            style={{ userSelect: 'none' }}
+          >
+            <Text className="text-xl font-blod">+</Text>
+          </View>
         </View>
 
-        {/* 数值显示 */}
-        <View className="w-20 text-center">
-          <Text className="text-lg font-semibold text-gray-800">
-            {currentValue}
-            {unit}
-          </Text>
-        </View>
-
-        {/* 加号按钮 */}
-        <View
-          className={`w-8 h-8 flex items-center justify-center rounded-full border ${
-            currentValue >= max
-              ? 'border-gray-200 text-gray-300 bg-gray-50'
-              : 'border-orange-500 text-orange-500 bg-orange-50'
-          } transition-colors`}
-          onClick={handleIncrease}
-          style={{ userSelect: 'none' }}
-        >
-          <Text className="text-xl font-bold">+</Text>
-        </View>
+        {/* 右侧范围提示 */}
+        <Text className="ml-3 text-sm text-gray-500">
+          {min}
+          {unit} ~ {max}
+          {unit}
+        </Text>
       </View>
-
-      {/* 可选：显示范围提示 */}
-      <Text className="text-xs text-gray-400">
-        可选范围：{min}
-        {unit} ~ {max}
-        {unit}
-      </Text>
     </View>
   )
 }
