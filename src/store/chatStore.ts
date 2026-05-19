@@ -11,6 +11,7 @@ interface ChatStore {
   // 会话
   loadConversations: () => Promise<void>
   createConversation: () => Promise<string>
+  getOrCreateConversation: () => Promise<string>
   switchConversation: (id: string) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
 
@@ -44,6 +45,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       currentMessages: [],
     }))
     return conv.id
+  },
+
+  getOrCreateConversation: async () => {
+    const { conversations, currentConversationId } = get()
+    // 查找已有的空会话（没发过消息）
+    const emptyConv = conversations.find((c) => c.messageCount === 0)
+    if (emptyConv) {
+      if (currentConversationId !== emptyConv.id) {
+        set({ currentConversationId: emptyConv.id, currentMessages: [] })
+      }
+      return emptyConv.id
+    }
+    return get().createConversation()
   },
 
   switchConversation: async (id: string) => {

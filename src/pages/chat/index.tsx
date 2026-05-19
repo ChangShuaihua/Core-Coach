@@ -29,6 +29,7 @@ export default function ChatPage() {
   const loadConversations = useChatStore((s) => s.loadConversations)
   const loadMessages = useChatStore((s) => s.loadMessages)
   const createConversation = useChatStore((s) => s.createConversation)
+  const getOrCreateConversation = useChatStore((s) => s.getOrCreateConversation)
   const appendMessage = useChatStore((s) => s.appendMessage)
   const updateMessageStatus = useChatStore((s) => s.updateMessageStatus)
   const loadSkills = useChatStore((s) => s.loadSkills)
@@ -37,11 +38,11 @@ export default function ChatPage() {
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
   )
 
-  // 页面挂载：拉取会话列表和技能列表
+  // 页面挂载：拉取会话列表和技能列表，然后自动获取或创建会话
   useEffect(() => {
-    loadConversations()
+    loadConversations().then(() => getOrCreateConversation())
     loadSkills()
-  }, [loadConversations, loadSkills])
+  }, [])
 
   // 切换会话时拉取消息（发送期间跳过，防止覆盖新消息）
   useEffect(() => {
@@ -177,7 +178,7 @@ export default function ChatPage() {
         <View
           className="text-white mt-16 mx-6 py-3 flex items-center justify-center bg-orange-5 rounded-lg"
           onClick={() => {
-            createConversation()
+            getOrCreateConversation()
             setShowLeft(false)
           }}
         >
