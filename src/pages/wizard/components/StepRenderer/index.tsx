@@ -3,7 +3,6 @@ import Card from '@/components/Card'
 import ParamSettings from '../ParamSettings'
 import ResultPreview from '../ResultPreview'
 import Selector from '../Selector'
-import TemplateGrid from '../TemplateSelector'
 import UploadComponent from '../UploadComponent'
 
 export interface SelectorOption {
@@ -15,21 +14,12 @@ export interface SelectorOption {
 export interface StepConfig {
   step: number
   title: string
-  type: 'selector' | 'template_grid' | 'param_settings' | 'upload' | 'result_preview'
+  type: 'selector' | 'param_settings' | 'upload' | 'result_preview'
   required?: boolean
   // selector 配置
   options?: string[] | SelectorOption[]
   multiple?: boolean
   maxSelect?: number
-  // template_grid 配置
-  templates?: Array<{
-    id: string
-    name: string
-    preview?: string
-    emoji?: string
-    description?: string
-    isNew?: boolean
-  }>
   // upload 配置
   accept?: string
   maxSize?: number
@@ -73,15 +63,6 @@ export default function StepRenderer({ config, value, onChange }: StepRendererPr
         />
       )
 
-    case 'template_grid':
-      return (
-        <TemplateGrid
-          config={config as any}
-          value={value}
-          onChange={(val) => handleChange(`step_${config.step}`, val)}
-        />
-      )
-
     case 'param_settings':
       return <ParamSettings data={value} updateData={handleDataUpdate} currentStep={config} />
 
@@ -102,7 +83,7 @@ export default function StepRenderer({ config, value, onChange }: StepRendererPr
         <Card>
           <Text className="text-red-500">未知组件类型: {config.type}</Text>
           <Text className="text-sm text-gray-600 mt-2">
-            支持的类型: selector, template_grid, param_settings, upload, result_preview
+            支持的类型: selector, param_settings, upload, result_preview
           </Text>
         </Card>
       )

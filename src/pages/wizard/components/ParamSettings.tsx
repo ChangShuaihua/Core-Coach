@@ -26,7 +26,7 @@ export default function ParamSettings({ data, updateData }: ParamSettingsProps) 
   }, [data.age, updateData])
 
   return (
-    <View className="p-6 bg-whit">
+    <View className="p-6 bg-white">
       <View className="mb-6">
         <Text className="text-lg font-semibold text-gray-900 mb-2">参数设置</Text>
       </View>
@@ -55,7 +55,7 @@ export default function ParamSettings({ data, updateData }: ParamSettingsProps) 
           required
         />
 
-        {data.gameName && data.age && data.playerCount && data.gameType && (
+        {data.age && data.playerCount && data.gameType && (
           <View className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
             <Text className="text-sm font-semibold text-gray-900 mb-2">📋 参数总结</Text>
             <View className="flex flex-col gap-1">

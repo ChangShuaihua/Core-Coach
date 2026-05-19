@@ -1,5 +1,8 @@
-import { View, Text, Button } from '@tarojs/components'
+import { useState } from 'react'
+import { View, Text } from '@tarojs/components'
 import Card from '@/components/Card'
+import GameDetail from '@/components/GameDetail'
+import type { Game } from '@/data/mock/games'
 
 export interface ResultPreviewConfig {
   step: number
@@ -13,6 +16,12 @@ export interface ResultPreviewConfig {
   required?: boolean
 }
 
+interface GeneratedResult {
+  generated_content: string
+  music?: string
+  created_at?: string
+}
+
 interface ResultPreviewProps {
   config: ResultPreviewConfig
   value: Record<string, any>
@@ -20,123 +29,214 @@ interface ResultPreviewProps {
 }
 
 /**
- * ResultPreview - 结果预览组件
- *
- * 用于处理 type: 'result_preview' 的步骤
- * 显示用户填写的所有数据，并提供操作按钮
+ * 解析生成内容文本，提取游戏信息
  */
-export default function ResultPreview({ config, value }: ResultPreviewProps) {
-  const handleAction = (action: string, api?: string) => {
-    console.log(`执行操作: ${action}`, { api, data: value })
+function parseGeneratedContent(content: string): Partial<Game> {
+  const lines = content.split('\n').filter((line) => line.trim())
 
-    // 这里可以调用 API
-    if (api) {
-      // await fetch(api, { method: 'POST', body: JSON.stringify(value) })
+  let name = '新游戏'
+  let category = '益智类'
+  let allDescription = ''
+  const playSteps: string[] = []
+  const preparation: string[] = []
+
+  for (const line of lines) {
+    // 提取游戏名称
+    if (line.includes('【游戏名称】')) {
+      const match = line.match(/【游戏名称】[：:]\s*(.+)/)
+      if (match) name = match[1].trim()
+    }
+
+    // 提取游戏形式作为分类
+    if (line.includes('【游戏形式】')) {
+      const match = line.match(/【游戏形式】[：:]\s*(.+)/)
+      if (match) category = match[1].trim()
+    }
+
+    // 提取前期准备
+    if (line.includes('【前期准备】')) {
+      const match = line.match(/【前期准备】[：:]\s*(.+)/)
+      if (match) {
+        const prepText = match[1].trim()
+        // 按按❶❷❸等分割
+        const items = prepText.split(/[❶❷❸❹❺❻❼❽❾❿⓫⓬]/).filter((item) => item.trim())
+        items.forEach((item) => {
+          const cleaned = item.replace(/^[：:]\s*/, '').trim()
+          if (cleaned) preparation.push(cleaned)
+        })
+      }
+    }
+
+    // 提取游戏大纲中的规则简述作为游戏步骤
+    if (line.includes('（规则简述）')) {
+      const match = line.match(/（规则简述）[）)]\s*[：:]\s*(.+)/)
+      if (match) playSteps.push(match[1].trim())
     }
   }
 
-  // 渲染预览内容
-  const renderPreviewContent = () => {
-    return (
-      <View className="flex flex-col gap-4">
-        {/* 步骤1: 选择的道具/动作 */}
-        {value.step_1 && (
-          <View className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <Text className="text-sm font-semibold text-gray-900 mb-2">
-              已选项目 ({Array.isArray(value.step_1) ? value.step_1.length : 1})
-            </Text>
-            <Text className="text-sm text-gray-700">
-              {Array.isArray(value.step_1) ? value.step_1.join(', ') : value.step_1}
-            </Text>
-          </View>
-        )}
+  // 如果没有提取到描述，使用默认描述
+  if (!allDescription) {
+    allDescription = `一个有趣的${category}游戏`
+  }
 
-        {/* 步骤2: 选择的模板 */}
-        {value.step_2 && (
-          <View className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
-            <Text className="text-sm font-semibold text-gray-900 mb-2">选中模板</Text>
-            <Text className="text-base font-bold text-orange-600">{value.step_2}</Text>
-          </View>
-        )}
+  return {
+    name,
+    category,
+    allDescription,
+    playSteps:
+      playSteps.length > 0 ? playSteps : ['准备游戏道具', '讲解游戏规则', '开始游戏', '游戏结束'],
+    preparation: preparation.length > 0 ? preparation : ['游戏道具若干', '足够的活动空间'],
+  }
+}
 
-        {/* 步骤3: 参数设置 */}
-        {(value.gameName || value.age || value.playerCount || value.gameType) && (
-          <View className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-            <Text className="text-sm font-semibold text-gray-900 mb-3">参数设置</Text>
-            <View className="flex flex-col gap-2">
-              {value.gameName && (
-                <View className="flex justify-between">
-                  <Text className="text-sm text-gray-600">游戏名称：</Text>
-                  <Text className="text-sm font-medium text-gray-900">{value.gameName}</Text>
-                </View>
-              )}
-              {value.age && (
-                <View className="flex justify-between">
-                  <Text className="text-sm text-gray-600">适合年龄：</Text>
-                  <Text className="text-sm font-medium text-gray-900">{value.age}</Text>
-                </View>
-              )}
-              {value.playerCount && (
-                <View className="flex justify-between">
-                  <Text className="text-sm text-gray-600">参与人数：</Text>
-                  <Text className="text-sm font-medium text-gray-900">{value.playerCount}</Text>
-                </View>
-              )}
-              {value.gameType && (
-                <View className="flex justify-between">
-                  <Text className="text-sm text-gray-600">游戏类型：</Text>
-                  <Text className="text-sm font-medium text-gray-900">{value.gameType}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
+/**
+ * ResultPreview - 结果预览组件
+ *
+ * 展示生成的游戏结果列表，点击可查看详情
+ */
+export default function ResultPreview({ config, value }: ResultPreviewProps) {
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
 
-        {/* 步骤4: 上传的文件 */}
-        {value.step_4 && (
-          <View className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <Text className="text-sm font-semibold text-gray-900 mb-2">已上传文件</Text>
-            <Text className="text-xs text-gray-600 break-all">{value.step_4}</Text>
-          </View>
-        )}
-      </View>
-    )
+  // 获取生成结果列表
+  const generatedResults: GeneratedResult[] = value.generatedResults || []
+  const hasResults = generatedResults.length > 0
+
+  // 将生成结果转换为 Game 对象
+  const games: Game[] = generatedResults.map((result, index) => {
+    const parsed = parseGeneratedContent(result.generated_content)
+    return {
+      id: index + 1,
+      name: parsed.name || '新游戏',
+      allDescription: parsed.allDescription || '',
+      duration: '10分钟',
+      players: parseInt(value.playerCount) || 2,
+      category: parsed.category || '益智类',
+      bgmUrl: result.music || undefined,
+      playSteps: parsed.playSteps || [],
+      preparation: parsed.preparation || [],
+    }
+  })
+
+  const handleGameClick = (game: Game) => {
+    setSelectedGame(game)
+  }
+
+  const handleBack = () => {
+    setSelectedGame(null)
+  }
+
+  // 如果选中了游戏，显示详情
+  if (selectedGame) {
+    return <GameDetail game={selectedGame} onBack={handleBack} />
   }
 
   return (
-    <Card className="p-6">
+    <View style={{ padding: '16px', backgroundColor: '#f7f8fa', minHeight: '100vh' }}>
       {/* Header */}
-      <View className="mb-6">
-        <Text className="text-lg font-semibold text-gray-900 mb-2">{config.title}</Text>
-        <Text className="text-sm text-gray-600">检查配置，确认无误后生成</Text>
+      <View style={{ marginBottom: '16px' }}>
+        <Text
+          style={{
+            fontSize: '18px',
+            fontWeight: '600',
+            color: '#1d2129',
+            marginBottom: '8px',
+            display: 'block',
+          }}
+        >
+          {config.title || '生成结果'}
+        </Text>
+        <Text style={{ fontSize: '14px', color: '#4e5969' }}>
+          {hasResults ? `共 ${games.length} 个生成结果` : '请先生成游戏'}
+        </Text>
       </View>
 
-      {/* Preview Content */}
-      {renderPreviewContent()}
-
-      {/* Action Buttons */}
-      {config.actions && config.actions.length > 0 && (
-        <View className="mt-6 flex flex-col gap-3">
-          {config.actions.map((action, index) => (
-            <Button
-              key={index}
-              className={`w-full py-3 px-4 rounded-lg font-semibold ${
-                index === 0
-                  ? 'bg-orange-500 text-white'
-                  : 'border-2 border-orange-500 text-orange-500 bg-white'
-              }`}
-              onClick={() => handleAction(action.action, action.api)}
+      {/* 生成结果列表 */}
+      {hasResults ? (
+        <View>
+          {games.map((game, index) => (
+            <Card
+              key={game.id}
+              className="mb-3 cursor-pointer"
+              onClick={() => handleGameClick(game)}
             >
-              <Text className={index === 0 ? 'text-white' : 'text-orange-500'}>{action.label}</Text>
-            </Button>
+              <View style={{ padding: '16px' }}>
+                {/* 游戏标题和分类 */}
+                <View
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <Text style={{ fontSize: '16px', fontWeight: '600', color: '#1d2129' }}>
+                    {game.name}
+                  </Text>
+                  <View
+                    style={{ padding: '2px 8px', backgroundColor: '#fff3eb', borderRadius: '12px' }}
+                  >
+                    <Text style={{ fontSize: '12px', color: '#fe6601' }}>{game.category}</Text>
+                  </View>
+                </View>
+
+                {/* 游戏描述 */}
+                <Text
+                  style={{
+                    fontSize: '14px',
+                    color: '#4e5969',
+                    marginBottom: '12px',
+                    lineHeight: '20px',
+                  }}
+                >
+                  {game.allDescription.length > 50
+                    ? game.allDescription.slice(0, 50) + '...'
+                    : game.allDescription}
+                </Text>
+
+                {/* 游戏信息 */}
+                <View style={{ display: 'flex', gap: '12px' }}>
+                  <Text style={{ fontSize: '12px', color: '#86909c' }}>{game.players}人</Text>
+                  <Text style={{ fontSize: '12px', color: '#86909c' }}>{game.duration}</Text>
+                  {game.playSteps.length > 0 && (
+                    <Text style={{ fontSize: '12px', color: '#86909c' }}>
+                      {game.playSteps.length}个步骤
+                    </Text>
+                  )}
+                </View>
+
+                {/* 生成时间 */}
+                {generatedResults[index]?.created_at && (
+                  <Text
+                    style={{
+                      fontSize: '11px',
+                      color: '#c9cdd4',
+                      marginTop: '8px',
+                      display: 'block',
+                    }}
+                  >
+                    生成于 {new Date(generatedResults[index].created_at).toLocaleString()}
+                  </Text>
+                )}
+              </View>
+            </Card>
           ))}
         </View>
+      ) : (
+        /* 空状态 */
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingTop: '80px',
+          }}
+        >
+          <Text style={{ fontSize: '48px', marginBottom: '16px' }}>🎮</Text>
+          <Text style={{ fontSize: '16px', color: '#86909c' }}>暂无生成结果</Text>
+          <Text style={{ fontSize: '14px', color: '#c9cdd4', marginTop: '8px' }}>请先生成游戏</Text>
+        </View>
       )}
-
-      {/* Tips */}
-      <View className="mt-6 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-        <Text className="text-xs text-yellow-800">💡 提示：生成后可以继续编辑游戏规则和参数</Text>
-      </View>
-    </Card>
+    </View>
   )
 }

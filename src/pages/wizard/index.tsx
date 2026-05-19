@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Text, View } from '@tarojs/components'
-import Taro from '@tarojs/taro'
-import { getSkillDetail } from '@/api/creation'
+import Taro, { useRouter } from '@tarojs/taro'
+import { getSkillDetail, generateByType } from '@/api/creation'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
 import type { SkillStepConfig } from '@/components/Wizard'
 import { useCreationStore } from '@/store'
+import { getConfigByType } from './constants/skillConfig'
 
 /**
  * 创作向导页面入口
@@ -18,9 +19,18 @@ import { useCreationStore } from '@/store'
  */
 export default function CreationWizardPage() {
   const { mode, isValid, clearMode } = useCreationStore()
+  const router = useRouter()
   const [stepConfig, setStepConfig] = useState<SkillStepConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [skillName, setSkillName] = useState('')
+
+  // 优先从路由参数获取业务类型，其次从 store 获取
+  const businessType = router.params.type || mode || 'game'
+
+  // 动态计算当前业务的步骤配置
+  const currentConfig = useMemo(() => {
+    return getConfigByType(businessType)
+  }, [businessType])
 
   // 初始化：验证 mode 并加载配置
   useEffect(() => {
@@ -56,6 +66,40 @@ export default function CreationWizardPage() {
       showErrorToast('加载配置失败，请重试')
     } finally {
       setLoading(false)
+    }
+  }
+
+  /**
+   * 处理生成（统一入口，根据业务类型动态分发）
+   */
+  const handleGenerate = async (data: Record<string, any>): Promise<Record<string, any> | null> => {
+    try {
+      console.log(`🎮 调用生成接口 [${businessType}]:`, data)
+
+      // 根据业务类型构造不同的参数
+      const params = buildGenerateParams(businessType, data)
+
+      // 调用统一生成函数，自动分发到对应的 API
+      const result = await generateByType(businessType, params)
+
+      console.log('✅ 生成成功:', result)
+
+      showSuccessToast('生成成功')
+
+      // 返回生成结果，供 ResultPreview 使用
+      return {
+        generatedResults: [
+          ...(data.generatedResults || []),
+          {
+            ...result,
+            businessType,
+          },
+        ],
+      }
+    } catch (error) {
+      console.error('❌ 生成失败:', error)
+      showErrorToast('生成失败，请重试')
+      return null
     }
   }
 
@@ -127,18 +171,11 @@ export default function CreationWizardPage() {
         </Text>
       }
     >
-      <Wizard stepConfig={stepConfig} onFinish={handleWizardFinish} />
+      <Wizard stepConfig={stepConfig} onFinish={handleWizardFinish} onGenerate={handleGenerate} />
     </Layout>
   )
 }
 
-// ============================================================================
-// 辅助函数
-// ============================================================================
-
-/**
- * 根据 mode 获取对应的技能 ID
- */
 function getSkillIdByMode(mode: string | null): number {
   switch (mode) {
     case 'game':
@@ -147,6 +184,28 @@ function getSkillIdByMode(mode: string | null): number {
       return 2
     default:
       return 1
+  }
+}
+
+/**
+ * 根据业务类型构造生成参数
+ */
+function buildGenerateParams(businessType: string, data: Record<string, any>): Record<string, any> {
+  switch (businessType) {
+    case 'game':
+      return {
+        age: parseInt(data.age) || 3,
+        game_type: data.gameType || '循环式',
+        player_count: parseInt(data.playerCount) || 2,
+      }
+    case 'lesson':
+      return {
+        sport_type: data.sportType || data.step_1 || '跑步',
+        age: parseInt(data.age) || 6,
+        duration: parseInt(data.duration) || 40,
+      }
+    default:
+      return data
   }
 }
 
