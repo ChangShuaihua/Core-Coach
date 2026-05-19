@@ -22,14 +22,6 @@ export interface WizardProps {
 
 /**
  * Wizard - 动态多步骤向导容器组件
- *
- * 根据 JSON 配置动态渲染不同的组件
- *
- * 支持的组件类型：
- * - selector: 道具/动作选择（通用选择器）
- * - template_grid: 模板选择
- * - param_settings: 参数设置
- * - upload: 文件上传
  */
 export default function Wizard({ stepConfig, onFinish }: WizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
@@ -174,17 +166,15 @@ export default function Wizard({ stepConfig, onFinish }: WizardProps) {
   return (
     <View className="w-full h-full flex flex-col bg-gray-50">
       {/* 顶部步骤条 */}
-      <View className="flex-shrink-0 bg-white px-4 py-6 border-b border-gray-200">
-        <StepIndicator
-          steps={indicatorSteps}
-          currentStep={currentStep.step}
-          size="medium"
-          showDescription
-        />
+      <View
+        className="flex-shrink-0 bg-white px-4 py-3"
+        style={{ borderBottom: '1rpx solid #E5E7EB' }}
+      >
+        <StepIndicator steps={indicatorSteps} currentStep={currentStep.step} size="medium" />
       </View>
 
       {/* 中间内容区 - 根据 JSON 配置动态渲染组件 */}
-      <View className="flex-1 overflow-y-auto px-4 py-6">
+      <View className="flex-1 overflow-y-auto bg-white">
         <View className="max-w-2xl mx-auto">
           <StepRenderer config={currentStep} value={data} onChange={updateData} />
         </View>
