@@ -53,12 +53,6 @@ interface StepRendererProps {
  *
  * 根据 config.type 动态渲染对应的组件
  *
- * 支持的组件类型：
- * - selector: 道具/动作选择器（支持单选/多选）
- * - template_grid: 模板网格选择
- * - param_settings: 参数设置表单
- * - upload: 文件上传
- * - result_preview: 结果预览
  */
 export default function StepRenderer({ config, value, onChange }: StepRendererProps) {
   const handleChange = (key: string, val: any) => {
@@ -105,7 +99,7 @@ export default function StepRenderer({ config, value, onChange }: StepRendererPr
 
     default:
       return (
-        <Card className="p-6">
+        <Card>
           <Text className="text-red-500">未知组件类型: {config.type}</Text>
           <Text className="text-sm text-gray-600 mt-2">
             支持的类型: selector, template_grid, param_settings, upload, result_preview
