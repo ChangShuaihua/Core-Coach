@@ -1,105 +1,239 @@
-import { View, Text, Picker } from '@tarojs/components'
+import { useState } from 'react'
+import { View, Text } from '@tarojs/components'
 
 export interface MusicSettingsProps {
   data: Record<string, any>
   updateData: (key: string, value: any) => void
   currentStep: any
+  onBack?: () => void
 }
 
-/**
- * MusicSettings Component
- *
- * 音乐音效页：生成 BGM、音效配置
- */
-export default function MusicSettings({ data, updateData }: MusicSettingsProps) {
-  const bgmOptions = ['无', '轻松欢快', '冒险刺激', '神秘诡异', '温暖治愈']
-  const soundEffectOptions = ['无', '点击音效', '成功音效', '失败音效', '全部']
+const musicPresets = [
+  { name: '阳光小步伐', desc: '轻快活泼，适合热身活动' },
+  { name: '快乐探险家', desc: '冒险风格，适合闯关游戏' },
+  { name: '森林奇遇记', desc: '自然清新，适合户外主题' },
+  { name: '童趣时光', desc: '可爱童趣，适合低龄儿童' },
+  { name: '星星的约定', desc: '温暖治愈，适合放松环节' },
+]
 
-  const musicSettings = data.musicSettings || {}
+export default function MusicSettings({ data, updateData, onBack }: MusicSettingsProps) {
+  const generatedResults = data.generatedResults || []
+  const currentMusic = generatedResults[0]?.music || ''
+  const [selectedPreset, setSelectedPreset] = useState<string>('')
 
-  const handleBgmChange = (e: any) => {
-    const selectedBgm = bgmOptions[e.detail.value]
-    updateData('musicSettings', {
-      ...musicSettings,
-      bgm: selectedBgm,
-    })
+  const handleSelect = (name: string) => {
+    setSelectedPreset(name)
   }
 
-  const handleSoundEffectChange = (e: any) => {
-    const selectedEffect = soundEffectOptions[e.detail.value]
-    updateData('musicSettings', {
-      ...musicSettings,
-      soundEffect: selectedEffect,
-    })
+  const handleConfirm = () => {
+    if (selectedPreset) {
+      updateData('selectedMusic', selectedPreset)
+    }
+    onBack?.()
   }
 
   return (
-    <View className="w-full bg-white rounded-lg p-4 flex flex-col gap-4">
-      {/* Header */}
-      <View className="mb-4">
-        <Text className="text-lg font-semibold text-gray-900">音乐音效</Text>
-        <Text className="text-sm text-gray-600 mt-1">配置音乐和音效（可选）</Text>
+    <View
+      style={{
+        width: '100%',
+        minHeight: '100vh',
+        backgroundColor: '#f3f4f6',
+        padding: '16px',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* 返回按钮 */}
+      <View
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginBottom: '16px',
+          cursor: 'pointer',
+        }}
+        onClick={() => onBack?.()}
+      >
+        <Text style={{ fontSize: '16px', color: '#f97316', fontWeight: '500' }}>← 返回</Text>
       </View>
 
-      {/* Background Music */}
-      <View>
-        <Text className="text-sm font-medium text-gray-700 mb-2">背景音乐</Text>
-        <Picker
-          mode="selector"
-          range={bgmOptions}
-          value={bgmOptions.indexOf(musicSettings.bgm || '无')}
-          onChange={handleBgmChange}
+      {/* 标题 */}
+      <View
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '20px',
+          marginBottom: '16px',
+        }}
+      >
+        <Text
+          style={{
+            fontSize: '18px',
+            fontWeight: 'bold',
+            color: '#111827',
+            display: 'block',
+            marginBottom: '8px',
+          }}
         >
-          <View className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700">
-            <Text>{musicSettings.bgm || '选择背景音乐'}</Text>
-          </View>
-        </Picker>
+          选择背景音乐
+        </Text>
+        <Text style={{ fontSize: '14px', color: '#9ca3af' }}>为游戏选择合适的背景音乐</Text>
       </View>
 
-      {/* Sound Effects */}
-      <View>
-        <Text className="text-sm font-medium text-gray-700 mb-2">音效</Text>
-        <Picker
-          mode="selector"
-          range={soundEffectOptions}
-          value={soundEffectOptions.indexOf(musicSettings.soundEffect || '无')}
-          onChange={handleSoundEffectChange}
+      {/* 当前音乐 */}
+      {currentMusic && (
+        <View
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            padding: '20px',
+            marginBottom: '16px',
+          }}
         >
-          <View className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700">
-            <Text>{musicSettings.soundEffect || '选择音效'}</Text>
-          </View>
-        </Picker>
-      </View>
-
-      {/* Volume Controls */}
-      {musicSettings.bgm && musicSettings.bgm !== '无' && (
-        <View className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-          <Text className="text-sm font-semibold text-gray-900 mb-3">音量设置</Text>
-          <View className="flex flex-col gap-3">
-            <View className="flex items-center justify-between">
-              <Text className="text-sm text-gray-700">背景音乐音量</Text>
-              <Text className="text-sm text-gray-600">{musicSettings.bgmVolume || 50}%</Text>
+          <Text
+            style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '8px', display: 'block' }}
+          >
+            当前音乐
+          </Text>
+          <View
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}
+          >
+            <View
+              style={{
+                width: '40px',
+                height: '40px',
+                backgroundColor: '#fff7ed',
+                borderRadius: '9999px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ fontSize: '18px' }}>🎵</Text>
             </View>
-            <View className="flex items-center justify-between">
-              <Text className="text-sm text-gray-700">音效音量</Text>
-              <Text className="text-sm text-gray-600">{musicSettings.effectVolume || 70}%</Text>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{ fontSize: '14px', color: '#374151', fontWeight: '500', display: 'block' }}
+              >
+                AI 生成配乐
+              </Text>
+              <Text
+                style={{
+                  fontSize: '12px',
+                  color: '#9ca3af',
+                  marginTop: '2px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  display: 'block',
+                  maxWidth: '200px',
+                }}
+              >
+                {currentMusic}
+              </Text>
             </View>
           </View>
         </View>
       )}
 
-      {/* Summary */}
-      <View className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-        <Text className="text-sm font-semibold text-gray-900 mb-2">✅ 音乐配置完成</Text>
-        <Text className="text-xs text-gray-600">
-          {musicSettings.bgm && musicSettings.bgm !== '无'
-            ? `已选择背景音乐：${musicSettings.bgm}`
-            : '未选择背景音乐'}
+      {/* 预设音乐列表 */}
+      <View
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '20px',
+          marginBottom: '24px',
+        }}
+      >
+        <Text
+          style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '12px', display: 'block' }}
+        >
+          预设音乐
         </Text>
-        <Text className="text-xs text-gray-600 mt-1">
-          {musicSettings.soundEffect && musicSettings.soundEffect !== '无'
-            ? `已选择音效：${musicSettings.soundEffect}`
-            : '未选择音效'}
+        <View style={{ display: 'flex', flexDirection: 'column' }}>
+          {musicPresets.map((music) => {
+            const isSelected = selectedPreset === music.name
+            return (
+              <View
+                key={music.name}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '14px 4px',
+                  borderBottom: '1px solid #f9fafb',
+                  cursor: 'pointer',
+                }}
+                onClick={() => handleSelect(music.name)}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: '14px',
+                      color: isSelected ? '#f97316' : '#374151',
+                      fontWeight: isSelected ? 'bold' : 'normal',
+                      display: 'block',
+                    }}
+                  >
+                    {music.name}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: '12px',
+                      color: '#9ca3af',
+                      marginTop: '2px',
+                      display: 'block',
+                    }}
+                  >
+                    {music.desc}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '9999px',
+                    border: `1px solid ${isSelected ? '#f97316' : '#d1d5db'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginLeft: '12px',
+                  }}
+                >
+                  {isSelected && (
+                    <View
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        backgroundColor: '#f97316',
+                        borderRadius: '9999px',
+                      }}
+                    />
+                  )}
+                </View>
+              </View>
+            )
+          })}
+        </View>
+      </View>
+
+      {/* 确认按钮 */}
+      <View
+        style={{
+          width: '100%',
+          height: '48px',
+          backgroundColor: '#f97316',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+        onClick={handleConfirm}
+      >
+        <Text style={{ fontSize: '16px', color: '#ffffff', fontWeight: '600' }}>
+          确定选用此音乐
         </Text>
       </View>
     </View>

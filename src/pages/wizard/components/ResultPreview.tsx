@@ -1,25 +1,25 @@
 import { useState } from 'react'
-import { View, Text } from '@tarojs/components'
-import Card from '@/components/Card'
-import GameDetail from '@/components/GameDetail'
-import type { Game } from '@/data/mock/games'
+import { View, Text, Button } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import MusicSettings from './MusicSettings'
 
 export interface ResultPreviewConfig {
   step: number
   title: string
   previewTemplate?: string
-  actions?: Array<{
-    label: string
-    action: string
-    api?: string
-  }>
-  required?: boolean
+  actions?: Array<{ label: string; action: string; api?: string }>
 }
 
 interface GeneratedResult {
+  record_id?: number
+  age?: number
+  game_type?: string
+  scene_template?: string
+  game_name?: string
   generated_content: string
   music?: string
   created_at?: string
+  businessType?: string
 }
 
 interface ResultPreviewProps {
@@ -28,215 +28,402 @@ interface ResultPreviewProps {
   onChange: (data: Record<string, any>) => void
 }
 
-/**
- * 解析生成内容文本，提取游戏信息
- */
-function parseGeneratedContent(content: string): Partial<Game> {
-  const lines = content.split('\n').filter((line) => line.trim())
+export default function ResultPreview({ value, onChange }: ResultPreviewProps) {
+  const [showMusicSettings, setShowMusicSettings] = useState(false)
 
-  let name = '新游戏'
-  let category = '益智类'
-  let allDescription = ''
-  const playSteps: string[] = []
-  const preparation: string[] = []
-
-  for (const line of lines) {
-    // 提取游戏名称
-    if (line.includes('【游戏名称】')) {
-      const match = line.match(/【游戏名称】[：:]\s*(.+)/)
-      if (match) name = match[1].trim()
-    }
-
-    // 提取游戏形式作为分类
-    if (line.includes('【游戏形式】')) {
-      const match = line.match(/【游戏形式】[：:]\s*(.+)/)
-      if (match) category = match[1].trim()
-    }
-
-    // 提取前期准备
-    if (line.includes('【前期准备】')) {
-      const match = line.match(/【前期准备】[：:]\s*(.+)/)
-      if (match) {
-        const prepText = match[1].trim()
-        // 按按❶❷❸等分割
-        const items = prepText.split(/[❶❷❸❹❺❻❼❽❾❿⓫⓬]/).filter((item) => item.trim())
-        items.forEach((item) => {
-          const cleaned = item.replace(/^[：:]\s*/, '').trim()
-          if (cleaned) preparation.push(cleaned)
-        })
-      }
-    }
-
-    // 提取游戏大纲中的规则简述作为游戏步骤
-    if (line.includes('（规则简述）')) {
-      const match = line.match(/（规则简述）[）)]\s*[：:]\s*(.+)/)
-      if (match) playSteps.push(match[1].trim())
-    }
-  }
-
-  // 如果没有提取到描述，使用默认描述
-  if (!allDescription) {
-    allDescription = `一个有趣的${category}游戏`
-  }
-
-  return {
-    name,
-    category,
-    allDescription,
-    playSteps:
-      playSteps.length > 0 ? playSteps : ['准备游戏道具', '讲解游戏规则', '开始游戏', '游戏结束'],
-    preparation: preparation.length > 0 ? preparation : ['游戏道具若干', '足够的活动空间'],
-  }
-}
-
-/**
- * ResultPreview - 结果预览组件
- *
- * 展示生成的游戏结果列表，点击可查看详情
- */
-export default function ResultPreview({ config, value }: ResultPreviewProps) {
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
-
-  // 获取生成结果列表
   const generatedResults: GeneratedResult[] = value.generatedResults || []
   const hasResults = generatedResults.length > 0
 
-  // 将生成结果转换为 Game 对象
-  const games: Game[] = generatedResults.map((result, index) => {
-    const parsed = parseGeneratedContent(result.generated_content)
-    return {
-      id: index + 1,
-      name: parsed.name || '新游戏',
-      allDescription: parsed.allDescription || '',
-      duration: '10分钟',
-      players: parseInt(value.playerCount) || 2,
-      category: parsed.category || '益智类',
-      bgmUrl: result.music || undefined,
-      playSteps: parsed.playSteps || [],
-      preparation: parsed.preparation || [],
-    }
-  })
-
-  const handleGameClick = (game: Game) => {
-    setSelectedGame(game)
-  }
-
-  const handleBack = () => {
-    setSelectedGame(null)
-  }
-
-  // 如果选中了游戏，显示详情
-  if (selectedGame) {
-    return <GameDetail game={selectedGame} onBack={handleBack} />
-  }
-
-  return (
-    <View style={{ padding: '16px', backgroundColor: '#f7f8fa', minHeight: '100vh' }}>
-      {/* Header */}
-      <View style={{ marginBottom: '16px' }}>
-        <Text
-          style={{
-            fontSize: '18px',
-            fontWeight: '600',
-            color: '#1d2129',
-            marginBottom: '8px',
-            display: 'block',
-          }}
-        >
-          {config.title || '生成结果'}
+  if (!hasResults) {
+    return (
+      <View
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingTop: '100px',
+          backgroundColor: '#f7f8fa',
+          minHeight: '100vh',
+          boxSizing: 'border-box',
+        }}
+      >
+        <Text style={{ fontSize: '48px', marginBottom: '16px' }}>🎮</Text>
+        <Text style={{ fontSize: '16px', color: '#86909c', fontWeight: '500' }}>
+          请先生成游戏结果
         </Text>
-        <Text style={{ fontSize: '14px', color: '#4e5969' }}>
-          {hasResults ? `共 ${games.length} 个生成结果` : '请先生成游戏'}
+        <Text style={{ fontSize: '14px', color: '#c9cdd4', marginTop: '8px' }}>
+          完成前面的配置步骤后即可一键生成
         </Text>
       </View>
+    )
+  }
 
-      {/* 生成结果列表 */}
-      {hasResults ? (
-        <View>
-          {games.map((game, index) => (
-            <Card
-              key={game.id}
-              className="mb-3 cursor-pointer"
-              onClick={() => handleGameClick(game)}
-            >
-              <View style={{ padding: '16px' }}>
-                {/* 游戏标题和分类 */}
-                <View
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '8px',
-                  }}
-                >
-                  <Text style={{ fontSize: '16px', fontWeight: '600', color: '#1d2129' }}>
-                    {game.name}
-                  </Text>
-                  <View
-                    style={{ padding: '2px 8px', backgroundColor: '#fff3eb', borderRadius: '12px' }}
-                  >
-                    <Text style={{ fontSize: '12px', color: '#fe6601' }}>{game.category}</Text>
-                  </View>
-                </View>
+  // 如果正在显示音乐设置，渲染 MusicSettings 组件
+  if (showMusicSettings) {
+    return (
+      <MusicSettings
+        data={value}
+        updateData={(key: string, val: any) => onChange({ [key]: val })}
+        currentStep={{}}
+        onBack={() => setShowMusicSettings(false)}
+      />
+    )
+  }
 
-                {/* 游戏描述 */}
-                <Text
-                  style={{
-                    fontSize: '14px',
-                    color: '#4e5969',
-                    marginBottom: '12px',
-                    lineHeight: '20px',
-                  }}
-                >
-                  {game.allDescription.length > 50
-                    ? game.allDescription.slice(0, 50) + '...'
-                    : game.allDescription}
-                </Text>
+  const realResult = generatedResults[0]
 
-                {/* 游戏信息 */}
-                <View style={{ display: 'flex', gap: '12px' }}>
-                  <Text style={{ fontSize: '12px', color: '#86909c' }}>{game.players}人</Text>
-                  <Text style={{ fontSize: '12px', color: '#86909c' }}>{game.duration}</Text>
-                  {game.playSteps.length > 0 && (
-                    <Text style={{ fontSize: '12px', color: '#86909c' }}>
-                      {game.playSteps.length}个步骤
-                    </Text>
-                  )}
-                </View>
+  const parseRealContent = (content: string) => {
+    const lines = content
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
 
-                {/* 生成时间 */}
-                {generatedResults[index]?.created_at && (
-                  <Text
-                    style={{
-                      fontSize: '11px',
-                      color: '#c9cdd4',
-                      marginTop: '8px',
-                      display: 'block',
-                    }}
-                  >
-                    生成于 {new Date(generatedResults[index].created_at).toLocaleString()}
-                  </Text>
-                )}
-              </View>
-            </Card>
-          ))}
-        </View>
-      ) : (
-        /* 空状态 */
+    let name = '新生成游戏'
+    let tag = '团队游戏'
+    let rule = '暂无玩法规则描述'
+    const steps: string[] = []
+    const tips: string[] = []
+
+    lines.forEach((line) => {
+      if (line.includes('【游戏名称】')) {
+        name = line.replace(/【游戏名称】[：:]?\s*/, '').trim()
+      } else if (line.includes('【游戏形式】')) {
+        tag = line.replace(/【游戏形式】[：:]?\s*/, '').trim()
+      } else if (line.includes('【玩法规则】')) {
+        rule = line.replace(/【玩法规则】[：:]?\s*/, '').trim()
+      } else if (line.includes('【温馨提示】')) {
+        const cleanTip = line.replace(/【温馨提示】[：:]?\s*/, '').trim()
+        if (cleanTip) tips.push(cleanTip)
+      } else if (line.includes('（安全提醒）')) {
+        const match = line.match(/（安全提醒）[）)]\s*[：:]?\s*(.+)/)
+        if (match) tips.push(match[1].trim())
+      } else if (line.includes('（规则简述）')) {
+        const match = line.match(/（规则简述）[）)]\s*[：:]?\s*(.+)/)
+        if (match) steps.push(match[1].trim())
+      }
+    })
+
+    if (steps.length === 0) {
+      lines.forEach((line) => {
+        const stepMatch = line.match(/^[❶❷❸❹❺❻❼❽❾❿⓫⓬\d\.\-\s、]+(.*)/)
+        if (stepMatch && (line.includes('流程') || steps.length < 5)) {
+          const cleanStep = stepMatch[1].trim()
+          if (cleanStep) steps.push(cleanStep)
+        }
+      })
+    }
+
+    return {
+      name,
+      tag,
+      rule,
+      steps:
+        steps.length > 0
+          ? steps
+          : ['确认场地与道具', '分发任务卡并讲解规则', '分组开展游戏对抗', '游戏结束，复盘颁奖'],
+      tips:
+        tips.length > 0
+          ? tips
+          : ['请确保活动区域安全。', '儿童请在成人陪同下参与。', '注意防晒防蚊，及时补充水分。'],
+    }
+  }
+
+  const game = parseRealContent(realResult.generated_content)
+
+  return (
+    <View
+      style={{
+        width: '100%',
+        minHeight: '100vh',
+        backgroundColor: '#f3f4f6',
+        padding: '16px',
+        paddingBottom: '24px',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* 游戏详情主卡片 */}
+      <View
+        style={{
+          width: '100%',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '20px',
+          boxSizing: 'border-box',
+          marginBottom: '16px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        }}
+      >
+        {/* 头部标题与 Tag */}
         <View
           style={{
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingTop: '80px',
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: '20px',
           }}
         >
-          <Text style={{ fontSize: '48px', marginBottom: '16px' }}>🎮</Text>
-          <Text style={{ fontSize: '16px', color: '#86909c' }}>暂无生成结果</Text>
-          <Text style={{ fontSize: '14px', color: '#c9cdd4', marginTop: '8px' }}>请先生成游戏</Text>
+          <Text
+            style={{
+              flex: 1,
+              paddingRight: '16px',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              color: '#111827',
+            }}
+          >
+            {game.name}
+          </Text>
+          <View
+            style={{
+              backgroundColor: '#fff7ed',
+              padding: '4px 10px',
+              borderRadius: '9999px',
+              border: '1px solid #ffedd5',
+              flexShrink: 0,
+            }}
+          >
+            <Text style={{ fontSize: '12px', color: '#ea580c', fontWeight: '500' }}>
+              {game.tag}
+            </Text>
+          </View>
         </View>
-      )}
+
+        {/* 基础配置 */}
+        <View style={{ marginBottom: '24px' }}>
+          <Text
+            style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: '#111827',
+              marginBottom: '12px',
+              display: 'block',
+            }}
+          >
+            基础配置
+          </Text>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              borderBottom: '1px solid #f3f4f6',
+              paddingBottom: '16px',
+            }}
+          >
+            <View
+              style={{ width: '50%', display: 'flex', flexDirection: 'row', marginBottom: '12px' }}
+            >
+              <Text style={{ fontSize: '14px', color: '#6b7280' }}>适合年龄：</Text>
+              <Text style={{ fontSize: '14px', color: '#f97316', fontWeight: '500' }}>
+                {realResult.age ? `${realResult.age}岁` : value.age || '6-10岁'}
+              </Text>
+            </View>
+            <View
+              style={{ width: '50%', display: 'flex', flexDirection: 'row', marginBottom: '12px' }}
+            >
+              <Text style={{ fontSize: '14px', color: '#6b7280' }}>参与人数：</Text>
+              <Text style={{ fontSize: '14px', color: '#f97316', fontWeight: '500' }}>
+                {value.playerCount || '10-20人'}
+              </Text>
+            </View>
+            <View
+              style={{ width: '50%', display: 'flex', flexDirection: 'row', marginBottom: '4px' }}
+            >
+              <Text style={{ fontSize: '14px', color: '#6b7280' }}>游戏类型：</Text>
+              <Text style={{ fontSize: '14px', color: '#f97316', fontWeight: '500' }}>
+                {realResult.game_type || value.gameType || '循环式'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 玩法规则 */}
+        <View style={{ marginBottom: '24px' }}>
+          <Text
+            style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: '#111827',
+              marginBottom: '8px',
+              display: 'block',
+            }}
+          >
+            玩法规则
+          </Text>
+          <Text
+            style={{ fontSize: '14px', color: '#4b5563', lineHeight: '24px', textAlign: 'justify' }}
+          >
+            {game.rule}
+          </Text>
+        </View>
+
+        {/* 执行流程 */}
+        <View style={{ marginBottom: '24px' }}>
+          <Text
+            style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: '#111827',
+              marginBottom: '12px',
+              display: 'block',
+            }}
+          >
+            执行流程
+          </Text>
+          <View style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {game.steps.map((step, idx) => (
+              <View
+                key={idx}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                }}
+              >
+                <View
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    backgroundColor: '#f97316',
+                    borderRadius: '9999px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
+                  <Text style={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold' }}>
+                    {idx + 1}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: '14px', color: '#374151', lineHeight: '22px', flex: 1 }}>
+                  {step}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* 温馨提示 */}
+        <View
+          style={{
+            backgroundColor: 'rgba(255, 247, 237, 0.7)',
+            borderRadius: '12px',
+            padding: '16px',
+            border: '1px solid #ffedd5',
+            marginBottom: '24px',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: '#ea580c',
+              marginBottom: '8px',
+              display: 'block',
+            }}
+          >
+            温馨提示
+          </Text>
+          <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {game.tips.map((tip, idx) => (
+              <Text key={idx} style={{ fontSize: '12px', color: '#c2410c', lineHeight: '20px' }}>
+                • {tip}
+              </Text>
+            ))}
+          </View>
+        </View>
+
+        {/* 背景音乐信息 */}
+        {realResult.music && (
+          <View
+            style={{
+              backgroundColor: '#f9fafb',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '24px',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+              <Text style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>
+                背景音乐
+              </Text>
+              <Text
+                style={{
+                  fontSize: '14px',
+                  color: '#374151',
+                  fontWeight: '500',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {realResult.game_name || '游戏配乐'}
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontSize: '13px',
+                color: '#f97316',
+                fontWeight: '500',
+                marginLeft: '16px',
+                flexShrink: 0,
+              }}
+              onClick={() => setShowMusicSettings(true)}
+            >
+              更换音乐
+            </Text>
+          </View>
+        )}
+
+        {/* 按钮区域 */}
+        <View style={{ display: 'flex', flexDirection: 'row', gap: '12px', marginTop: '16px' }}>
+          <Button
+            style={{
+              flex: 1,
+              height: '44px',
+              border: '1px solid #d1d5db',
+              color: '#374151',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onClick={() => Taro.showToast({ title: '重新生成开发中', icon: 'none' })}
+          >
+            重新生成
+          </Button>
+          <Button
+            style={{
+              flex: 1,
+              height: '44px',
+              backgroundColor: '#f97316',
+              color: '#ffffff',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: 'none',
+            }}
+            onClick={() => Taro.showToast({ title: '保存功能开发中', icon: 'none' })}
+          >
+            保存 / 导出
+          </Button>
+        </View>
+      </View>
     </View>
   )
 }

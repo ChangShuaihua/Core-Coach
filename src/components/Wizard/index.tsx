@@ -164,6 +164,12 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
             <>
               <View
                 className="flex-1 py-3 px-4 rounded-lg font-semibold border-2 border-orange-500 text-orange-500 bg-white text-center cursor-pointer flex items-center justify-center"
+                onClick={() => Taro.showToast({ title: '重新生成开发中', icon: 'none' })}
+              >
+                <Text className="text-orange-500">重新生成</Text>
+              </View>
+              <View
+                className="flex-1 py-3 px-4 rounded-lg font-semibold border-2 border-orange-500 text-orange-500 bg-white text-center cursor-pointer flex items-center justify-center"
                 onClick={() => Taro.showToast({ title: '分享功能开发中', icon: 'none' })}
               >
                 <Text className="text-orange-500">分享图片</Text>

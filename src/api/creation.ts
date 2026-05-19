@@ -88,7 +88,7 @@ const mockGameConfig: GameConfig = {
  * 返回: { code, message, data: { list: Skill[] } }
  */
 export const getSkillList = async (): Promise<Skill[]> => {
-  if (FORCE_MOCK && isDev) {
+  if (FORCE_MOCK) {
     console.log('🎭 使用 Mock 数据 - 技能列表')
     return Promise.resolve([...mockSkillList, MORE_SKILL])
   }
@@ -116,7 +116,7 @@ export const getSkillList = async (): Promise<Skill[]> => {
  * 返回: { code, message, data: { step_config, name, ... } }
  */
 export const getSkillDetail = async (id: number) => {
-  if (FORCE_MOCK && isDev) {
+  if (FORCE_MOCK) {
     console.log('🎭 使用 Mock 数据 - 技能ID:', id)
     const { getMockSkillConfig } = await import('@/pages/wizard/constants/skillConfig')
     const mode = id === 1 ? 'game' : id === 2 ? 'lesson' : 'game'
@@ -201,7 +201,7 @@ const mockGenerateResult: GenerateGameResult = {
 }
 
 export const generateGame = async (params: GenerateGameParams): Promise<GenerateGameResult> => {
-  if (FORCE_MOCK && isDev) {
+  if (FORCE_MOCK) {
     console.log('🎭 使用 Mock 数据 - 生成游戏:', params)
     return Promise.resolve(mockGenerateResult)
   }
@@ -252,7 +252,7 @@ const mockLessonResult: GenerateLessonResult = {
 export const generateLesson = async (
   params: GenerateLessonParams
 ): Promise<GenerateLessonResult> => {
-  if (FORCE_MOCK && isDev) {
+  if (FORCE_MOCK) {
     console.log('🎭 使用 Mock 数据 - 生成教案:', params)
     return Promise.resolve(mockLessonResult)
   }
@@ -301,7 +301,7 @@ export const generateByType = async (businessType: string, data: Record<string, 
  * 返回: { code, message, data: { game_types, age_config } }
  */
 export const getGameConfig = async (): Promise<GameConfig> => {
-  if (FORCE_MOCK && isDev) {
+  if (FORCE_MOCK) {
     console.log('🎭 使用 Mock 数据 - 游戏配置')
     return Promise.resolve(mockGameConfig)
   }
