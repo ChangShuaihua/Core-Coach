@@ -5,6 +5,7 @@ module.exports = {
       colors: {
         // 灰色系
         gray: {
+          50: 'var(--gray-1)',
           1: 'var(--gray-1)',
           2: 'var(--gray-2)',
           3: 'var(--gray-3)',
@@ -49,6 +50,7 @@ module.exports = {
         },
         // 橙色系
         orange: {
+          50: 'var(--orange-1)',
           1: 'var(--orange-1)',
           2: 'var(--orange-2)',
           3: 'var(--orange-3)',
@@ -209,6 +211,8 @@ module.exports = {
     space: false,
   },
   safelist: [],
+  // 禁用包含特殊字符的类名，微信小程序不支持带转义字符的类名
+  blocklist: [/\[/, /\]/, /\//, /\\/],
   // 完全禁用所有变体，微信小程序不支持带转义字符的类名
   variants: {
     extend: {},
