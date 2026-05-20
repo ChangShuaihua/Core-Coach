@@ -36,6 +36,7 @@ interface StepRendererProps {
   config: StepConfig
   value: Record<string, any>
   onChange: (data: Record<string, any>) => void
+  onSubPageChange?: (active: boolean) => void
 }
 
 /**
@@ -44,7 +45,12 @@ interface StepRendererProps {
  * 根据 config.type 动态渲染对应的组件
  *
  */
-export default function StepRenderer({ config, value, onChange }: StepRendererProps) {
+export default function StepRenderer({
+  config,
+  value,
+  onChange,
+  onSubPageChange,
+}: StepRendererProps) {
   const handleChange = (key: string, val: any) => {
     onChange({ [key]: val })
   }
@@ -76,7 +82,14 @@ export default function StepRenderer({ config, value, onChange }: StepRendererPr
       )
 
     case 'result_preview':
-      return <ResultPreview config={config as any} value={value} onChange={onChange} />
+      return (
+        <ResultPreview
+          config={config as any}
+          value={value}
+          onChange={onChange}
+          onSubPageChange={onSubPageChange}
+        />
+      )
 
     default:
       return (

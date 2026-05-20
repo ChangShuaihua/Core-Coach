@@ -18,7 +18,7 @@ export default function StepIndicator({
   steps,
   currentStep,
   onStepClick,
-  size = 'medium',
+  size = 'small',
   clickable = false,
 }: StepIndicatorProps) {
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep)
@@ -40,35 +40,30 @@ export default function StepIndicator({
   }[size] || { circle: 40, font: 14, labelFont: 14 }
 
   return (
-    // 整个组件相对定位，方便内部绝对定位线段
-    <View style={{ position: 'relative', width: '100%', padding: '16px 0' }}>
-      {/* ================= 背景连线层 ================= */}
-      {/* 通过 100% 宽度和左右 padding 缩进，完美契合首尾圆圈的中心点 */}
+    <View style={{ position: 'relative', width: '100%' }}>
       <View
         style={{
           position: 'absolute',
           // 顶距 = 圆心所在高度。即：(圆形大小 / 2) + 外层上边距(16px)
-          top: `${dimensions.circle / 2 + 16}px`,
+          top: `${dimensions.circle / 2 + 8}px`,
           // 左右缩进距离为 1/steps.length 的一半，正好落在两端圆形的中心
           left: `${100 / steps.length / 2}%`,
           right: `${100 / steps.length / 2}%`,
           height: '2px',
           backgroundColor: '#e5e6eb',
-          zIndex: 1, // 确保在圆形和文字下方
+          zIndex: 1,
         }}
       >
-        {/* 已激活/已完成的进度条高亮效果 */}
         <View
           style={{
             width: `${(currentStepIndex / (steps.length - 1)) * 100}%`,
             height: '100%',
             backgroundColor: '#ffa052',
-            transition: 'width 0.3s ease', // 切换步骤时附带平滑过渡动画
+            transition: 'width 0.3s ease',
           }}
         />
       </View>
 
-      {/* ================= 步骤核心内容层 ================= */}
       <View style={{ display: 'flex', width: '100%', position: 'relative', zIndex: 2 }}>
         {steps.map((step, index) => {
           const active = isStepActive(index)
