@@ -1,4 +1,3 @@
-// tailwind.config.js
 module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
   theme: {
@@ -6,6 +5,7 @@ module.exports = {
       colors: {
         // 灰色系
         gray: {
+          50: 'var(--gray-1)',
           1: 'var(--gray-1)',
           2: 'var(--gray-2)',
           3: 'var(--gray-3)',
@@ -16,7 +16,6 @@ module.exports = {
           8: 'var(--gray-8)',
           9: 'var(--gray-9)',
           10: 'var(--gray-10)',
-          // Tailwind 标准命名（可选，兼容 Tailwind 默认习惯）
           100: 'var(--gray-1)',
           200: 'var(--gray-2)',
           300: 'var(--gray-3)',
@@ -51,6 +50,7 @@ module.exports = {
         },
         // 橙色系
         orange: {
+          50: 'var(--orange-1)',
           1: 'var(--orange-1)',
           2: 'var(--orange-2)',
           3: 'var(--orange-3)',
@@ -165,8 +165,27 @@ module.exports = {
         xl: 'var(--padding-xl)',
       },
       fontFamily: {
-        base: 'var(--base-font-family)',
-        price: 'var(--price-integer-font-family)',
+        base: [
+          '-apple-system',
+          'blinkmacsystemfont',
+          "'Helvetica Neue'",
+          'helvetica',
+          'segoe ui',
+          'arial',
+          'roboto',
+          "'PingFang SC'",
+          "'miui'",
+          "'Hiragino Sans GB'",
+          "'Microsoft Yahei'",
+          'sans-serif',
+        ].join(', '),
+        price: [
+          'avenir-heavy',
+          'pingfang sc',
+          'helvetica neue',
+          'arial',
+          'sans-serif',
+        ].join(', '),
       },
       transitionDuration: {
         base: 'var(--animation-duration-base)',
@@ -179,43 +198,29 @@ module.exports = {
     },
   },
   plugins: [],
-  // Taro 小程序需要的配置
   corePlugins: {
-    preflight: false, // 禁用 Tailwind 的基础样式重置，避免和小程序冲突
-  },
-  extend: {
-    spacing: (() => {
-      const map = {}
-      // Tailwind spacing 1 ~ 100 对应 px 单位（Taro 自动转 rpx）
-      for (let i = 1; i <= 100; i++) {
-        map[i] = `${i * 4}px` // 1 -> 4px, 2 -> 8px ...
-      }
-      return map
-    })(),
-    width: (() => {
-      const map = {}
-      for (let i = 1; i <= 100; i++) {
-        map[i] = `${i * 4}px`
-      }
-      return map
-    })(),
-    height: (() => {
-      const map = {}
-      for (let i = 1; i <= 100; i++) {
-        map[i] = `${i * 4}px` // 12 -> 48px
-      }
-      return map
-    })(),
-    fontSize: (() => {
-      const map = {}
-      for (let i = 12; i <= 48; i += 2) {
-        map[i] = `${i}px` // 16 -> 16px
-      }
-      return map
-    })(),
+    preflight: false,
+    backdropFilter: false,
+    backgroundClip: false,
+    // 禁用所有可能生成转义字符的插件
+    divideOpacity: false,
+    divideStyle: false,
+    divideWidth: false,
+    divideColor: false,
+    // 禁用 space 插件，因为它使用嵌套 calc() 在微信小程序中不支持
+    space: false,
   },
   safelist: [],
+  // 禁用包含特殊字符的类名，微信小程序不支持带转义字符的类名
+  blocklist: [/\[/, /\]/, /\//, /\\/],
+  // 完全禁用所有变体，微信小程序不支持带转义字符的类名
   variants: {
     extend: {},
   },
+  // 禁用所有伪类变体
+  future: {
+    hoverOnlyWhenSupported: false,
+  },
+  // 移除所有变体修饰符
+  separator: '__', // 使用不会产生转义字符的分隔符
 }

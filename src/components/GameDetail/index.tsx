@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text, Slider } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ArrowLeft, Clock, User, Play } from '@nutui/icons-react-taro'
+import { ArrowLeft, User, Play } from '@nutui/icons-react-taro'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import type { Game } from '@/data/mock/games'
