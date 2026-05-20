@@ -1,8 +1,8 @@
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/store/useUserStore'
 
-const BASE_URL = process.env.TARO_APP_API_URL || 'http://192.168.10.7:8083'
-const REQUEST_TIMEOUT = 10000
+const BASE_URL = process.env.TARO_APP_API_URL || 'http://192.168.10.7:8083/api/v1'
+const REQUEST_TIMEOUT = 100000
 const MAX_RETRY_COUNT = 2
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -14,7 +14,7 @@ interface RequestOptions {
   header?: Record<string, string>
   // 是否需要携带 token，默认 true
   withToken?: boolean
-  // 是否显示 loading，默认 true
+  // 是否显示 loading，默认 false，由调用方自行控制
   showLoading?: boolean
   // 失败重试次数，默认 0（不重试）
   retryCount?: number
@@ -101,7 +101,7 @@ async function requestBase<T = any>(options: RequestOptions): Promise<T> {
     data,
     header = {},
     withToken = true,
-    showLoading = true,
+    showLoading = false,
     retryCount = 0,
     _isRetry = false,
     _isRefreshRetry = false,

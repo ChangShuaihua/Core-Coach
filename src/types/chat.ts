@@ -33,7 +33,23 @@ export interface QuickAction {
 export interface Conversation {
   id: string
   title: string
-  lastMessage: string
   updatedAt: number
   messageCount: number
+}
+
+// API 返回的原始消息格式
+export interface ApiMessage {
+  id: number
+  session_id: number
+  user_id: number
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+}
+
+// 消息分页响应
+export interface MessagePageData {
+  chat_messages: ApiMessage[]
+  next_cursor: string | null
+  has_more: boolean
 }

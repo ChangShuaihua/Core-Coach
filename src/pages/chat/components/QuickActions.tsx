@@ -5,6 +5,7 @@ import type { Skill } from '@/types/chat'
 interface QuickActionsPopupProps {
   visible: boolean
   skills: Skill[]
+  selectedSkill: Skill | null
   onClose: () => void
   onSelect: (skill: Skill) => void
 }
@@ -12,6 +13,7 @@ interface QuickActionsPopupProps {
 export default function QuickActionsPopup({
   visible,
   skills,
+  selectedSkill,
   onClose,
   onSelect,
 }: QuickActionsPopupProps) {
@@ -26,22 +28,28 @@ export default function QuickActionsPopup({
             }}
           >
             <Cell.Group>
-              {skills.map((skill, index) => (
-                <Cell
-                  key={skill.id}
-                  title={skill.title}
-                  clickable
-                  onClick={() => {
-                    onSelect(skill)
-                    onClose()
-                  }}
-                  style={{
-                    borderBottom: index < skills.length - 1 ? '1px solid #f5f5f5' : 'none',
-                    padding: '14px 16px',
-                    fontSize: '14px',
-                  }}
-                />
-              ))}
+              {skills.map((skill, index) => {
+                const isSelected = selectedSkill?.id === skill.id
+                return (
+                  <Cell
+                    key={skill.id}
+                    title={skill.title}
+                    clickable
+                    onClick={() => {
+                      onSelect(skill)
+                      onClose()
+                    }}
+                    style={{
+                      borderBottom: index < skills.length - 1 ? '1px solid #f5f5f5' : 'none',
+                      padding: '14px 16px',
+                      fontSize: '14px',
+                      backgroundColor: isSelected ? '#fff7ed' : undefined,
+                      color: isSelected ? '#f97316' : undefined,
+                      fontWeight: isSelected ? 'bold' : undefined,
+                    }}
+                  />
+                )
+              })}
             </Cell.Group>
           </View>
         </View>

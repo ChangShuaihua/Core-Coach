@@ -15,7 +15,7 @@ const taroStorage = createJSONStorage<UserState>(() => ({
   getItem: (name) => Taro.getStorageSync(name) || null,
   setItem: (name, value) => Taro.setStorageSync(name, value),
   removeItem: (name) => Taro.removeStorageSync(name),
-}))
+})) as any
 
 export const useUserStore = create<UserState>()(
   persist(

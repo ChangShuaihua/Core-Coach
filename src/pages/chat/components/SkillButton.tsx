@@ -3,18 +3,27 @@ import { ArrowRight } from '@nutui/icons-react-taro'
 
 interface SkillButtonProps {
   onClick: () => void
+  selectedSkillName?: string | null
 }
 
-const SkillButton = ({ onClick }: SkillButtonProps) => {
+const SkillButton = ({ onClick, selectedSkillName }: SkillButtonProps) => {
+  const label = selectedSkillName || '技能'
+  const isActive = !!selectedSkillName
+
   return (
     <View
       onClick={onClick}
-      className="ml-6 w-10 flex flex-row items-center px-2 py-1 shadow rounded-lg"
-      style={{ border: '1px solid #d1d5db' }}
+      className="ml-6 w-fit flex flex-row items-center px-2 py-1 shadow rounded-lg"
+      style={{
+        border: `1px solid ${isActive ? '#f97316' : '#d1d5db'}`,
+        backgroundColor: isActive ? '#fff7ed' : undefined,
+      }}
     >
-      <Text className="text-sm text-gray-900">技能</Text>
+      <Text className="text-sm" style={{ color: isActive ? '#f97316' : '#111827' }}>
+        {label}
+      </Text>
       <Text>
-        <ArrowRight size={12} />
+        <ArrowRight size={12} color={isActive ? '#f97316' : undefined} />
       </Text>
     </View>
   )

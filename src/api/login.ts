@@ -33,21 +33,21 @@ export async function login(params: LoginParams): Promise<LoginResult> {
   }
 
   const data = await post<LoginData>(
-    '/api/v1/app/auth/login',
+    '/app/auth/login',
     {
       login_type: params.login_type,
       code: params.code,
       account: params.account,
       password: params.password,
     },
-    { withToken: false }
+    { withToken: false, showLoading: true }
   )
   return mapLoginData(data)
 }
 
 // 刷新 accessToken
 export async function refreshToken(accessToken: string): Promise<string> {
-  const data = await post<{ accessToken: string }>('/api/v1/app/auth/refresh', undefined, {
+  const data = await post<{ accessToken: string }>('/app/auth/refresh', undefined, {
     withToken: false,
     showLoading: false,
     header: { Authorization: `Bearer ${accessToken}` },

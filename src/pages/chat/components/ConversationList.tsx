@@ -30,11 +30,6 @@ function ConversationItem({
       >
         {conversation.title}
       </Text>
-      {conversation.lastMessage && (
-        <Text className="text-xs text-gray-400 mt-1 block truncate">
-          {conversation.lastMessage}
-        </Text>
-      )}
     </View>
   )
 }
