@@ -32,6 +32,13 @@ export default function PlayerCountSelector({
     return Number.isNaN(parsed) ? min : parsed
   })
 
+  // 初始化时如果外部没有值，通知父组件默认值
+  useEffect(() => {
+    if (!value) {
+      onChange(String(min))
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const parsed = parseInt(value, 10)
     if (!Number.isNaN(parsed) && parsed !== count) {

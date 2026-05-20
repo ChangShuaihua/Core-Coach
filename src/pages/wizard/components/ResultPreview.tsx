@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Button } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import { View, Text } from '@tarojs/components'
 import MusicSettings from './MusicSettings'
 
 export interface ResultPreviewConfig {
@@ -26,10 +25,16 @@ interface ResultPreviewProps {
   config: ResultPreviewConfig
   value: Record<string, any>
   onChange: (data: Record<string, any>) => void
+  onSubPageChange?: (active: boolean) => void
 }
 
-export default function ResultPreview({ value, onChange }: ResultPreviewProps) {
+export default function ResultPreview({ value, onChange, onSubPageChange }: ResultPreviewProps) {
   const [showMusicSettings, setShowMusicSettings] = useState(false)
+
+  const toggleMusicSettings = (show: boolean) => {
+    setShowMusicSettings(show)
+    onSubPageChange?.(show)
+  }
 
   const generatedResults: GeneratedResult[] = value.generatedResults || []
   const hasResults = generatedResults.length > 0
@@ -66,7 +71,7 @@ export default function ResultPreview({ value, onChange }: ResultPreviewProps) {
         data={value}
         updateData={(key: string, val: any) => onChange({ [key]: val })}
         currentStep={{}}
-        onBack={() => setShowMusicSettings(false)}
+        onBack={() => toggleMusicSettings(false)}
       />
     )
   }
@@ -377,52 +382,12 @@ export default function ResultPreview({ value, onChange }: ResultPreviewProps) {
                 marginLeft: '16px',
                 flexShrink: 0,
               }}
-              onClick={() => setShowMusicSettings(true)}
+              onClick={() => toggleMusicSettings(true)}
             >
               更换音乐
             </Text>
           </View>
         )}
-
-        {/* 按钮区域 */}
-        <View style={{ display: 'flex', flexDirection: 'row', gap: '12px', marginTop: '16px' }}>
-          <Button
-            style={{
-              flex: 1,
-              height: '44px',
-              border: '1px solid #d1d5db',
-              color: '#374151',
-              backgroundColor: '#ffffff',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onClick={() => Taro.showToast({ title: '重新生成开发中', icon: 'none' })}
-          >
-            重新生成
-          </Button>
-          <Button
-            style={{
-              flex: 1,
-              height: '44px',
-              backgroundColor: '#f97316',
-              color: '#ffffff',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: 'none',
-            }}
-            onClick={() => Taro.showToast({ title: '保存功能开发中', icon: 'none' })}
-          >
-            保存 / 导出
-          </Button>
-        </View>
       </View>
     </View>
   )

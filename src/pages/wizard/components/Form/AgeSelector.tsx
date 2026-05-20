@@ -33,6 +33,13 @@ export default function AgeSelector({
 
   const [currentValue, setCurrentValue] = useState<number>(() => extractNumber(value))
 
+  // 初始化时如果外部没有值，通知父组件默认值
+  useEffect(() => {
+    if (!value) {
+      onChange(`${min}${unit}`)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // 当外部 value 变化时同步（例如表单重置）
   useEffect(() => {
     const num = extractNumber(value)
