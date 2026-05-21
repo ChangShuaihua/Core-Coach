@@ -16,6 +16,7 @@ export default function ChatPage() {
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const [scrollToBottomTrigger, setScrollToBottomTrigger] = useState(0)
   const sendingRef = useRef(false)
 
   const messages = useChatStore((s) => s.currentMessages)
@@ -28,6 +29,7 @@ export default function ChatPage() {
   const isLoadingMore = useChatStore((s) => s.isLoadingMore)
   const sendMessage = useChatStore((s) => s.sendMessage)
   const stopResponding = useChatStore((s) => s.stopResponding)
+  const ensurePendingConversation = useChatStore((s) => s.ensurePendingConversation)
   const loadSkills = useChatStore((s) => s.loadSkills)
   const toggleSkill = useChatStore((s) => s.toggleSkill)
   const selectedSkill = useChatStore((s) => s.selectedSkill)
@@ -36,11 +38,11 @@ export default function ChatPage() {
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
   )
 
-  // 页面挂载：拉取会话列表和技能列表
+  // 页面挂载：拉取会话列表和技能列表，然后确保有临时会话
   useEffect(() => {
-    loadConversations()
+    loadConversations().then(() => ensurePendingConversation())
     loadSkills()
-  }, [loadConversations, loadSkills])
+  }, [loadConversations, ensurePendingConversation, loadSkills])
 
   // 切换会话时拉取消息（发送期间跳过，防止覆盖乐观更新的消息）
   useEffect(() => {
@@ -63,6 +65,8 @@ export default function ChatPage() {
     async (content: string) => {
       if (isResponding) return
       sendingRef.current = true
+      // 先触发滚动到底部
+      setScrollToBottomTrigger((prev) => prev + 1)
       try {
         await sendMessage(content)
       } finally {
@@ -84,14 +88,9 @@ export default function ChatPage() {
   )
 
   const handleNewConversation = useCallback(() => {
-    useChatStore.setState({
-      currentConversationId: null,
-      currentMessages: [],
-      messageCursor: null,
-      hasMoreMessages: true,
-    })
+    ensurePendingConversation()
     setShowLeft(false)
-  }, [])
+  }, [ensurePendingConversation])
 
   const showWelcome = messages.length === 0
 
@@ -117,6 +116,7 @@ export default function ChatPage() {
               hasMoreMessages={hasMoreMessages}
               isLoadingMore={isLoadingMore}
               onLoadMore={loadMoreMessages}
+              scrollToBottomTrigger={scrollToBottomTrigger}
             />
           )}
         </View>
@@ -150,14 +150,16 @@ export default function ChatPage() {
         position="left"
         onClose={() => setShowLeft(false)}
       >
-        <View
-          className="text-white mt-16 mx-6 py-3 flex items-center justify-center bg-orange-5 rounded-lg"
-          onClick={handleNewConversation}
-        >
-          <Add style={{ marginRight: '4px', color: '#fff' }} /> 添加新对话
-        </View>
-        <View>
-          <ConversationList />
+        <View className="h-full flex flex-col">
+          <View
+            className="text-white mt-16 mx-6 py-3 flex-shrink-0 flex items-center justify-center bg-orange-5 rounded-lg"
+            onClick={handleNewConversation}
+          >
+            <Add style={{ marginRight: '4px', color: '#fff' }} /> 添加新对话
+          </View>
+          <View className="flex-1 overflow-hidden">
+            <ConversationList onSelect={() => setShowLeft(false)} />
+          </View>
         </View>
       </Popup>
     </Layout>

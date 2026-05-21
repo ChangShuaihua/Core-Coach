@@ -45,6 +45,7 @@ interface ChatStore {
 
   // 会话
   loadConversations: () => Promise<void>
+  ensurePendingConversation: () => void
   switchConversation: (id: string) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
 
@@ -85,7 +86,35 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   loadConversations: async () => {
     const result = await chatApi.getConversations()
-    set({ conversations: result.conversations })
+    const { conversations } = get()
+    // 保留本地的临时会话，不被 API 返回的数据覆盖
+    const pendingConvs = conversations.filter((c) => c.id.startsWith('pending-'))
+    set({ conversations: [...pendingConvs, ...result.conversations] })
+  },
+
+  // 确保至少有一个临时会话（初始进入时调用）
+  ensurePendingConversation: () => {
+    const { conversations } = get()
+    const hasPending = conversations.some((c) => c.id.startsWith('pending-'))
+    if (hasPending) {
+      // 已有临时会话，切换到它
+      const pending = conversations.find((c) => c.id.startsWith('pending-'))!
+      set({ currentConversationId: pending.id, currentMessages: [] })
+    } else {
+      // 没有临时会话，创建一个
+      const tempId = 'pending-' + Date.now()
+      const tempConv: Conversation = {
+        id: tempId,
+        title: '新对话',
+        updatedAt: Date.now(),
+        messageCount: 0,
+      }
+      set((state) => ({
+        currentConversationId: tempId,
+        currentMessages: [],
+        conversations: [tempConv, ...state.conversations],
+      }))
+    }
   },
 
   switchConversation: async (id: string) => {
@@ -96,6 +125,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       hasMoreMessages: true,
       isLoadingMore: false,
     })
+    // 临时会话没有真实数据，跳过请求
+    if (id.startsWith('pending-')) return
+
     const result = await chatApi.getMessages(id)
     if (get().currentConversationId === id) {
       set({
@@ -124,6 +156,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   // ========== 消息 ==========
 
   loadMessages: async (conversationId: string) => {
+    // 临时会话没有真实数据，跳过请求
+    if (conversationId.startsWith('pending-')) return
+
     const result = await chatApi.getMessages(conversationId)
     if (get().currentConversationId === conversationId) {
       set({
@@ -137,6 +172,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   loadMoreMessages: async () => {
     const { currentConversationId, messageCursor, hasMoreMessages, isLoadingMore } = get()
     if (!currentConversationId || !hasMoreMessages || isLoadingMore || !messageCursor) return
+    // 临时会话没有真实数据，跳过请求
+    if (currentConversationId.startsWith('pending-')) return
 
     set({ isLoadingMore: true })
     try {
@@ -196,6 +233,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const { currentConversationId, selectedSkill } = get()
     const workflowId = selectedSkill?.workflowId || DEFAULT_WORKFLOW_ID
 
+    // 判断是否是新建会话（没有会话 ID 或是临时 ID）
+    const isNewConversation = !currentConversationId || currentConversationId.startsWith('pending-')
+
     const userMsg: Message = {
       id: 'u-' + Date.now(),
       role: 'user',
@@ -212,7 +252,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       status: 'pending',
     }
 
-    // 如果没有当前会话，先不设置 currentConversationId，等拿到 sessionId 再设置
     if (currentConversationId) {
       get().appendMessage(userMsg)
       get().appendMessage(aiMsg)
@@ -220,11 +259,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ currentMessages: [userMsg, aiMsg] })
     }
 
-    const { request, promise } = chatApi.sendMessage(
-      content,
-      workflowId,
-      currentConversationId || undefined
-    )
+    // 新建会话不传 sessionId，已有会话传真实 sessionId
+    const sessionId = isNewConversation ? undefined : currentConversationId
+    const { request, promise } = chatApi.sendMessage(content, workflowId, sessionId)
 
     set({ currentRequest: request })
 
@@ -232,17 +269,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const result = await promise
       const newSessionId = result.sessionId
 
-      // 如果是新建的会话，设置 currentConversationId 并刷新会话列表
-      if (!currentConversationId) {
-        set({ currentConversationId: newSessionId })
-        // 刷新会话列表
-        get().loadConversations()
+      if (isNewConversation) {
+        // 把临时会话替换为真实会话
+        set((state) => ({
+          currentConversationId: newSessionId,
+          conversations: state.conversations.map((c) =>
+            c.id === currentConversationId
+              ? { ...c, id: newSessionId, title: content.slice(0, 20) || '新对话' }
+              : c
+          ),
+        }))
       }
 
       get().updateMessageStatus(aiMsgId, 'success', result.content)
       return newSessionId
     } catch (err: any) {
-      // 如果是被 abort 的，不更新状态
       if (err?.errMsg?.includes('abort') || err?.message?.includes('abort')) {
         return
       }
