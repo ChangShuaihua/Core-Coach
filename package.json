@@ -61,6 +61,7 @@
     "@tarojs/shared": "4.2.0",
     "@tarojs/taro": "4.2.0",
     "axios": "^1.16.0",
+    "classnames": "^2.5.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.20",
     "react": "^18.0.0",
