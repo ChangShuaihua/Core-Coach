@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Marshalling, Eye } from '@nutui/icons-react-taro'
 import { Button, Image } from '@nutui/nutui-react-taro'
 import { login } from '@/api/login'
 import LOGO from '@/assets/images/logo.png'
+import { useAuthCheck } from '@/hooks'
 import { validateLogin } from '@/schemas/user'
 import { useUserStore } from '@/store/useUserStore'
 
@@ -15,16 +16,43 @@ export default function Login() {
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const { setAccessToken, setUserInfo } = useUserStore()
+  const {
+    setAccessToken,
+    setRefreshToken,
+    setAccessExpireTime,
+    setRefreshExpireTime,
+    setUserInfo,
+  } = useUserStore()
+  const { isChecking } = useAuthCheck()
+
+  // 检查登录状态，如果已登录则跳转
+  useEffect(() => {
+    if (!isChecking && useUserStore.getState().accessToken) {
+      Taro.switchTab({ url: '/pages/chat/index' })
+    }
+  }, [isChecking])
 
   const handleWechatLogin = async () => {
-    try {
-      const { code } = await Taro.login()
-      const res = await login({ login_type: 'wechat', code, account: '', password: '' })
-      setAccessToken(res.accessToken)
-      setUserInfo(res.userInfo)
-      Taro.switchTab({ url: '/pages/chat/index' })
-    } catch {}
+    const MAX_RETRY = 2
+    for (let i = 0; i <= MAX_RETRY; i++) {
+      try {
+        // 每次重试都重新获取 code，避免 code 过期
+        const { code } = await Taro.login()
+        const res = await login({ login_type: 'wechat', code, account: '', password: '' })
+        setAccessToken(res.accessToken)
+        setRefreshToken(res.refreshToken)
+        setAccessExpireTime(res.accessExpire)
+        setRefreshExpireTime(res.refreshExpire)
+        setUserInfo(res.userInfo)
+        Taro.switchTab({ url: '/pages/chat/index' })
+        return
+      } catch (err: any) {
+        // 最后一次重试失败，显示错误提示
+        if (i === MAX_RETRY) {
+          Taro.showToast({ title: err?.message || '微信登录失败，请重试', icon: 'none' })
+        }
+      }
+    }
   }
 
   const handleAccountLogin = async () => {
@@ -37,9 +65,14 @@ export default function Login() {
     try {
       const res = await login({ login_type: 'password', code: '', account, password })
       setAccessToken(res.accessToken)
+      setRefreshToken(res.refreshToken)
+      setAccessExpireTime(res.accessExpire)
+      setRefreshExpireTime(res.refreshExpire)
       setUserInfo(res.userInfo)
       Taro.switchTab({ url: '/pages/chat/index' })
-    } catch {}
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '登录失败，请重试', icon: 'none' })
+    }
   }
 
   return (

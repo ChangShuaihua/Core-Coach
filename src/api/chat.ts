@@ -48,7 +48,8 @@ export async function getConversations(
     ...(cursor ? { cursor } : {}),
   })
 
-  const conversations = res.sessions.map((s) => ({
+  const data = res.data
+  const conversations = data.sessions.map((s) => ({
     id: s.session_id,
     title: s.title,
     updatedAt: dayjs(s.last_message_at).valueOf(),
@@ -57,8 +58,8 @@ export async function getConversations(
 
   return {
     conversations,
-    nextCursor: res.next_cursor,
-    hasMore: !!res.next_cursor,
+    nextCursor: data.next_cursor,
+    hasMore: !!data.next_cursor,
   }
 }
 
@@ -84,7 +85,8 @@ export async function getMessages(
     ...(cursor ? { cursor } : {}),
   })
 
-  const messages: Message[] = (res.chat_messages || []).map((m) => ({
+  const data = res.data
+  const messages: Message[] = (data.chat_messages || []).map((m) => ({
     id: String(m.id),
     role: m.role,
     content: m.content,
@@ -94,8 +96,8 @@ export async function getMessages(
 
   return {
     messages,
-    nextCursor: res.next_cursor,
-    hasMore: res.has_more,
+    nextCursor: data.next_cursor,
+    hasMore: data.has_more,
   }
 }
 
@@ -182,7 +184,8 @@ export async function getSkills(): Promise<Skill[]> {
     await mockDelay()
     return mockSkills
   }
-  return get<Skill[]>('/v1/app/skills')
+  const res = await get<Skill[]>('/v1/app/skills')
+  return res.data
 }
 
 // ========== 辅助：同步用户消息到 mock 数据 ==========

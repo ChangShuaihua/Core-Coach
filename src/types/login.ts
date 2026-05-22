@@ -1,24 +1,31 @@
 import type { UserInfo } from './profile'
 
 export interface LoginData {
-  access_token: string
-  expire_at: string
+  accessToken: string
+  refreshToken: string
+  accessExpire: number
+  refreshExpire: number
   user: {
-    user_id: number
-    open_id: string
-    nick_name: string
-    avatar_url: string
-    tag_id: number
-    status: number
-    max_login_count: number
-    last_login_time: string
-    created_at: string
-    updated_at: string
+    account: string
+    nickName: string
+    avatarUrl: string
+    createdAt: string
+    updatedAt: string
   }
+}
+
+export interface RefreshData {
+  accessToken: string
+  refreshToken: string
+  accessExpire: number
+  refreshExpire: number
 }
 
 export interface LoginResult {
   accessToken: string
+  refreshToken: string
+  accessExpire: number
+  refreshExpire: number
   userInfo: UserInfo
 }
 
