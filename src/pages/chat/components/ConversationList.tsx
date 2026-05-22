@@ -47,7 +47,7 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
   }
 
   return (
-    <ScrollView scrollY className="h-full pt-2">
+    <ScrollView scrollY className="h-full mt-2">
       {sorted.length === 0 ? (
         <View className="flex items-center justify-center h-40 text-gray-400 text-sm">
           暂无对话记录
