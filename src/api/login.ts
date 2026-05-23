@@ -23,7 +23,7 @@ function mapLoginData(data: LoginData): LoginResult {
 
 // 统一登录接口
 export async function login(params: LoginParams): Promise<LoginResult> {
-  if (!USE_MOCK) {
+  if (USE_MOCK) {
     await mockDelay()
     return {
       accessToken: 'mock-token-' + params.login_type + '-' + Date.now(),
@@ -67,9 +67,14 @@ export async function refreshToken(refreshTokenStr: string): Promise<RefreshData
   const res = await post<RefreshData>(
     '/app/auth/refresh',
     {
-      refreshtoken: refreshTokenStr,
+      refresh_token: refreshTokenStr,
     },
     { withToken: false }
   )
   return res.data
+}
+
+// 登出（通知后端清理在线状态）
+export async function logout(): Promise<void> {
+  await post('/app/auth/logout')
 }

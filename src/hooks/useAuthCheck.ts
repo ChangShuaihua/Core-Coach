@@ -19,11 +19,14 @@ export function useAuthCheck() {
       refreshToken: refreshTokenStr,
       refreshExpireTime,
       accessToken,
+      accessExpireTime,
     } = useUserStore.getState()
 
     // 没有 refreshToken 或已过期，需要重新登录
     if (!refreshTokenStr || !refreshExpireTime || Date.now() >= refreshExpireTime) {
       if (refreshTokenStr) {
+        // refreshToken 过期，清除登录状态
+        useUserStore.getState().clearAuth()
         Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
       }
       setIsChecking(false)
@@ -31,7 +34,8 @@ export function useAuthCheck() {
     }
 
     // accessToken 还没过期，直接使用
-    if (accessToken && useUserStore.getState().accessExpireTime > Date.now()) {
+    const REFRESH_ADVANCE_MS = 2 * 60 * 1000
+    if (accessToken && accessExpireTime > Date.now() + REFRESH_ADVANCE_MS) {
       setIsChecking(false)
       return
     }

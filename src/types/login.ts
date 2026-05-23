@@ -30,7 +30,7 @@ export interface LoginResult {
 }
 
 export interface LoginParams {
-  login_type: 'wechat' | 'password'
+  login_type: 'wechat' | 'account'
   code: string
   account: string
   password: string

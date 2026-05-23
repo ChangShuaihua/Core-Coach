@@ -179,6 +179,11 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
     const body = res.data as ApiResponse<T>
 
     if (statusCode === 401) {
+      // withToken: false 的请求（如登录、刷新 token）返回 401，直接拒绝，不触发刷新
+      if (!withToken) {
+        return Promise.reject(body)
+      }
+      // 刷新重试的请求也 401，直接登出
       if (_isRefreshRetry) {
         useUserStore.getState().clearAuth()
         Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
@@ -187,6 +192,7 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
         }, 1500)
         return Promise.reject(new Error('未授权'))
       }
+      // 尝试刷新 token
       return handleTokenRefresh(options)
     }
 

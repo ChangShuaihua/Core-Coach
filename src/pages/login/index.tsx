@@ -63,7 +63,7 @@ export default function Login() {
     }
 
     try {
-      const res = await login({ login_type: 'password', code: '', account, password })
+      const res = await login({ login_type: 'account', code: '', account, password })
       setAccessToken(res.accessToken)
       setRefreshToken(res.refreshToken)
       setAccessExpireTime(res.accessExpire)
