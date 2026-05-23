@@ -116,11 +116,11 @@ export default function GameDetail({ game, onBack }: GameDetailProps) {
           <View className="flex gap-6 mb-4">
             <View className="flex items-center gap-2">
               <User size={16} className="text-gray-5" />
-              <Text className="text-sm text-gray-6">{detailGame.players}人</Text>
+              {/* <Text className="text-sm text-gray-6">{detailGame.players}人</Text> */}
             </View>
           </View>
 
-          <Text className="text-base text-gray-7 leading-relaxed">{detailGame.allDescription}</Text>
+          <Text className="text-base text-gray-7 leading-relaxed">{detailGame.content}</Text>
         </Card>
 
         {detailGame.preparation && detailGame.preparation.length > 0 && (
