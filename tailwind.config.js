@@ -179,13 +179,7 @@ module.exports = {
           "'Microsoft Yahei'",
           'sans-serif',
         ].join(', '),
-        price: [
-          'avenir-heavy',
-          'pingfang sc',
-          'helvetica neue',
-          'arial',
-          'sans-serif',
-        ].join(', '),
+        price: ['avenir-heavy', 'pingfang sc', 'helvetica neue', 'arial', 'sans-serif'].join(', '),
       },
       transitionDuration: {
         base: 'var(--animation-duration-base)',
@@ -211,8 +205,7 @@ module.exports = {
     space: false,
   },
   safelist: [],
-  // 禁用包含特殊字符的类名，微信小程序不支持带转义字符的类名
-  blocklist: [/\[/, /\]/, /\//, /\\/],
+  // blocklist 只支持字符串，不支持正则
   // 完全禁用所有变体，微信小程序不支持带转义字符的类名
   variants: {
     extend: {},

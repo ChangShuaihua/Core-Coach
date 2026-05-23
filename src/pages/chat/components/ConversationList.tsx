@@ -1,5 +1,4 @@
-import { View, Text } from '@tarojs/components'
-import { PullToRefresh } from '@nutui/nutui-react-taro'
+import { View, Text, ScrollView } from '@tarojs/components'
 import { clsx } from 'clsx'
 import { useChatStore } from '@/store/chatStore'
 import { Conversation } from '@/types/chat'
@@ -30,46 +29,42 @@ function ConversationItem({
       >
         {conversation.title}
       </Text>
-      {conversation.lastMessage && (
-        <Text className="text-xs text-gray-400 mt-1 block truncate">
-          {conversation.lastMessage}
-        </Text>
-      )}
     </View>
   )
 }
 
-export default function ConversationList() {
+export default function ConversationList({ onSelect }: { onSelect?: () => void }) {
   const conversations = useChatStore((s) => s.conversations)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const switchConversation = useChatStore((s) => s.switchConversation)
-  const refreshConversations = useChatStore((s) => s.loadConversations)
 
   // 按更新时间倒序排列
   const sorted = conversations.slice().sort((a, b) => b.updatedAt - a.updatedAt)
 
-  const handleRefresh = async () => {
-    await refreshConversations()
+  const handleClick = (id: string) => {
+    switchConversation(id)
+    onSelect?.()
   }
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="h-full">
-      <View className="h-full overflow-y-auto py-2">
-        {sorted.length === 0 ? (
-          <View className="flex items-center justify-center h-40 text-gray-400 text-sm">
-            暂无对话记录
-          </View>
-        ) : (
-          sorted.map((conv) => (
+    <ScrollView scrollY className="h-full mt-2">
+      {sorted.length === 0 ? (
+        <View className="flex items-center justify-center h-40 text-gray-400 text-sm">
+          暂无对话记录
+        </View>
+      ) : (
+        <>
+          {sorted.map((conv) => (
             <ConversationItem
               key={conv.id}
               conversation={conv}
               isActive={conv.id === currentConversationId}
-              onClick={() => switchConversation(conv.id)}
+              onClick={() => handleClick(conv.id)}
             />
-          ))
-        )}
-      </View>
-    </PullToRefresh>
+          ))}
+          <View className="h-2" />
+        </>
+      )}
+    </ScrollView>
   )
 }

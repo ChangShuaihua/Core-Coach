@@ -1,49 +1,50 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
-import { sendMessage, addUserMessageToMock } from '@/api/chat'
 import Layout from '@/components/Layout'
 import { useChatStore } from '@/store/chatStore'
-import { Message, Skill } from '@/types/chat'
+import { Skill } from '@/types/chat'
 import ChatInput from './components/ChatInput'
 import ConversationList from './components/ConversationList'
 import MessageList from './components/MessageList'
 import QuickActionsPopup from './components/QuickActions'
 import WelcomeScreen from './components/WelcomeScreen'
 
-let messageId = 0
-const genId = () => String(++messageId)
-
 export default function ChatPage() {
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const [scrollToBottomTrigger, setScrollToBottomTrigger] = useState(0)
   const sendingRef = useRef(false)
-  const stoppedRef = useRef(false)
 
   const messages = useChatStore((s) => s.currentMessages)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const skills = useChatStore((s) => s.skills)
   const loadConversations = useChatStore((s) => s.loadConversations)
   const loadMessages = useChatStore((s) => s.loadMessages)
-  const createConversation = useChatStore((s) => s.createConversation)
-  const appendMessage = useChatStore((s) => s.appendMessage)
-  const updateMessageStatus = useChatStore((s) => s.updateMessageStatus)
+  const loadMoreMessages = useChatStore((s) => s.loadMoreMessages)
+  const hasMoreMessages = useChatStore((s) => s.hasMoreMessages)
+  const isLoadingMore = useChatStore((s) => s.isLoadingMore)
+  const sendMessage = useChatStore((s) => s.sendMessage)
+  const stopResponding = useChatStore((s) => s.stopResponding)
+  const ensurePendingConversation = useChatStore((s) => s.ensurePendingConversation)
   const loadSkills = useChatStore((s) => s.loadSkills)
+  const toggleSkill = useChatStore((s) => s.toggleSkill)
+  const selectedSkill = useChatStore((s) => s.selectedSkill)
 
   const isResponding = messages.some(
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
   )
 
-  // 页面挂载：拉取会话列表和技能列表
+  // 页面挂载：拉取会话列表和技能列表，然后确保有临时会话
   useEffect(() => {
-    loadConversations()
+    loadConversations().then(() => ensurePendingConversation())
     loadSkills()
-  }, [loadConversations, loadSkills])
+  }, [loadConversations, ensurePendingConversation, loadSkills])
 
-  // 切换会话时拉取消息（发送期间跳过，防止覆盖新消息）
+  // 切换会话时拉取消息（发送期间跳过，防止覆盖乐观更新的消息）
   useEffect(() => {
     if (currentConversationId && !sendingRef.current) {
       loadMessages(currentConversationId)
@@ -63,68 +64,33 @@ export default function ChatPage() {
   const handleSend = useCallback(
     async (content: string) => {
       if (isResponding) return
-
-      const userMsg: Message = {
-        id: genId(),
-        role: 'user',
-        content,
-        timestamp: Date.now(),
-        status: 'success',
-      }
-      const aiMsgId = genId()
-      const aiMsg: Message = {
-        id: aiMsgId,
-        role: 'assistant',
-        content: '',
-        timestamp: Date.now(),
-        status: 'pending',
-      }
-
       sendingRef.current = true
-      stoppedRef.current = false
-
+      // 先触发滚动到底部
+      setScrollToBottomTrigger((prev) => prev + 1)
       try {
-        let convId = currentConversationId
-        if (!convId) {
-          convId = await createConversation()
-          useChatStore.setState({ currentMessages: [userMsg, aiMsg] })
-        } else {
-          appendMessage(userMsg)
-          appendMessage(aiMsg)
-        }
-
-        addUserMessageToMock(convId, userMsg)
-
-        const result = await sendMessage(convId, content)
-
-        // 如果在等待期间被停止，不更新状态（已经是 error 了）
-        if (stoppedRef.current) return
-        updateMessageStatus(aiMsgId, 'success', result.content)
-      } catch {
-        updateMessageStatus(aiMsgId, 'error', '发送失败')
+        await sendMessage(content)
       } finally {
         sendingRef.current = false
       }
     },
-    [isResponding, currentConversationId, appendMessage, createConversation, updateMessageStatus]
+    [isResponding, sendMessage]
   )
 
   const handleStop = useCallback(() => {
-    stoppedRef.current = true
-    const current = useChatStore.getState().currentMessages
-    current.forEach((m) => {
-      if (m.role === 'assistant' && m.status === 'pending') {
-        updateMessageStatus(m.id, 'error', '已停止生成')
-      }
-    })
-  }, [updateMessageStatus])
+    stopResponding()
+  }, [stopResponding])
 
   const handleSelectSkill = useCallback(
     (skill: Skill) => {
-      handleSend(skill.prompt)
+      toggleSkill(skill)
     },
-    [handleSend]
+    [toggleSkill]
   )
+
+  const handleNewConversation = useCallback(() => {
+    ensurePendingConversation()
+    setShowLeft(false)
+  }, [ensurePendingConversation])
 
   const showWelcome = messages.length === 0
 
@@ -142,7 +108,17 @@ export default function ChatPage() {
         onClick={() => showPopup && setShowPopup(false)}
       >
         <View className="flex-1 overflow-hidden">
-          {showWelcome ? <WelcomeScreen /> : <MessageList messages={messages} />}
+          {showWelcome ? (
+            <WelcomeScreen />
+          ) : (
+            <MessageList
+              messages={messages}
+              hasMoreMessages={hasMoreMessages}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={loadMoreMessages}
+              scrollToBottomTrigger={scrollToBottomTrigger}
+            />
+          )}
         </View>
 
         <View
@@ -153,6 +129,7 @@ export default function ChatPage() {
             <QuickActionsPopup
               visible={showPopup}
               skills={skills}
+              selectedSkill={selectedSkill}
               onClose={() => setShowPopup(false)}
               onSelect={handleSelectSkill}
             />
@@ -162,6 +139,7 @@ export default function ChatPage() {
             onStop={handleStop}
             onSkillClick={() => setShowPopup((prev) => !prev)}
             isResponding={isResponding}
+            selectedSkillName={selectedSkill?.title}
           />
         </View>
       </View>
@@ -170,21 +148,18 @@ export default function ChatPage() {
         visible={showLeft}
         style={{ width: '80%', height: '100%' }}
         position="left"
-        onClose={() => {
-          setShowLeft(false)
-        }}
+        onClose={() => setShowLeft(false)}
       >
-        <View
-          className="text-white mt-16 mx-6 py-3 flex items-center justify-center bg-orange-5 rounded-lg"
-          onClick={() => {
-            createConversation()
-            setShowLeft(false)
-          }}
-        >
-          <Add style={{ marginRight: '4px', color: '#fff' }} /> 添加新对话
-        </View>
-        <View>
-          <ConversationList />
+        <View className="h-full flex flex-col">
+          <View
+            className="text-white mt-16 mx-6 py-3 flex-shrink-0 flex items-center justify-center bg-orange-5 rounded-lg"
+            onClick={handleNewConversation}
+          >
+            <Add style={{ marginRight: '4px', color: '#fff' }} /> 添加新对话
+          </View>
+          <View className="flex-1 overflow-hidden">
+            <ConversationList onSelect={() => setShowLeft(false)} />
+          </View>
         </View>
       </Popup>
     </Layout>

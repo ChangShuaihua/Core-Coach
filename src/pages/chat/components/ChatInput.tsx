@@ -8,9 +8,16 @@ interface ChatInputProps {
   onStop?: () => void
   onSkillClick?: () => void
   isResponding?: boolean
+  selectedSkillName?: string | null
 }
 
-const ChatInput = ({ onSend, onStop, onSkillClick, isResponding }: ChatInputProps) => {
+const ChatInput = ({
+  onSend,
+  onStop,
+  onSkillClick,
+  isResponding,
+  selectedSkillName,
+}: ChatInputProps) => {
   const [value, setValue] = useState('')
 
   const handleSend = () => {
@@ -31,7 +38,7 @@ const ChatInput = ({ onSend, onStop, onSkillClick, isResponding }: ChatInputProp
     <View>
       {onSkillClick && (
         <View className="py-2">
-          <SkillButton onClick={onSkillClick} />
+          <SkillButton onClick={onSkillClick} selectedSkillName={selectedSkillName} />
         </View>
       )}
 
