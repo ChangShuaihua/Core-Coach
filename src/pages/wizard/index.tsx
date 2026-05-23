@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { generateByType } from '@/api/creation'
@@ -26,11 +26,6 @@ export default function CreationWizardPage() {
 
   // 优先从路由参数获取业务类型，其次从 store 获取
   const businessType = router.params.type || mode || 'game'
-
-  // 动态计算当前业务的步骤配置
-  const currentConfig = useMemo(() => {
-    return getConfigByType(businessType)
-  }, [businessType])
 
   // 初始化：验证 mode 并加载配置
   useEffect(() => {

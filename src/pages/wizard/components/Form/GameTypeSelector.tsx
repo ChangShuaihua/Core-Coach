@@ -1,10 +1,5 @@
 import { View, Text } from '@tarojs/components'
-
-export interface GameType {
-  name: string
-  code: string
-  status: number
-}
+import type { GameType } from '@/types/creation'
 
 export interface GameTypeSelectorProps {
   value: string

@@ -30,34 +30,31 @@ export interface Game {
   playSteps?: string[]
 }
 
+// 年龄配置
+export interface AgeConfig {
+  min: number
+  max: number
+  default: number
+  unit: string
+}
+
+// 游戏类型选项
+export interface GameType {
+  name: string
+  code: string
+  status: number
+}
+
 // 获取游戏参数接口响应
 export interface GameParamsResponse {
-  age_config: {
-    min: number
-    max: number
-    default: number
-    unit: string
-  }
-  game_type_options: Array<{
-    name: string
-    code: string
-    status: number
-  }>
+  age_config: AgeConfig
+  game_type_options: GameType[]
 }
 
 // 游戏配置（用于 ParamSettings 组件）
 export interface GameConfig {
-  age_config: {
-    min: number
-    max: number
-    default: number
-    unit: string
-  }
-  game_type_options: Array<{
-    name: string
-    code: string
-    status: number
-  }>
+  age_config: AgeConfig
+  game_type_options: GameType[]
 }
 
 // 获取游戏配置

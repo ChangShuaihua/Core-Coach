@@ -2,6 +2,7 @@
  * Mock 数据 - 技能配置
  * 用于本地开发和测试，模拟后端 API 返回的数据
  */
+import type { SkillStepConfig } from '@/components/Wizard'
 
 export const GAME_SKILL_CONFIG = {
   id: 1,
@@ -11,17 +12,17 @@ export const GAME_SKILL_CONFIG = {
       {
         step: 1,
         title: '参数设置',
-        type: 'param_settings',
+        type: 'param_settings' as const,
         required: true,
       },
       {
         step: 2,
         title: '生成结果',
-        type: 'result_preview',
+        type: 'result_preview' as const,
         required: false,
       },
     ],
-  },
+  } as SkillStepConfig,
 }
 
 /**
