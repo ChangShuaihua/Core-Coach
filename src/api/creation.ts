@@ -125,3 +125,27 @@ export const generateByType = async (businessType: string, data: Record<string, 
   }
   return await generateFn(data)
 }
+
+/**
+ * 启动生成任务（异步）
+ * 接口: POST /game/generate/async
+ * 返回: { code, message, data: { task_id } }
+ */
+export const startGenerateTask = async (
+  params: GenerateGameParams
+): Promise<{ task_id: string }> => {
+  const res = await post<{ task_id: string }>('/game/generate/async', params)
+  return res.data
+}
+
+/**
+ * 查询任务状态
+ * 接口: GET /task/status/:taskId
+ * 返回: { code, message, data: { status, progress, data } }
+ */
+export const getTaskStatus = async (
+  taskId: string
+): Promise<{ status: string; progress: number; data: any }> => {
+  const res = await get<{ status: string; progress: number; data: any }>(`/task/status/${taskId}`)
+  return res.data
+}
