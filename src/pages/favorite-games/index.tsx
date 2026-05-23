@@ -4,9 +4,9 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, Star } from '@nutui/icons-react-taro'
 import { getFavoriteGames, removeFavoriteGame } from '@/api/favorite-game'
 import Card from '@/components/Card'
-import GameDetail from '@/components/GameDetail'
 import Layout from '@/components/Layout'
 import type { Game } from '@/data/mock/games'
+import GameDetail from './components/GameDetail'
 
 const truncateDescription = (text: string, maxLength: number = 10): string => {
   if (text.length <= maxLength) {
@@ -31,7 +31,6 @@ export default function FavoriteGamesPage() {
       console.error('加载游戏失败:', error)
     }
   }
-
   const handleRemove = (id: number) => {
     Taro.showModal({
       title: '提示',
@@ -84,7 +83,7 @@ export default function FavoriteGamesPage() {
               <Card key={game.id} className="mb-3" onClick={() => handleGameClick(game)}>
                 <View className="px-4 py-3">
                   <View className="flex items-center justify-between mb-2">
-                    <Text className="text-base font-semibold text-gray-10">{game.name}</Text>
+                    <Text className="text-base font-semibold text-gray-10">{game.game_name}</Text>
                     <Text
                       className="text-sm text-red"
                       onClick={(e) => {
@@ -96,12 +95,12 @@ export default function FavoriteGamesPage() {
                     </Text>
                   </View>
                   <Text className="text-sm text-gray-5 mb-2">
-                    {truncateDescription(game.allDescription)}
+                    {truncateDescription(game.game_name)}
                   </Text>
                   <View className="flex gap-4">
-                    <Text className="text-xs text-gray-7">{game.players}人</Text>
+                    <Text className="text-xs text-gray-7">平均年龄：{game.age}</Text>
                     <View className="px-2 py-1 bg-orange-1 rounded-full">
-                      <Text className="text-xs text-orange-6">{game.category}</Text>
+                      <Text className="text-xs text-orange-6">{game.game_type}</Text>
                     </View>
                   </View>
                 </View>

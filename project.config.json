@@ -2,7 +2,7 @@
   "miniprogramRoot": "dist/",
   "projectname": "core-strength",
   "description": "Core Strength Training Assistant Mini-Program",
-  "appid": "wxaf3fd153dff4101e",
+  "appid": "wxf0097ef9420f0621",
   "setting": {
     "urlCheck": true,
     "es6": false,
@@ -44,5 +44,6 @@
     "ignore": [],
     "include": []
   },
-  "editorSetting": {}
+  "editorSetting": {},
+  "libVersion": "3.16.0"
 }

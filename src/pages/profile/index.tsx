@@ -1,6 +1,7 @@
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowRight } from '@nutui/icons-react-taro'
+import { logout } from '@/api/login'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useUserStore } from '@/store/useUserStore'
@@ -19,12 +20,17 @@ export default function ProfilePage() {
     avatar: '',
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Taro.showModal({
       title: '提示',
       content: '确定要退出登录吗？',
-      success: (res) => {
+      success: async (res) => {
         if (res.confirm) {
+          try {
+            await logout()
+          } catch {
+            Taro.showToast({ title: '登出失败', icon: 'none' })
+          }
           clearAuth()
           Taro.reLaunch({
             url: '/pages/login/index',
