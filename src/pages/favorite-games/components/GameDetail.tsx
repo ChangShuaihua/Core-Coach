@@ -5,7 +5,7 @@ import { ArrowLeft, User, Play } from '@nutui/icons-react-taro'
 import { getGameDetail } from '@/api/favorite-game'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import type { Game } from '@/data/mock/games'
+import type { Game } from '@/types/game'
 
 interface GameDetailProps {
   game: Game

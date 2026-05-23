@@ -4,7 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { getGameDetailById } from '@/api/creation-list'
 import GameDetail from '@/components/GameDetail'
 import Layout from '@/components/Layout'
-import type { Game } from '@/data/mock/games'
+import type { Game } from '@/types/game'
 
 export default function DetailPage() {
   const router = useRouter()
