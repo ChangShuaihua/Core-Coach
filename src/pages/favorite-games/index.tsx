@@ -5,7 +5,7 @@ import { ArrowLeft, Star } from '@nutui/icons-react-taro'
 import { getFavoriteGames, removeFavoriteGame } from '@/api/favorite-game'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import type { Game } from '@/data/mock/games'
+import type { Game } from '@/types/game'
 import GameDetail from './components/GameDetail'
 
 const truncateDescription = (text: string, maxLength: number = 10): string => {

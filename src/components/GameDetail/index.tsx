@@ -4,8 +4,8 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, User, Play } from '@nutui/icons-react-taro'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import type { Game } from '@/data/mock/games'
 import { mockGames } from '@/data/mock/games'
+import type { Game } from '@/types/game'
 
 interface GameDetailProps {
   game: Game
