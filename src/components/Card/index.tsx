@@ -11,6 +11,7 @@ export default function Card({ children, className = '', onClick }: CardProps) {
     <View
       className={`overflow-hidden rounded-2xl bg-white shadow-md ${className}`}
       onClick={onClick}
+      onTap={onClick}
     >
       {children}
     </View>
