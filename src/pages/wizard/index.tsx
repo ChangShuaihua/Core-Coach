@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
-import { getSkillDetail, generateByType } from '@/api/creation'
+import { generateByType } from '@/api/creation'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
 import type { SkillStepConfig } from '@/components/Wizard'
@@ -44,29 +44,16 @@ export default function CreationWizardPage() {
   }, [mode, isValid])
 
   /**
-   * 从 API 加载技能配置
+   * 加载技能配置（使用硬编码配置）
    */
-  const loadSkillConfig = async () => {
-    try {
-      setLoading(true)
-      const skillId = getSkillIdByMode(mode)
-      const config = await getSkillDetail(skillId)
-
-      if (config?.step_config) {
-        const parsedConfig =
-          typeof config.step_config === 'string'
-            ? JSON.parse(config.step_config)
-            : config.step_config
-
-        setStepConfig(parsedConfig)
-        setSkillName(config.name || getDefaultSkillName(mode))
-      }
-    } catch (error) {
-      console.error('加载技能配置失败:', error)
-      showErrorToast('加载配置失败，请重试')
-    } finally {
-      setLoading(false)
+  const loadSkillConfig = () => {
+    setLoading(true)
+    const config = getConfigByType(businessType)
+    if (config?.step_config) {
+      setStepConfig(config.step_config)
+      setSkillName(config.name || getDefaultSkillName(mode))
     }
+    setLoading(false)
   }
 
   /**
@@ -174,17 +161,6 @@ export default function CreationWizardPage() {
       <Wizard stepConfig={stepConfig} onFinish={handleWizardFinish} onGenerate={handleGenerate} />
     </Layout>
   )
-}
-
-function getSkillIdByMode(mode: string | null): number {
-  switch (mode) {
-    case 'game':
-      return 1
-    case 'lesson':
-      return 2
-    default:
-      return 1
-  }
 }
 
 /**

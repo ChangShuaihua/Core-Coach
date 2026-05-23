@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import { getGameConfig } from '@/api/creation'
-import type { GameConfig } from '@/api/creation'
+import { getGameConfig } from '@/types/creation'
+import type { GameConfig } from '@/types/creation'
 import { AgeSelector, PlayerCountSelector, GameTypeSelector } from './Form'
 
 export interface ParamSettingsProps {
@@ -37,7 +37,7 @@ export default function ParamSettings({ data, updateData }: ParamSettingsProps) 
           onChange={(value) => updateData('gameType', value)}
           label="游戏类型"
           required
-          options={config?.game_types}
+          options={config?.game_type_options}
         />
 
         <AgeSelector

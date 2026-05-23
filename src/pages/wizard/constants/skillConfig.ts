@@ -24,39 +24,6 @@ export const GAME_SKILL_CONFIG = {
   },
 }
 
-export const LESSON_SKILL_CONFIG = {
-  id: 2,
-  name: '教案生成',
-  step_config: {
-    steps: [
-      {
-        step: 1,
-        title: '选择运动类型',
-        type: 'selector',
-        options: [
-          { label: '跑步', value: 'running', icon: 'https://via.placeholder.com/80?text=running' },
-          { label: '跳跃', value: 'jumping', icon: 'https://via.placeholder.com/80?text=jumping' },
-          {
-            label: '投掷',
-            value: 'throwing',
-            icon: 'https://via.placeholder.com/80?text=throwing',
-          },
-          { label: '平衡', value: 'balance', icon: 'https://via.placeholder.com/80?text=balance' },
-        ],
-        multiple: true,
-        maxSelect: 3,
-        required: true,
-      },
-      {
-        step: 2,
-        title: '教案信息',
-        type: 'param_settings',
-        required: true,
-      },
-    ],
-  },
-}
-
 /**
  * 根据 mode 获取对应的 mock 配置
  */
@@ -64,8 +31,6 @@ export function getMockSkillConfig(mode: string | null) {
   switch (mode) {
     case 'game':
       return GAME_SKILL_CONFIG
-    case 'lesson':
-      return LESSON_SKILL_CONFIG
     default:
       return GAME_SKILL_CONFIG
   }
@@ -77,7 +42,6 @@ export function getMockSkillConfig(mode: string | null) {
  */
 export const configMap: Record<string, typeof GAME_SKILL_CONFIG> = {
   game: GAME_SKILL_CONFIG,
-  lesson: LESSON_SKILL_CONFIG,
 }
 
 /**

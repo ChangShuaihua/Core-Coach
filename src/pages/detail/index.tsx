@@ -4,7 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { getGameDetailById } from '@/api/creation-list'
 import GameDetail from '@/components/GameDetail'
 import Layout from '@/components/Layout'
-import type { Game } from '@/data/mock/games'
+import type { Game } from '@/types/creation'
 
 export default function DetailPage() {
   const router = useRouter()
@@ -13,18 +13,18 @@ export default function DetailPage() {
 
   useEffect(() => {
     const params = router.params || {}
-    const id = Number(params.id) || 1
+    const id = params.id
     const type = params.type || 'game'
 
-    if (type === 'game') {
+    if (type === 'game' && id) {
       fetchGameDetail(id)
     }
   }, [])
 
-  const fetchGameDetail = async (id: number) => {
+  const fetchGameDetail = async (id: string) => {
     try {
       setLoading(true)
-      const data = await getGameDetailById(id)
+      const data = await getGameDetailById({ id })
       setGame(data)
     } catch (error) {
       console.error('加载详情失败:', error)

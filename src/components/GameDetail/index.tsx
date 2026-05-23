@@ -4,8 +4,7 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, User, Play } from '@nutui/icons-react-taro'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import type { Game } from '@/data/mock/games'
-import { mockGames } from '@/data/mock/games'
+import type { Game } from '@/types/creation'
 
 interface GameDetailProps {
   game: Game
@@ -13,7 +12,7 @@ interface GameDetailProps {
 }
 
 export default function GameDetail({ game, onBack }: GameDetailProps) {
-  const detailGame = mockGames.find((g) => g.id === game.id) || game
+  const detailGame = game
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -26,9 +25,9 @@ export default function GameDetail({ game, onBack }: GameDetailProps) {
   }
 
   const initAudio = useCallback(() => {
-    if (detailGame.bgmUrl && !audioRef.current) {
+    if (detailGame.music && !audioRef.current) {
       audioRef.current = Taro.createInnerAudioContext()
-      audioRef.current.src = detailGame.bgmUrl
+      audioRef.current.src = detailGame.music
       audioRef.current.loop = true
       audioRef.current.autoplay = false
 
@@ -52,7 +51,7 @@ export default function GameDetail({ game, onBack }: GameDetailProps) {
         setIsPlaying(false)
       })
     }
-  }, [detailGame.bgmUrl])
+  }, [detailGame.music])
 
   useEffect(() => {
     initAudio()
@@ -66,7 +65,7 @@ export default function GameDetail({ game, onBack }: GameDetailProps) {
   }, [initAudio])
 
   const toggleAudio = () => {
-    if (!detailGame.bgmUrl) {
+    if (!detailGame.music) {
       Taro.showToast({ title: '暂无背景音乐', icon: 'none' })
       return
     }
@@ -107,55 +106,68 @@ export default function GameDetail({ game, onBack }: GameDetailProps) {
       <View className="pl-4 pr-3 bg-gray-1 min-h-screen pb-32">
         <Card className="p-6 mb-4 mr-1">
           <View className="flex items-center justify-between mb-4">
-            <Text className="text-xl font-bold text-gray-10">{detailGame.name}</Text>
-            <View className="px-3 py-1 bg-orange-1 rounded-full">
-              <Text className="text-sm text-orange-6">{detailGame.category}</Text>
-            </View>
+            <Text className="text-xl font-bold text-gray-10">{detailGame.title}</Text>
+            {detailGame.game_type && (
+              <View className="px-3 py-1 bg-orange-1 rounded-full">
+                <Text className="text-sm text-orange-6">{detailGame.game_type}</Text>
+              </View>
+            )}
           </View>
           <View className="flex gap-6 mb-4">
-            <View className="flex items-center gap-2">
-              <User size={16} className="text-gray-5" />
-              <Text className="text-sm text-gray-6">{detailGame.players}人</Text>
-            </View>
-          </View>
-
-          <Text className="text-base text-gray-7 leading-relaxed">{detailGame.allDescription}</Text>
-        </Card>
-
-        <Card className="p-6 mb-4 mr-1">
-          <Text className="text-base font-semibold text-gray-10 mb-4">前提准备</Text>
-          <View>
-            {detailGame.preparation.map((item, index) => (
-              <View
-                key={index}
-                className={`flex items-start gap-3 px-2 ${index < detailGame.preparation.length - 1 ? 'mb-2' : ''}`}
-              >
-                <View className="w-2 h-2 bg-orange-5 rounded-full flex-shrink-0 mt-2" />
-                <Text className="text-sm text-gray-7">{item}</Text>
+            {detailGame.player_count && (
+              <View className="flex items-center gap-2">
+                <User size={16} className="text-gray-5" />
+                <Text className="text-sm text-gray-6">{detailGame.player_count}人</Text>
               </View>
-            ))}
+            )}
+            {detailGame.age && (
+              <View className="flex items-center gap-2">
+                <Text className="text-sm text-gray-6">{detailGame.age}岁</Text>
+              </View>
+            )}
           </View>
+
+          <Text className="text-base text-gray-7 leading-relaxed">{detailGame.content}</Text>
         </Card>
 
-        <Card className="p-6 mb-4 mr-1">
-          <Text className="text-base font-semibold text-gray-10 mb-4">游戏玩法</Text>
-          <View>
-            {detailGame.playSteps.map((step, index) => (
-              <View
-                key={index}
-                className={`flex items-start gap-3 px-2 ${index < detailGame.playSteps.length - 1 ? 'mb-3' : ''}`}
-              >
-                <View className="w-6 h-6 bg-orange-1 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <Text className="text-xs text-orange-6 font-medium">{index + 1}</Text>
+        {detailGame.preparation && detailGame.preparation.length > 0 && (
+          <Card className="p-6 mb-4 mr-1">
+            <Text className="text-base font-semibold text-gray-10 mb-4">前提准备</Text>
+            <View>
+              {detailGame.preparation.map((item, index) => (
+                <View
+                  key={index}
+                  className={`flex items-start gap-3 px-2 ${index < detailGame.preparation!.length - 1 ? 'mb-2' : ''}`}
+                >
+                  <View className="w-2 h-2 bg-orange-5 rounded-full flex-shrink-0 mt-2" />
+                  <Text className="text-sm text-gray-7">{item}</Text>
                 </View>
-                <Text className="text-sm text-gray-7">{step}</Text>
-              </View>
-            ))}
-          </View>
-        </Card>
+              ))}
+            </View>
+          </Card>
+        )}
+
+        {detailGame.playSteps && detailGame.playSteps.length > 0 && (
+          <Card className="p-6 mb-4 mr-1">
+            <Text className="text-base font-semibold text-gray-10 mb-4">游戏玩法</Text>
+            <View>
+              {detailGame.playSteps.map((step, index) => (
+                <View
+                  key={index}
+                  className={`flex items-start gap-3 px-2 ${index < detailGame.playSteps!.length - 1 ? 'mb-3' : ''}`}
+                >
+                  <View className="w-6 h-6 bg-orange-1 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <Text className="text-xs text-orange-6 font-medium">{index + 1}</Text>
+                  </View>
+                  <Text className="text-sm text-gray-7">{step}</Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        )}
       </View>
 
-      {detailGame.bgmUrl && (
+      {detailGame.music && (
         <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-2 p-4">
           <View className="flex items-center gap-3">
             <View
