@@ -6,7 +6,6 @@ import { getGameDetail } from '@/api/favorite-game'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import type { Game } from '@/data/mock/games'
-import { mockGames } from '@/data/mock/games'
 
 interface GameDetailProps {
   game: Game

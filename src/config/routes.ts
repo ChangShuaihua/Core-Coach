@@ -13,7 +13,6 @@ export const PAGES = [
   'pages/account-settings/index',
   'pages/about/index',
   'pages/favorite-games/index',
-  'pages/favorite-lessons/index',
   'pages/more/index',
   'pages/detail/index',
 ] as const
@@ -32,7 +31,6 @@ export const ROUTES = {
   ACCOUNT_SETTINGS: '/pages/account-settings/index',
   ABOUT: '/pages/about/index',
   FAVORITE_GAMES: '/pages/favorite-games/index',
-  FAVORITE_LESSONS: '/pages/favorite-lessons/index',
   MORE: '/pages/more/index',
   DETAIL: '/pages/detail/index',
 } as const
