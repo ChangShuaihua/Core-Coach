@@ -17,11 +17,30 @@ interface UserState {
   clearAuth: () => void
 }
 
-const taroStorage = createJSONStorage<UserState>(() => ({
-  getItem: (name) => Taro.getStorageSync(name) || null,
-  setItem: (name, value) => Taro.setStorageSync(name, value),
-  removeItem: (name) => Taro.removeStorageSync(name),
-})) as any
+const taroStorage = {
+  getItem: (name: string) => {
+    try {
+      const data = Taro.getStorageSync(name)
+      return data ? JSON.parse(typeof data === 'string' ? data : JSON.stringify(data)) : null
+    } catch {
+      return null
+    }
+  },
+  setItem: (name: string, value: unknown) => {
+    try {
+      Taro.setStorageSync(name, JSON.stringify(value))
+    } catch {
+      console.error('Failed to set storage:', name)
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      Taro.removeStorageSync(name)
+    } catch {
+      console.error('Failed to remove storage:', name)
+    }
+  },
+} as any
 
 export const useUserStore = create<UserState>()(
   persist(
