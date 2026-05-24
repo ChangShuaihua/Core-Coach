@@ -9,6 +9,7 @@ export interface LoginData {
     account: string
     nickName: string
     avatarUrl: string
+    password: string
     createdAt: string
     updatedAt: string
   }

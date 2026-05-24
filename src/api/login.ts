@@ -13,6 +13,7 @@ function mapLoginData(data: LoginData): LoginResult {
       uid: data.user.account,
       nickname: data.user.nickName,
       avatar: data.user.avatarUrl,
+      password: data.user.password,
     },
   }
 }

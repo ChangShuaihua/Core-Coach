@@ -55,6 +55,7 @@ export const useUserStore = create<UserState>()(
         refreshToken: state.refreshToken,
         accessExpireTime: state.accessExpireTime,
         refreshExpireTime: state.refreshExpireTime,
+        userInfo: state.userInfo,
       }),
     }
   )
