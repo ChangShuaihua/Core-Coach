@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Refresh, Photograph, StarFill } from '@nutui/icons-react-taro'
 import StepIndicator from '@/components/Step'
@@ -223,21 +223,39 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 </View>
               </>
             ) : steps.length === 2 && isFirstStep ? (
-              <View
+              <Button
                 className="flex-1 flex items-center justify-center py-3 rounded-full"
-                style={{ backgroundColor: '#FF7A2F' }}
-                onClick={async () => {
+                style={{
+                  backgroundColor: '#FF7A2F',
+                  border: 'none',
+                  color: '#fff',
+                  lineHeight: '1.5',
+                }}
+                onClick={() => {
                   if (!validateCurrentStep()) return
+                  // 请求订阅授权（和测试页同样的写法）
+                  Taro.requestSubscribeMessage({
+                    tmplIds: ['qdxiOA3uXl4Y-MTffH-glx0EUz3rKbIcPIMp06YtRy0'],
+                    entityIds: ['qdxiOA3uXl4Y-MTffH-glx0EUz3rKbIcPIMp06YtRy0'],
+                    success: (res) => {
+                      console.log('订阅成功:', res)
+                    },
+                    fail: (err) => {
+                      console.error('订阅失败:', err)
+                    },
+                  })
+                  // 异步处理生成任务
                   if (onGenerate) {
-                    const genResult = await onGenerate(data)
-                    if (genResult) {
-                      startTask(genResult.recordId, genResult.businessType)
-                    }
+                    onGenerate(data).then((genResult) => {
+                      if (genResult) {
+                        startTask(genResult.recordId, genResult.businessType)
+                      }
+                    })
                   }
                 }}
               >
                 <Text className="text-base font-semibold text-white">生成结果</Text>
-              </View>
+              </Button>
             ) : (
               <View
                 className="flex-1 flex items-center justify-center py-3 rounded-full"

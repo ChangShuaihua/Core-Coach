@@ -26,7 +26,7 @@ export default function GameTypeSelector({
       </Text>
       <View className="flex flex-wrap gap-2">
         {availableTypes.map((type) => {
-          const isSelected = value === type.code
+          const isSelected = value === type.name
           return (
             <View
               key={type.code}
@@ -36,7 +36,7 @@ export default function GameTypeSelector({
               style={{
                 border: `1px solid ${isSelected ? '#FF7A2F' : '#d1d5db'}`,
               }}
-              onClick={() => onChange(type.code)}
+              onClick={() => onChange(type.name)}
             >
               {type.name}
             </View>

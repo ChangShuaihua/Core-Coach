@@ -38,6 +38,7 @@ export default function CreationPage() {
   const [recentList, setRecentList] = useState<RecentCreation[]>([])
 
   useEffect(() => {
+    console.log('skillListLoaded:', skillListLoaded)
     if (!skillListLoaded) {
       fetchSkills()
     }
@@ -45,12 +46,24 @@ export default function CreationPage() {
   }, [])
 
   const fetchSkills = async () => {
+    console.log('开始获取技能列表...')
     try {
       const data = await getSkillList()
+      console.log('获取技能列表成功:', data)
       setSkillList(data)
     } catch (error) {
       console.error('获取技能列表失败:', error)
-      setSkillList(SKILLS_MOCK_DATA)
+      // mock 数据也加上「更多功能」卡片
+      const MORE_SKILL: Skill = {
+        id: 9999,
+        flow_id: '',
+        description: '更多功能',
+        icon: '➕',
+        image_need: 0,
+        step_count: 0,
+        status: 0,
+      }
+      setSkillList([...SKILLS_MOCK_DATA, MORE_SKILL])
     }
   }
 

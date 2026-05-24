@@ -5,7 +5,7 @@ import { startGenerateTask } from '@/api/creation'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
 import type { SkillStepConfig } from '@/components/Wizard'
-import { useCreationStore } from '@/store'
+import { useCreationStore, useTaskStore } from '@/store'
 import type { GenerateGameParams } from '@/types/creation'
 import { getConfigByType } from './constants/skillConfig'
 
@@ -20,6 +20,7 @@ import { getConfigByType } from './constants/skillConfig'
  */
 export default function CreationWizardPage() {
   const { mode, isValid, clearMode } = useCreationStore()
+  const { reset: resetTask } = useTaskStore()
   const router = useRouter()
   const [stepConfig, setStepConfig] = useState<SkillStepConfig | null>(null)
   const [loading, setLoading] = useState(true)
@@ -94,6 +95,7 @@ export default function CreationWizardPage() {
       content: '退出后当前进度将不会保存，确定要退出吗？',
       success: (res) => {
         if (res.confirm) {
+          resetTask()
           clearMode()
           navigateToCreation()
         }
