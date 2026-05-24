@@ -15,6 +15,37 @@ export interface GenerateGameResult {
   created_at: string
 }
 
+// 异步生成任务响应
+export interface GenerateTaskResponse {
+  record_id: number
+  status: number
+  status_text: string
+  estimated_seconds: number
+  message: string
+}
+
+// 任务状态：0=失败, 1=成功, 2=排队中, 3=生成中
+export type TaskStatusCode = 0 | 1 | 2 | 3
+
+// 查询任务结果
+export interface GenerateTaskResult {
+  record_id: number
+  status: TaskStatusCode
+  status_text: string
+  age?: number
+  game_type?: string
+  game_name?: string
+  generated_content?: string
+  music?: string
+  created_at?: string
+  finished_at?: string
+  user_message?: string
+  retry_params?: {
+    age: number
+    game_type: string
+  }
+}
+
 // 游戏详情接口
 export interface Game {
   id: number

@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Refresh, Photograph, StarFill } from '@nutui/icons-react-taro'
 import StepIndicator from '@/components/Step'
+import WaitingPage from '@/components/WaitingPage'
 import StepRenderer from '@/pages/wizard/components/StepRenderer'
 import type { StepConfig } from '@/pages/wizard/components/StepRenderer'
+import { useTaskStore } from '@/store/taskStore'
 
 export interface SkillStepConfig {
   steps: StepConfig[]
@@ -18,7 +20,9 @@ export interface SkillStepConfig {
 export interface WizardProps {
   stepConfig: SkillStepConfig
   onFinish?: (data: Record<string, any>) => void
-  onGenerate?: (data: Record<string, any>) => Promise<Record<string, any> | null>
+  onGenerate?: (
+    data: Record<string, any>
+  ) => Promise<{ recordId: number; businessType: string } | null>
 }
 
 export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps) {
@@ -26,8 +30,27 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
   const [data, setData] = useState<Record<string, any>>({})
   const [subPageActive, setSubPageActive] = useState(false)
 
+  const { status, result, startTask, reset: resetTask } = useTaskStore()
+
   const steps = stepConfig.steps || []
   const currentStep = steps[currentStepIndex]
+
+  // 监听任务完成，自动跳转到结果步骤
+  useEffect(() => {
+    if (status === 'completed' && result) {
+      const resultData = {
+        generatedResults: [
+          {
+            ...result,
+            businessType: useTaskStore.getState().businessType,
+          },
+        ],
+      }
+      setData((prev) => ({ ...prev, ...resultData }))
+      setCurrentStepIndex(steps.length - 1) // 跳到最后一步（结果页）
+      resetTask()
+    }
+  }, [status, result, resetTask, steps.length])
 
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex === steps.length - 1
@@ -75,7 +98,7 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
         return true
 
       case 'param_settings': {
-        const requiredFields = ['age', 'playerCount', 'gameType']
+        const requiredFields = ['age', 'gameType']
         for (const field of requiredFields) {
           const val = data[field]
           if (val === undefined || val === null || val === '') {
@@ -123,6 +146,11 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
     label: step.title,
     description: `第${step.step}步`,
   }))
+
+  // 任务进行中，显示等待页面
+  if (status === 'pending' || status === 'processing') {
+    return <WaitingPage title="游戏" />
+  }
 
   return (
     <View className="w-full h-full flex flex-col">
@@ -201,10 +229,9 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 onClick={async () => {
                   if (!validateCurrentStep()) return
                   if (onGenerate) {
-                    const result = await onGenerate(data)
-                    if (result) {
-                      setData((prev) => ({ ...prev, ...result }))
-                      setCurrentStepIndex((prev) => prev + 1)
+                    const genResult = await onGenerate(data)
+                    if (genResult) {
+                      startTask(genResult.recordId, genResult.businessType)
                     }
                   }
                 }}

@@ -6,13 +6,8 @@ interface WaitingPageProps {
   title?: string
 }
 
-const statusTextMap: Record<string, string> = {
-  pending: '任务排队中...',
-  processing: '正在为你生成中...',
-}
-
 export default function WaitingPage({ title = '游戏' }: WaitingPageProps) {
-  const { status, progress, error } = useTaskStore()
+  const { status, statusText, error } = useTaskStore()
 
   const handleGoChat = () => {
     Taro.switchTab({ url: '/pages/chat/index' })
@@ -49,18 +44,10 @@ export default function WaitingPage({ title = '游戏' }: WaitingPageProps) {
 
       {/* 状态文案 */}
       <Text className="text-lg font-semibold text-gray-900 mb-2">正在为你生成{title}</Text>
-      <Text className="text-sm text-gray-500 mb-6">{statusTextMap[status] || '处理中...'}</Text>
+      <Text className="text-sm text-gray-500 mb-6">{statusText || '处理中...'}</Text>
 
-      {/* 进度条 */}
-      <View className="w-full max-w-xs mb-8">
-        <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <View
-            className="h-full bg-orange-500 rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </View>
-        <Text className="text-xs text-gray-400 text-center mt-2">{progress}%</Text>
-      </View>
+      {/* 加载动画 */}
+      <View className="w-8 h-8 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin mb-8" />
 
       {/* 提示文案 */}
       <Text className="text-xs text-gray-400 mb-8 text-center">

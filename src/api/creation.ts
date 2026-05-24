@@ -7,6 +7,8 @@ import type {
   MusicListData,
   MusicSelectRequest,
   ApiResponse,
+  GenerateTaskResponse,
+  GenerateTaskResult,
 } from '@/types/creation'
 import { post, get } from '../services/http'
 
@@ -128,24 +130,22 @@ export const generateByType = async (businessType: string, data: Record<string, 
 
 /**
  * 启动生成任务（异步）
- * 接口: POST /game/generate/async
- * 返回: { code, message, data: { task_id } }
+ * 接口: POST /game/generate
+ * 返回: { code, message, data: { record_id, status, status_text, estimated_seconds, message } }
  */
 export const startGenerateTask = async (
   params: GenerateGameParams
-): Promise<{ task_id: string }> => {
-  const res = await post<{ task_id: string }>('/game/generate/async', params)
+): Promise<GenerateTaskResponse> => {
+  const res = await post<GenerateTaskResponse>('/game/generate', params)
   return res.data
 }
 
 /**
- * 查询任务状态
- * 接口: GET /task/status/:taskId
- * 返回: { code, message, data: { status, progress, data } }
+ * 查询任务状态和结果
+ * 接口: GET /game/detail?record_id=xx
+ * 返回: { code, message, data: { record_id, status, status_text, ... } }
  */
-export const getTaskStatus = async (
-  taskId: string
-): Promise<{ status: string; progress: number; data: any }> => {
-  const res = await get<{ status: string; progress: number; data: any }>(`/task/status/${taskId}`)
+export const getTaskStatus = async (recordId: number): Promise<GenerateTaskResult> => {
+  const res = await get<GenerateTaskResult>('/game/detail', { record_id: String(recordId) })
   return res.data
 }

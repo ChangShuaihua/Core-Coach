@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
-import { generateByType } from '@/api/creation'
+import { startGenerateTask } from '@/api/creation'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
 import type { SkillStepConfig } from '@/components/Wizard'
 import { useCreationStore } from '@/store'
+import type { GenerateGameParams } from '@/types/creation'
 import { getConfigByType } from './constants/skillConfig'
 
 /**
@@ -35,13 +36,6 @@ export default function CreationWizardPage() {
       return
     }
 
-    loadSkillConfig()
-  }, [mode, isValid])
-
-  /**
-   * 加载技能配置（使用硬编码配置）
-   */
-  const loadSkillConfig = () => {
     setLoading(true)
     const config = getConfigByType(businessType)
     if (config?.step_config) {
@@ -49,34 +43,25 @@ export default function CreationWizardPage() {
       setSkillName(config.name || getDefaultSkillName(mode))
     }
     setLoading(false)
-  }
+  }, [mode, isValid, businessType])
 
   /**
-   * 处理生成（统一入口，根据业务类型动态分发）
+   * 处理生成（启动异步任务）
    */
-  const handleGenerate = async (data: Record<string, any>): Promise<Record<string, any> | null> => {
+  const handleGenerate = async (
+    data: Record<string, any>
+  ): Promise<{ recordId: number; businessType: string } | null> => {
     try {
       console.log(`🎮 调用生成接口 [${businessType}]:`, data)
 
-      // 根据业务类型构造不同的参数
       const params = buildGenerateParams(businessType, data)
+      const result = await startGenerateTask(params)
 
-      // 调用统一生成函数，自动分发到对应的 API
-      const result = await generateByType(businessType, params)
+      console.log('✅ 任务已提交:', result)
 
-      console.log('✅ 生成成功:', result)
-
-      showSuccessToast('生成成功')
-
-      // 返回生成结果，供 ResultPreview 使用
       return {
-        generatedResults: [
-          ...(data.generatedResults || []),
-          {
-            ...result,
-            businessType,
-          },
-        ],
+        recordId: result.record_id,
+        businessType,
       }
     } catch (error) {
       console.error('❌ 生成失败:', error)
@@ -161,7 +146,7 @@ export default function CreationWizardPage() {
 /**
  * 根据业务类型构造生成参数
  */
-function buildGenerateParams(businessType: string, data: Record<string, any>): Record<string, any> {
+function buildGenerateParams(businessType: string, data: Record<string, any>): GenerateGameParams {
   switch (businessType) {
     case 'game':
       return {
@@ -169,14 +154,11 @@ function buildGenerateParams(businessType: string, data: Record<string, any>): R
         game_type: data.gameType || '循环式',
         player_count: parseInt(data.playerCount) || 2,
       }
-    case 'lesson':
-      return {
-        sport_type: data.sportType || data.step_1 || '跑步',
-        age: parseInt(data.age) || 6,
-        duration: parseInt(data.duration) || 40,
-      }
     default:
-      return data
+      return {
+        age: parseInt(data.age) || 3,
+        game_type: data.gameType || '循环式',
+      }
   }
 }
 
