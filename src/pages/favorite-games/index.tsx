@@ -5,7 +5,7 @@ import { ArrowLeft, Star } from '@nutui/icons-react-taro'
 import { getFavoriteGames, removeFavoriteGame } from '@/api/favorite-game'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import type { Game } from '@/types/game'
+import type { favoriteGame } from '@/types/game'
 import GameDetail from './components/GameDetail'
 
 const truncateDescription = (text: string, maxLength: number = 10): string => {
@@ -16,8 +16,8 @@ const truncateDescription = (text: string, maxLength: number = 10): string => {
 }
 
 export default function FavoriteGamesPage() {
-  const [games, setGames] = useState<Game[]>([])
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
+  const [games, setGames] = useState<favoriteGame[]>([])
+  const [selectedGame, setSelectedGame] = useState<favoriteGame | null>(null)
 
   useEffect(() => {
     loadGames()
@@ -49,7 +49,7 @@ export default function FavoriteGamesPage() {
     })
   }
 
-  const handleGameClick = (game: Game) => {
+  const handleGameClick = (game: favoriteGame) => {
     setSelectedGame(game)
   }
 

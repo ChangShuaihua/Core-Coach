@@ -1,34 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Edit, ArrowLeft } from '@nutui/icons-react-taro'
 import { Avatar, Button } from '@nutui/nutui-react-taro'
-import { getUserInfo, updateUserInfo, uploadAvatar } from '@/api/edit-info'
+import { updateUserInfo, uploadAvatar } from '@/api/edit-info'
 import defaultAvatar from '@/assets/images/avatar.png'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import { useUserStore } from '@/store/useUserStore'
 
 export default function EditInfoPage() {
-  const [nickname, setNickname] = useState('')
-  const [avatar, setAvatar] = useState('')
-  const [loading, setLoading] = useState(true)
+  const { userInfo, setUserInfo } = useUserStore()
 
-  useEffect(() => {
-    loadUserInfo()
-  }, [])
-
-  const loadUserInfo = async () => {
-    try {
-      setLoading(true)
-      const data = await getUserInfo()
-      setNickname(data.nickname)
-      setAvatar(data.avatar)
-    } catch (error) {
-      console.error('加载用户信息失败:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [nickname, setNickname] = useState(userInfo?.nickname || '')
+  const [avatar, setAvatar] = useState(userInfo?.avatar || '')
 
   const handleChooseAvatar = () => {
     Taro.chooseImage({
@@ -39,8 +24,8 @@ export default function EditInfoPage() {
         const tempFilePath = res.tempFilePaths[0]
         try {
           Taro.showLoading({ title: '上传中...' })
-          const uploadedUrl = await uploadAvatar(tempFilePath)
-          setAvatar(uploadedUrl)
+          const uploadedResult = await uploadAvatar(tempFilePath)
+          setAvatar(uploadedResult.url)
           Taro.hideLoading()
           Taro.showToast({ title: '上传成功', icon: 'success' })
         } catch (error) {
@@ -72,7 +57,16 @@ export default function EditInfoPage() {
     }
     Taro.showLoading({ title: '保存中...' })
     try {
-      await updateUserInfo(nickname.trim(), avatar)
+      const result = await updateUserInfo(nickname.trim(), avatar)
+
+      if (userInfo) {
+        setUserInfo({
+          ...userInfo,
+          nickname: result.nickName,
+          avatar: result.avatar,
+        })
+      }
+
       Taro.hideLoading()
       Taro.showToast({ title: '保存成功', icon: 'success' })
       setTimeout(() => {
@@ -83,24 +77,6 @@ export default function EditInfoPage() {
       Taro.showToast({ title: '保存失败', icon: 'none' })
       console.error('保存失败:', error)
     }
-  }
-
-  if (loading) {
-    return (
-      <Layout
-        title="编辑资料"
-        showTabBar={false}
-        renderLeft={
-          <View onClick={() => Taro.navigateBack()}>
-            <ArrowLeft />
-          </View>
-        }
-      >
-        <View className="p-4 flex items-center justify-center pt-20">
-          <Text className="text-gray-5">加载中...</Text>
-        </View>
-      </Layout>
-    )
   }
 
   return (

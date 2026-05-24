@@ -1,57 +1,53 @@
+import { put } from '@/services/http'
+
 export interface UserInfo {
   nickname: string
   avatar: string
 }
 
-const mockUserInfo: UserInfo = {
-  nickname: '跑酷教练大鹏',
-  avatar: '',
+export interface UpdateUserInfoResponse {
+  nickname: string
+  avatar: string
 }
 
-const useMock = true
-
-const BASE_URL = '/api'
-
-export async function getUserInfo(): Promise<UserInfo> {
-  if (useMock) {
-    return Promise.resolve(mockUserInfo)
-  }
-
-  const response = await fetch(`${BASE_URL}/user/info`)
-  return response.json()
+export interface UploadAvatarResponse {
+  url: string
 }
 
-export async function updateUserInfo(nickname: string, avatar?: string): Promise<void> {
+const useMock = false
+
+export async function updateUserInfo(
+  nickname: string,
+  avatar?: string
+): Promise<UpdateUserInfoResponse> {
   if (useMock) {
-    mockUserInfo.nickname = nickname
-    if (avatar !== undefined) {
-      mockUserInfo.avatar = avatar
-    }
-    return Promise.resolve()
+    return Promise.resolve({
+      nickname,
+      avatar: avatar || '',
+    })
   }
 
-  await fetch(`${BASE_URL}/user/info`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ nickname, avatar }),
-  })
+  const result = await put<UpdateUserInfoResponse>('/app/user/profile', { nickname, avatar })
+
+  if (!result.data) {
+    throw new Error((result as any).message || (result as any).msg || '修改个人信息失败')
+  }
+
+  return result.data
 }
 
-export async function uploadAvatar(filePath: string): Promise<string> {
+export async function uploadAvatar(filePath: string): Promise<UploadAvatarResponse> {
   if (useMock) {
-    mockUserInfo.avatar = filePath
-    return Promise.resolve(filePath)
+    return Promise.resolve({
+      url: filePath,
+    })
   }
 
-  const response = await fetch(`${BASE_URL}/upload/avatar`, {
-    method: 'POST',
-    body: JSON.stringify({ filePath }),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
-  const data = await response.json()
-  return data.url
+  const result = await put<UploadAvatarResponse>('/upload/avatar', { filePath })
+
+  if (!result.data) {
+    throw new Error((result as any).message || (result as any).msg || '上传头像失败')
+  }
+
+  return result.data
 }

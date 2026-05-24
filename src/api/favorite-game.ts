@@ -1,24 +1,24 @@
-import type { Game } from '@/data/mock/games'
 import { mockGames } from '@/data/mock/games'
 import { get, del } from '@/services/http'
+import type { favoriteGame } from '@/types/game'
 
 const useMock = false
 
-export async function getFavoriteGames(): Promise<Game[]> {
+export async function getFavoriteGames(): Promise<favoriteGame[]> {
   if (useMock) {
-    return Promise.resolve(mockGames)
+    return Promise.resolve(mockGames as unknown as favoriteGame[])
   }
 
-  const result = await get<{ total: number; list: Game[] }>('/game/favorite/list')
+  const result = await get<{ total: number; list: favoriteGame[] }>('/game/favorite/list')
   return result.data.list
 }
 
-export async function getGameDetail(id: number): Promise<Game | undefined> {
+export async function getGameDetail(id: number): Promise<favoriteGame | undefined> {
   if (useMock) {
-    return Promise.resolve(mockGames.find((g) => g.id === id))
+    return Promise.resolve(mockGames.find((g) => g.id === id) as unknown as favoriteGame)
   }
 
-  const result = await get<Game>(`/game/favorite/detail?id=${id}`)
+  const result = await get<favoriteGame>(`/game/favorite/detail?id=${id}`)
   return result.data
 }
 

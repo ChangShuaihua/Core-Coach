@@ -1,39 +1,33 @@
+import { put } from '@/services/http'
+
 export interface AccountInfo {
-  phone: string
-  password?: string
+  account: string
+  password: string
 }
 
-const mockAccount: AccountInfo = {
-  phone: '189536545515',
-  password: '123456',
+export interface UpdatePasswordResponse {
+  account: string
+  password: string
 }
 
-// 是否使用模拟数据
-const useMock = true
+const useMock = false
 
-// API 基础地址 - 到时候只需要修改这里即可
-const BASE_URL = '/api'
-
-export async function getAccountInfo(): Promise<AccountInfo> {
+export async function updatePassword(newPassword: string): Promise<UpdatePasswordResponse> {
   if (useMock) {
-    return Promise.resolve(mockAccount)
+    return Promise.resolve({
+      account: '10086',
+      password: newPassword,
+    })
   }
 
-  const response = await fetch(`${BASE_URL}/account`)
-  return response.json()
-}
-
-export async function updatePassword(newPassword: string): Promise<void> {
-  if (useMock) {
-    mockAccount.password = newPassword
-    return Promise.resolve()
-  }
-
-  await fetch(`${BASE_URL}/account/password`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ newPassword }),
+  const result = await put<UpdatePasswordResponse>('/app/user/password', {
+    password: newPassword,
+    confirmPassword: newPassword,
   })
+
+  if (!result.data) {
+    throw new Error((result as any).message || (result as any).msg || '修改密码失败')
+  }
+
+  return result.data
 }

@@ -1,31 +1,47 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { Popup, Form, Input, Button } from '@nutui/nutui-react-taro'
-import { getAccountInfo, updatePassword, type AccountInfo } from '@/api/account'
+import { updatePassword, type AccountInfo } from '@/api/account'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import { useUserStore } from '@/store/useUserStore'
 
 export default function AccountSettingsPage() {
+  // React Hooks 必须在组件顶层调用，不能在条件判断之后
+  const { userInfo, accessToken, setUserInfo } = useUserStore()
   const [showPopup, setShowPopup] = useState(false)
-  const [accountInfo, setAccountInfo] = useState<AccountInfo>({ phone: '', password: '' })
   const [passwordData, setPasswordData] = useState({
     password: '',
     confirmPassword: '',
   })
 
-  useEffect(() => {
-    loadAccountInfo()
-  }, [])
+  const accountInfo: AccountInfo = {
+    account: userInfo?.account || '',
+    password: userInfo?.password || '',
+  }
 
-  const loadAccountInfo = async () => {
-    try {
-      const data = await getAccountInfo()
-      setAccountInfo(data)
-    } catch (error) {
-      console.error('加载账号信息失败:', error)
-    }
+  // 检查登录状态
+  if (!accessToken) {
+    return (
+      <Layout title="账号设置" showTabBar={false}>
+        <View
+          className="p-4 flex flex-col items-center justify-center"
+          style={{ minHeight: '50vh' }}
+        >
+          <Text className="text-gray-6 mb-4">请先登录后再进行操作</Text>
+          <Button
+            type="primary"
+            color="var(--gradient-orange)"
+            size="large"
+            onClick={() => Taro.redirectTo({ url: '/pages/login/index' })}
+          >
+            去登录
+          </Button>
+        </View>
+      </Layout>
+    )
   }
 
   const openPopup = () => {
@@ -37,20 +53,29 @@ export default function AccountSettingsPage() {
     setShowPopup(false)
   }
 
+  const validatePassword = (password: string): string | null => {
+    if (!password) return '请输入新密码'
+    if (password.length < 6) return '密码不能少于6位'
+    if (password.length > 18) return '密码不能超过18位'
+    if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]+$/.test(password))
+      return '密码包含非法字符'
+    return null
+  }
+
   const handleSubmit = async () => {
     const { password, confirmPassword } = passwordData
-    if (!password) {
-      Taro.showToast({ title: '请输入新密码', icon: 'none' })
+
+    const validationError = validatePassword(password)
+    if (validationError) {
+      Taro.showToast({ title: validationError, icon: 'none' })
       return
     }
-    if (password.length < 6) {
-      Taro.showToast({ title: '密码至少6位', icon: 'none' })
-      return
-    }
+
     if (!confirmPassword) {
       Taro.showToast({ title: '请输入确认密码', icon: 'none' })
       return
     }
+
     if (password !== confirmPassword) {
       Taro.showToast({ title: '两次密码输入不一致', icon: 'none' })
       return
@@ -58,7 +83,16 @@ export default function AccountSettingsPage() {
 
     Taro.showLoading({ title: '保存中...' })
     try {
-      await updatePassword(password)
+      const result = await updatePassword(password)
+
+      if (userInfo) {
+        setUserInfo({
+          ...userInfo,
+          account: result.account,
+          password: result.password,
+        })
+      }
+
       Taro.hideLoading()
       Taro.showToast({ title: '修改成功', icon: 'success' })
       closePopup()
@@ -85,7 +119,7 @@ export default function AccountSettingsPage() {
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-9">账号</Text>
             </View>
-            <Text className="text-sm text-gray-400">{accountInfo.phone || '暂无'}</Text>
+            <Text className="text-sm text-gray-400">{accountInfo.account || '暂无'}</Text>
           </View>
 
           <View className="bg-gray-100" style={{ height: '1px' }} />
@@ -101,7 +135,7 @@ export default function AccountSettingsPage() {
             </View>
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-8 mr-2">
-                {accountInfo.password || '暂未设置密码'}
+                {accountInfo.password ? '已设置密码' : '暂未设置密码'}
               </Text>
             </View>
           </View>
@@ -127,8 +161,8 @@ export default function AccountSettingsPage() {
                 <Input
                   value={passwordData.password}
                   type="text"
-                  placeholder="请输入新密码"
-                  maxLength={20}
+                  placeholder="请输入新密码（6-18位字母、数字或特殊字符）"
+                  maxLength={18}
                   onChange={(val) => setPasswordData((prev) => ({ ...prev, password: val }))}
                 />
               </View>
@@ -140,7 +174,7 @@ export default function AccountSettingsPage() {
                 value={passwordData.confirmPassword}
                 type="text"
                 placeholder="请再次输入新密码"
-                maxLength={20}
+                maxLength={18}
                 onChange={(val) => setPasswordData((prev) => ({ ...prev, confirmPassword: val }))}
               />
             </View>

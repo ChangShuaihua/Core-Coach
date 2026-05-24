@@ -6,6 +6,8 @@ export interface UserInfo {
   uid: string
   nickname: string
   avatar?: string
+  account?: string
+  password?: string
 }
 
 // 菜单项类型

@@ -5,27 +5,21 @@ import { ArrowLeft, User, Play } from '@nutui/icons-react-taro'
 import { getGameDetail } from '@/api/favorite-game'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import type { Game } from '@/types/game'
+import type { favoriteGame } from '@/types/game'
 
 interface GameDetailProps {
-  game: Game
+  game: favoriteGame
   onBack?: () => void
 }
 
 export default function GameDetail({ game, onBack }: GameDetailProps) {
-  const [detailGame, setDetailGame] = useState<Game>(game)
-  const [isLoading, setIsLoading] = useState(false)
+  const [detailGame, setDetailGame] = useState<favoriteGame>(game)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const audioRef = useRef<Taro.InnerAudioContext | null>(null)
 
-  useEffect(() => {
-    loadGameDetail()
-  }, [game.id])
-
-  const loadGameDetail = async () => {
-    setIsLoading(true)
+  const loadGameDetail = useCallback(async () => {
     try {
       const result = await getGameDetail(game.id)
       if (result) {
@@ -33,10 +27,12 @@ export default function GameDetail({ game, onBack }: GameDetailProps) {
       }
     } catch (error) {
       console.error('加载游戏详情失败:', error)
-    } finally {
-      setIsLoading(false)
     }
-  }
+  }, [game.id])
+
+  useEffect(() => {
+    loadGameDetail()
+  }, [loadGameDetail])
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
