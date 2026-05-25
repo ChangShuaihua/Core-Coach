@@ -1,5 +1,27 @@
 import { View, Text } from '@tarojs/components'
+import dayjs from 'dayjs'
 import { Message } from '@/types/chat'
+
+// 格式化时间：今天显示时分，昨天显示"昨天 HH:mm"，更早显示完整日期
+function formatTime(timestamp: number): string {
+  const date = dayjs(timestamp)
+  const now = dayjs()
+  const diffDays = now.diff(date, 'day')
+
+  if (diffDays === 0) {
+    // 今天：显示时分
+    return date.format('HH:mm')
+  } else if (diffDays === 1) {
+    // 昨天
+    return date.format('昨天 HH:mm')
+  } else if (diffDays < 7) {
+    // 一周内：显示星期几
+    return date.format('dddd HH:mm')
+  } else {
+    // 更早：显示完整日期
+    return date.format('MM/DD HH:mm')
+  }
+}
 
 interface MessageBubbleProps {
   message: Message
@@ -29,10 +51,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
       {/* 时间戳 */}
       <View className="mb-1 flex" style={{ justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
         <Text style={{ fontSize: '10px', color: '#9ca3af', padding: '0 4px' }}>
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          {formatTime(message.timestamp)}
         </Text>
       </View>
 
@@ -42,6 +61,14 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
           {/* pending：打字指示器 */}
           {!isUser && message.status === 'pending' && (
             <Text style={{ ...textStyle, color: '#9ca3af' }}>正在输入...</Text>
+          )}
+
+          {/* streaming：打字机效果 */}
+          {!isUser && message.status === 'streaming' && (
+            <Text style={textStyle}>
+              {message.content}
+              <Text style={{ opacity: 0.5 }}>▍</Text>
+            </Text>
           )}
 
           {/* success / error / user：显示内容 */}
