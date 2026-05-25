@@ -27,7 +27,11 @@ export async function updateUserInfo(
     })
   }
 
-  const result = await put<UpdateUserInfoResponse>('/app/user/profile', { nickname, avatar })
+  const requestData: Record<string, any> = { nickname }
+  if (avatar) {
+    requestData.AvatarURL = avatar
+  }
+  const result = await put<UpdateUserInfoResponse>('/app/user/profile', requestData)
 
   if (!result.data) {
     throw new Error((result as any).message || (result as any).msg || '修改个人信息失败')

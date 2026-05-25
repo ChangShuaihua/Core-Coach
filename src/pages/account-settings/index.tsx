@@ -19,7 +19,7 @@ export default function AccountSettingsPage() {
 
   const accountInfo: AccountInfo = {
     account: userInfo?.account || '',
-    password: userInfo?.password || '',
+    password: '',
   }
 
   // 检查登录状态
@@ -134,9 +134,7 @@ export default function AccountSettingsPage() {
               <Text className="text-sm text-gray-9">密码</Text>
             </View>
             <View className="flex flex-row items-center">
-              <Text className="text-sm text-gray-8 mr-2">
-                {accountInfo.password ? '已设置密码' : '暂未设置密码'}
-              </Text>
+              <Text className="text-sm text-gray-400 mr-2">修改密码</Text>
             </View>
           </View>
         </Card>
