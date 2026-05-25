@@ -1,7 +1,7 @@
 import { Text } from '@tarojs/components'
 import Card from '@/components/Card'
+import ResultPreview from '@/components/ResultPreview'
 import ParamSettings from '../ParamSettings'
-import ResultPreview from '../ResultPreview'
 import Selector from '../Selector'
 import UploadComponent from '../UploadComponent'
 

@@ -5,9 +5,7 @@
  */
 
 export { default as AgeSelector } from './AgeSelector'
-export { default as PlayerCountSelector } from './PlayerCountSelector'
 export { default as GameTypeSelector } from './GameTypeSelector'
 
 export type { AgeSelectorProps } from './AgeSelector'
-export type { PlayerCountSelectorProps } from './PlayerCountSelector'
 export type { GameTypeSelectorProps } from './GameTypeSelector'

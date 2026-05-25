@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
-import { getRecentCreations } from '@/api/creation-list'
-import type { RecentCreation } from '@/api/creation-list'
+import { getCreationList } from '@/api/creation-list'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import type { CreationListItem } from '@/types/creation-list'
 
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
@@ -29,18 +29,36 @@ const iconMap: Record<string, string> = {
 
 export default function MorePage() {
   const [filter, setFilter] = useState<'all' | 'game' | 'lesson'>('all')
-  const [list, setList] = useState<RecentCreation[]>([])
+  const [list, setList] = useState<CreationListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    setPage(1)
+    setList([])
+    fetchData(1, filter)
+  }, [filter])
 
-  const fetchData = async () => {
+  const fetchData = async (pageNum: number, type?: string) => {
     try {
       setLoading(true)
-      const data = await getRecentCreations()
-      setList(data)
+      const params: Record<string, string> = {
+        page: String(pageNum),
+        page_size: '10',
+      }
+      if (type && type !== 'all') {
+        params.type = type
+      }
+      const res = await getCreationList(params)
+      const newList = res.list || []
+      if (pageNum === 1) {
+        setList(newList)
+      } else {
+        setList((prev) => [...prev, ...newList])
+      }
+      setHasMore(newList.length >= 10)
+      setPage(pageNum)
     } catch (error) {
       console.error('加载失败:', error)
     } finally {
@@ -48,7 +66,13 @@ export default function MorePage() {
     }
   }
 
-  const filteredList = filter === 'all' ? list : list.filter((item) => item.type === filter)
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      fetchData(page + 1, filter)
+    }
+  }
+
+  const filteredList = list
 
   const tabs = [
     { key: 'all' as const, label: '全部' },
@@ -161,6 +185,23 @@ export default function MorePage() {
                 </View>
               </Card>
             ))}
+
+            {/* 加载更多 */}
+            {hasMore && (
+              <View
+                style={{ textAlign: 'center', padding: '16px 0', cursor: 'pointer' }}
+                onClick={loadMore}
+              >
+                <Text style={{ fontSize: '14px', color: '#f97316' }}>
+                  {loading ? '加载中...' : '加载更多'}
+                </Text>
+              </View>
+            )}
+            {!hasMore && filteredList.length > 0 && (
+              <View style={{ textAlign: 'center', padding: '16px 0' }}>
+                <Text style={{ fontSize: '12px', color: '#9ca3af' }}>没有更多了</Text>
+              </View>
+            )}
           </View>
         )}
       </View>
