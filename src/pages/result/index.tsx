@@ -3,9 +3,9 @@ import { View, Text } from '@tarojs/components'
 import { useRouter } from '@tarojs/taro'
 import { getTaskStatus } from '@/api/creation'
 import Layout from '@/components/Layout'
-import ResultPreview from '@/pages/wizard/components/ResultPreview'
-import type { ResultPreviewConfig } from '@/pages/wizard/components/ResultPreview'
-import type { GenerateTaskResult, TaskStatusCode } from '@/types/creation'
+import ResultPreview from '@/components/ResultPreview'
+import type { ResultPreviewConfig } from '@/components/ResultPreview'
+import type { TaskStatusCode } from '@/types/creation'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
   step: 1,

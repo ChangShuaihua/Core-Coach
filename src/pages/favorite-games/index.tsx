@@ -5,8 +5,8 @@ import { ArrowLeft, Star } from '@nutui/icons-react-taro'
 import { getFavoriteGames, removeFavoriteGame } from '@/api/favorite-game'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import ResultPreview from '@/pages/wizard/components/ResultPreview'
-import type { ResultPreviewConfig } from '@/pages/wizard/components/ResultPreview'
+import ResultPreview from '@/components/ResultPreview'
+import type { ResultPreviewConfig } from '@/components/ResultPreview'
 import type { Game } from '@/types/game'
 
 const RESULT_CONFIG: ResultPreviewConfig = {

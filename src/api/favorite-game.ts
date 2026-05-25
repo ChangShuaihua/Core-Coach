@@ -1,4 +1,4 @@
-import { get, del } from '@/services/http'
+import { get, post, del } from '@/services/http'
 import type { Game } from '@/types/game'
 
 export async function getFavoriteGames(): Promise<Game[]> {
@@ -11,6 +11,10 @@ export async function getGameDetail(id: number): Promise<Game | undefined> {
   return result.data
 }
 
+export async function collectGame(recordId: number): Promise<void> {
+  await post('/game/favorite', { record_id: recordId })
+}
+
 export async function removeFavoriteGame(id: number): Promise<void> {
-  await del(`/game/favorite/${id}`)
+  await del(`/game/favorite?id=${id}`)
 }
