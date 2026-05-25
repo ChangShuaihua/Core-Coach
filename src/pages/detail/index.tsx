@@ -16,15 +16,15 @@ export default function DetailPage() {
     const id = params.id
     const type = params.type || 'game'
 
-    if (type === 'game' && id) {
-      fetchGameDetail(id)
+    if (id) {
+      fetchGameDetail(id, type)
     }
   }, [])
 
-  const fetchGameDetail = async (id: string) => {
+  const fetchGameDetail = async (id: string, type: string) => {
     try {
       setLoading(true)
-      const data = await getGameDetailById({ id })
+      const data = await getGameDetailById({ id, type })
       setGame(data)
     } catch (error) {
       console.error('加载详情失败:', error)
