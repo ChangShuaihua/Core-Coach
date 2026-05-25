@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import MusicSettings from './MusicSettings'
+import MusicSettings from '@/pages/wizard/components/MusicSettings'
 
 export interface ResultPreviewConfig {
   step: number

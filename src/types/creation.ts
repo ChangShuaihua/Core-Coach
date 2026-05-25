@@ -40,6 +40,7 @@ export interface GenerateTaskResult {
   created_at?: string
   finished_at?: string
   user_message?: string
+  estimated_seconds?: number
   retry_params?: {
     age: number
     game_type: string
