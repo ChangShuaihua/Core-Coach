@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro'
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
 import type { UserInfo } from '@/types/profile'
 
 interface UserState {
@@ -74,6 +74,7 @@ export const useUserStore = create<UserState>()(
         refreshToken: state.refreshToken,
         accessExpireTime: state.accessExpireTime,
         refreshExpireTime: state.refreshExpireTime,
+        userInfo: state.userInfo,
       }),
     }
   )
