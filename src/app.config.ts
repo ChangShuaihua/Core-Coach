@@ -39,10 +39,6 @@ export default defineAppConfig({
       root: 'pages/result',
       pages: ['index'],
     },
-    {
-      root: 'pages/test-subscribe',
-      pages: ['index'],
-    },
   ],
   window: {
     navigationStyle: 'custom',

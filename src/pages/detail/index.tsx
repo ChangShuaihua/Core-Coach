@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getGameDetailById } from '@/api/creation-list'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
@@ -75,8 +76,21 @@ export default function DetailPage() {
   }
 
   return (
-    <Layout title="游戏详情" showTabBar={false}>
-      <ResultPreview config={RESULT_CONFIG} value={data} onChange={setData} />
+    <Layout
+      title="游戏详情"
+      showTabBar={false}
+      renderLeft={
+        <View onClick={() => Taro.navigateBack()}>
+          <ArrowLeft />
+        </View>
+      }
+    >
+      <ResultPreview
+        config={RESULT_CONFIG}
+        value={data}
+        onChange={setData}
+        showMusicSwitch={false}
+      />
     </Layout>
   )
 }

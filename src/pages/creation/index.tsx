@@ -70,6 +70,7 @@ export default function CreationPage() {
   const fetchRecent = async () => {
     try {
       const data = await getRecentCreations()
+      console.log('最近创作数据:', data)
       setRecentList(data)
     } catch (error) {
       console.error('获取最近创作失败:', error)

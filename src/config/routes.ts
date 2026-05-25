@@ -16,7 +16,6 @@ export const PAGES = [
   'pages/more/index',
   'pages/detail/index',
   'pages/result/index',
-  'pages/test-subscribe/index',
 ] as const
 
 // 所有页面合并（app.config.ts 用这个）
