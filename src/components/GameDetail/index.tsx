@@ -4,7 +4,6 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, User, Play } from '@nutui/icons-react-taro'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
-import { mockGames } from '@/data/mock/games'
 import type { Game } from '@/types/game'
 
 interface GameDetailProps {
@@ -13,7 +12,7 @@ interface GameDetailProps {
 }
 
 export default function GameDetail({ game, onBack }: GameDetailProps) {
-  const detailGame = mockGames.find((g) => g.id === game.id) || game
+  const detailGame = game
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)

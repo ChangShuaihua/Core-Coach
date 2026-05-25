@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro'
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
 import type { UserInfo } from '@/types/profile'
 
 interface UserState {
@@ -21,8 +21,11 @@ const taroStorage = {
   getItem: (name: string) => {
     try {
       const data = Taro.getStorageSync(name)
-      return data ? JSON.parse(typeof data === 'string' ? data : JSON.stringify(data)) : null
-    } catch {
+      if (!data) return null
+      // 真机 getStorageSync 可能返回 object，统一转为 string 给 Zustand
+      return typeof data === 'string' ? data : JSON.stringify(data)
+    } catch (e) {
+      console.warn('[Storage] getItem 失败:', name, e)
       return null
     }
   },

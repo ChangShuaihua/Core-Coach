@@ -1,4 +1,4 @@
-import type { Game } from '@/data/mock/games'
+import type { Game } from '@/types/game'
 import { get } from '../services/http'
 
 const FORCE_MOCK = true

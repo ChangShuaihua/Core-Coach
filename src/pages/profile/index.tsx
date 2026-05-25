@@ -5,7 +5,6 @@ import { logout } from '@/api/login'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useUserStore } from '@/store/useUserStore'
-import type { UserInfo } from '@/types/profile'
 import MenuList from './components/MenuList'
 import UserInfoCard from './components/UserInfoCard'
 import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
@@ -13,9 +12,8 @@ import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
 export default function ProfilePage() {
   const { clearAuth, userInfo: storeUserInfo } = useUserStore()
 
-  const userInfo: UserInfo = storeUserInfo ?? {
-    id: 0,
-    uid: '',
+  const userInfo = storeUserInfo ?? {
+    account: '',
     nickname: '未登录',
     avatar: '',
   }
