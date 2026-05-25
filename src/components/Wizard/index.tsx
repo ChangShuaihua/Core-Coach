@@ -7,6 +7,7 @@ import WaitingPage from '@/components/WaitingPage'
 import StepRenderer from '@/pages/wizard/components/StepRenderer'
 import type { StepConfig } from '@/pages/wizard/components/StepRenderer'
 import { useTaskStore } from '@/store/taskStore'
+import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 export interface SkillStepConfig {
   steps: StepConfig[]
@@ -233,17 +234,8 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 }}
                 onClick={() => {
                   if (!validateCurrentStep()) return
-                  // 请求订阅授权（和测试页同样的写法）
-                  Taro.requestSubscribeMessage({
-                    tmplIds: ['qdxiOA3uXl4Y-MTffH-glx0EUz3rKbIcPIMp06YtRy0'],
-                    entityIds: ['qdxiOA3uXl4Y-MTffH-glx0EUz3rKbIcPIMp06YtRy0'],
-                    success: (res) => {
-                      console.log('订阅成功:', res)
-                    },
-                    fail: (err) => {
-                      console.error('订阅失败:', err)
-                    },
-                  })
+                  // 同步调用订阅授权
+                  requestTaskCompleteSubscribe()
                   // 异步处理生成任务
                   if (onGenerate) {
                     onGenerate(data).then((genResult) => {
