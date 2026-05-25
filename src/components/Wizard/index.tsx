@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Button } from '@tarojs/components'
+import { View, Text, Button, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Refresh, Photograph, StarFill } from '@nutui/icons-react-taro'
+import { collectGame } from '@/api/favorite-game'
 import StepIndicator from '@/components/Step'
 import WaitingPage from '@/components/WaitingPage'
 import StepRenderer from '@/pages/wizard/components/StepRenderer'
 import type { StepConfig } from '@/pages/wizard/components/StepRenderer'
 import { useTaskStore } from '@/store/taskStore'
+import { generateAndSaveImage } from '@/utils/shareImage'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 export interface SkillStepConfig {
@@ -155,6 +157,19 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
 
   return (
     <View className="w-full h-full flex flex-col">
+      {/* 隐藏的 Canvas 用于生成分享图片 */}
+      <Canvas
+        type="2d"
+        id="shareCanvas"
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
+          width: '300px',
+          height: '420px',
+        }}
+      />
+
       {/* 顶部步骤条 */}
       {!subPageActive && (
         <View className="flex-shrink-0 bg-white border-b py-2">
@@ -195,7 +210,14 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 <View
                   className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
                   style={{ backgroundColor: '#FFF7F2' }}
-                  onClick={() => Taro.showToast({ title: '重新生成开发中', icon: 'none' })}
+                  onClick={async () => {
+                    if (onGenerate) {
+                      const genResult = await onGenerate(data)
+                      if (genResult) {
+                        startTask(genResult.recordId, genResult.businessType)
+                      }
+                    }
+                  }}
                 >
                   <Refresh color="#FF7A2F" size={14} />
                   <Text className="text-sm font-medium" style={{ color: '#FF7A2F' }}>
@@ -206,7 +228,26 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 <View
                   className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
                   style={{ backgroundColor: '#F3F0FF' }}
-                  onClick={() => Taro.showToast({ title: '分享功能开发中', icon: 'none' })}
+                  onClick={async () => {
+                    // 获取生成结果数据
+                    const generatedResults = data.generatedResults || []
+                    if (generatedResults.length === 0) {
+                      Taro.showToast({ title: '暂无生成结果', icon: 'none' })
+                      return
+                    }
+                    const genResult = generatedResults[0]
+                    const success = await generateAndSaveImage({
+                      gameName: genResult.game_name || '新生成游戏',
+                      gameType: genResult.game_type || data.gameType || '团队游戏',
+                      age: genResult.age || data.age || 6,
+                      content: genResult.generated_content || '',
+                    })
+                    if (success) {
+                      Taro.showToast({ title: '已保存到相册', icon: 'success' })
+                    } else {
+                      Taro.showToast({ title: '保存失败', icon: 'none' })
+                    }
+                  }}
                 >
                   <Photograph color="#7C5CFC" size={14} />
                   <Text className="text-sm font-medium" style={{ color: '#7C5CFC' }}>
@@ -217,7 +258,24 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 <View
                   className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
                   style={{ backgroundColor: '#FF7A2F' }}
-                  onClick={() => Taro.showToast({ title: '收藏成功', icon: 'success' })}
+                  onClick={async () => {
+                    const generatedResults = data.generatedResults || []
+                    if (generatedResults.length === 0) {
+                      Taro.showToast({ title: '暂无生成结果', icon: 'none' })
+                      return
+                    }
+                    const recordId = generatedResults[0].record_id
+                    if (!recordId) {
+                      Taro.showToast({ title: '无法获取记录ID', icon: 'none' })
+                      return
+                    }
+                    try {
+                      await collectGame(recordId)
+                      Taro.showToast({ title: '收藏成功', icon: 'success' })
+                    } catch (error) {
+                      Taro.showToast({ title: '收藏失败', icon: 'none' })
+                    }
+                  }}
                 >
                   <StarFill color="#fff" size={14} />
                   <Text className="text-sm font-semibold text-white">收藏</Text>
