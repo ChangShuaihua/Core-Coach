@@ -5,6 +5,7 @@ import { getSkillList } from '@/api/creation'
 import { getRecentCreations } from '@/api/creation-list'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import { useAuthCheck } from '@/hooks'
 import { useCreationStore } from '@/store'
 import type { RecentCreation } from '@/types/creation-list'
 import { getStatusText, getModeBySkillId, SKILLS_MOCK_DATA } from './constants/skills'
@@ -31,6 +32,7 @@ const formatTime = (dateStr: string): string => {
 }
 
 export default function CreationPage() {
+  useAuthCheck()
   const setMode = useCreationStore((state) => state.setMode)
   const skillList = useCreationStore((state) => state.skillList)
   const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
