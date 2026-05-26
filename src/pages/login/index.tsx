@@ -6,7 +6,8 @@ import { Button, Image } from '@nutui/nutui-react-taro'
 import { login } from '@/api/login'
 import LOGO from '@/assets/images/logo.png'
 import { validateLogin } from '@/schemas/user'
-import { useUserStore, waitForHydration } from '@/store/useUserStore'
+// import { useUserStore, waitForHydration } from '@/store/useUserStore'
+import { useUserStore } from '@/store/useUserStore'
 
 type LoginMode = 'wechat' | 'account'
 
@@ -15,7 +16,6 @@ export default function Login() {
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [isHydrated, setIsHydrated] = useState(false)
   const {
     setAccessToken,
     setRefreshToken,
@@ -25,13 +25,12 @@ export default function Login() {
   } = useUserStore()
 
   useEffect(() => {
-    waitForHydration.then(() => {
-      setIsHydrated(true)
-      const token = useUserStore.getState().accessToken
-      if (token) {
-        Taro.switchTab({ url: '/pages/chat/index' })
-      }
-    })
+    // waitForHydration.then(() => {
+    const token = useUserStore.getState().accessToken
+    if (token) {
+      Taro.switchTab({ url: '/pages/chat/index' })
+    }
+    // })
   }, [])
 
   const handleWechatLogin = async () => {
