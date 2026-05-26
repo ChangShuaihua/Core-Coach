@@ -1,10 +1,15 @@
-import { useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { useState, useEffect } from 'react'
+import { View, Text, Button, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Refresh, Photograph, StarFill } from '@nutui/icons-react-taro'
+import { collectGame } from '@/api/profile'
 import StepIndicator from '@/components/Step'
+import WaitingPage from '@/components/WaitingPage'
 import StepRenderer from '@/pages/wizard/components/StepRenderer'
 import type { StepConfig } from '@/pages/wizard/components/StepRenderer'
+import { useTaskStore } from '@/store/taskStore'
+import { generateAndSaveImage } from '@/utils/shareImage'
+import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 export interface SkillStepConfig {
   steps: StepConfig[]
@@ -18,7 +23,9 @@ export interface SkillStepConfig {
 export interface WizardProps {
   stepConfig: SkillStepConfig
   onFinish?: (data: Record<string, any>) => void
-  onGenerate?: (data: Record<string, any>) => Promise<Record<string, any> | null>
+  onGenerate?: (
+    data: Record<string, any>
+  ) => Promise<{ recordId: number; businessType: string } | null>
 }
 
 export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps) {
@@ -26,8 +33,27 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
   const [data, setData] = useState<Record<string, any>>({})
   const [subPageActive, setSubPageActive] = useState(false)
 
+  const { status, result, startTask, reset: resetTask } = useTaskStore()
+
   const steps = stepConfig.steps || []
   const currentStep = steps[currentStepIndex]
+
+  // 监听任务完成，自动跳转到结果步骤
+  useEffect(() => {
+    if (status === 'completed' && result) {
+      const resultData = {
+        generatedResults: [
+          {
+            ...result,
+            businessType: useTaskStore.getState().businessType,
+          },
+        ],
+      }
+      setData((prev) => ({ ...prev, ...resultData }))
+      setCurrentStepIndex(steps.length - 1) // 跳到最后一步（结果页）
+      resetTask()
+    }
+  }, [status, result, resetTask, steps.length])
 
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex === steps.length - 1
@@ -75,7 +101,7 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
         return true
 
       case 'param_settings': {
-        const requiredFields = ['age', 'playerCount', 'gameType']
+        const requiredFields = ['age', 'gameType']
         for (const field of requiredFields) {
           const val = data[field]
           if (val === undefined || val === null || val === '') {
@@ -124,8 +150,26 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
     description: `第${step.step}步`,
   }))
 
+  // 任务进行中，显示等待页面
+  if (status === 'pending' || status === 'processing') {
+    return <WaitingPage title="游戏" />
+  }
+
   return (
     <View className="w-full h-full flex flex-col">
+      {/* 隐藏的 Canvas 用于生成分享图片 */}
+      <Canvas
+        type="2d"
+        id="shareCanvas"
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
+          width: '300px',
+          height: '420px',
+        }}
+      />
+
       {/* 顶部步骤条 */}
       {!subPageActive && (
         <View className="flex-shrink-0 bg-white border-b py-2">
@@ -166,7 +210,14 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 <View
                   className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
                   style={{ backgroundColor: '#FFF7F2' }}
-                  onClick={() => Taro.showToast({ title: '重新生成开发中', icon: 'none' })}
+                  onClick={async () => {
+                    if (onGenerate) {
+                      const genResult = await onGenerate(data)
+                      if (genResult) {
+                        startTask(genResult.recordId, genResult.businessType)
+                      }
+                    }
+                  }}
                 >
                   <Refresh color="#FF7A2F" size={14} />
                   <Text className="text-sm font-medium" style={{ color: '#FF7A2F' }}>
@@ -177,7 +228,26 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 <View
                   className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
                   style={{ backgroundColor: '#F3F0FF' }}
-                  onClick={() => Taro.showToast({ title: '分享功能开发中', icon: 'none' })}
+                  onClick={async () => {
+                    // 获取生成结果数据
+                    const generatedResults = data.generatedResults || []
+                    if (generatedResults.length === 0) {
+                      Taro.showToast({ title: '暂无生成结果', icon: 'none' })
+                      return
+                    }
+                    const genResult = generatedResults[0]
+                    const success = await generateAndSaveImage({
+                      gameName: genResult.game_name || '新生成游戏',
+                      gameType: genResult.game_type || data.gameType || '团队游戏',
+                      age: genResult.age || data.age || 6,
+                      content: genResult.generated_content || '',
+                    })
+                    if (success) {
+                      Taro.showToast({ title: '已保存到相册', icon: 'success' })
+                    } else {
+                      Taro.showToast({ title: '保存失败', icon: 'none' })
+                    }
+                  }}
                 >
                   <Photograph color="#7C5CFC" size={14} />
                   <Text className="text-sm font-medium" style={{ color: '#7C5CFC' }}>
@@ -188,29 +258,54 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                 <View
                   className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
                   style={{ backgroundColor: '#FF7A2F' }}
-                  onClick={() => Taro.showToast({ title: '收藏成功', icon: 'success' })}
+                  onClick={async () => {
+                    const generatedResults = data.generatedResults || []
+                    if (generatedResults.length === 0) {
+                      Taro.showToast({ title: '暂无生成结果', icon: 'none' })
+                      return
+                    }
+                    const recordId = generatedResults[0].record_id
+                    if (!recordId) {
+                      Taro.showToast({ title: '无法获取记录ID', icon: 'none' })
+                      return
+                    }
+                    try {
+                      await collectGame(recordId)
+                      Taro.showToast({ title: '收藏成功', icon: 'success' })
+                    } catch (error) {
+                      Taro.showToast({ title: '收藏失败', icon: 'none' })
+                    }
+                  }}
                 >
                   <StarFill color="#fff" size={14} />
                   <Text className="text-sm font-semibold text-white">收藏</Text>
                 </View>
               </>
             ) : steps.length === 2 && isFirstStep ? (
-              <View
+              <Button
                 className="flex-1 flex items-center justify-center py-3 rounded-full"
-                style={{ backgroundColor: '#FF7A2F' }}
-                onClick={async () => {
+                style={{
+                  backgroundColor: '#FF7A2F',
+                  border: 'none',
+                  color: '#fff',
+                  lineHeight: '1.5',
+                }}
+                onClick={() => {
                   if (!validateCurrentStep()) return
+                  // 同步调用订阅授权
+                  requestTaskCompleteSubscribe()
+                  // 异步处理生成任务
                   if (onGenerate) {
-                    const result = await onGenerate(data)
-                    if (result) {
-                      setData((prev) => ({ ...prev, ...result }))
-                      setCurrentStepIndex((prev) => prev + 1)
-                    }
+                    onGenerate(data).then((genResult) => {
+                      if (genResult) {
+                        startTask(genResult.recordId, genResult.businessType)
+                      }
+                    })
                   }
                 }}
               >
                 <Text className="text-base font-semibold text-white">生成结果</Text>
-              </View>
+              </Button>
             ) : (
               <View
                 className="flex-1 flex items-center justify-center py-3 rounded-full"

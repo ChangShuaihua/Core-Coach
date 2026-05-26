@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
+import { useAuthCheck } from '@/hooks'
 import { useChatStore } from '@/store/chatStore'
 import { Skill } from '@/types/chat'
 import ChatInput from './components/ChatInput'
@@ -13,6 +14,7 @@ import QuickActionsPopup from './components/QuickActions'
 import WelcomeScreen from './components/WelcomeScreen'
 
 export default function ChatPage() {
+  useAuthCheck()
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)

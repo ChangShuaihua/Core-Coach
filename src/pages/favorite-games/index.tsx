@@ -5,19 +5,19 @@ import { ArrowLeft, Star } from '@nutui/icons-react-taro'
 import { getFavoriteGames, removeFavoriteGame } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import ResultPreview from '@/components/ResultPreview'
+import type { ResultPreviewConfig } from '@/components/ResultPreview'
 import type { Game } from '@/types/game'
-import GameDetail from './components/GameDetail'
 
-const truncateDescription = (text: string, maxLength: number = 10): string => {
-  if (text.length <= maxLength) {
-    return text
-  }
-  return text.slice(0, maxLength) + '...'
+const RESULT_CONFIG: ResultPreviewConfig = {
+  step: 1,
+  title: '游戏详情',
 }
 
 export default function FavoriteGamesPage() {
   const [games, setGames] = useState<Game[]>([])
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
+  const [detailData, setDetailData] = useState<Record<string, any>>({})
 
   useEffect(() => {
     loadGames()
@@ -31,6 +31,7 @@ export default function FavoriteGamesPage() {
       console.error('加载游戏失败:', error)
     }
   }
+
   const handleRemove = (id: number) => {
     Taro.showModal({
       title: '提示',
@@ -51,18 +52,38 @@ export default function FavoriteGamesPage() {
 
   const handleGameClick = (game: Game) => {
     setSelectedGame(game)
+    setDetailData({
+      age: game.age,
+      gameType: game.game_type,
+      generatedResults: [
+        {
+          record_id: game.record_id,
+          age: game.age,
+          game_type: game.game_type,
+          game_name: game.game_name,
+          generated_content: game.generated_content,
+          music: game.music,
+          created_at: game.collected_at,
+        },
+      ],
+    })
   }
 
   const handleBack = () => {
     if (selectedGame) {
       setSelectedGame(null)
+      setDetailData({})
     } else {
       Taro.navigateBack()
     }
   }
 
   if (selectedGame) {
-    return <GameDetail game={selectedGame} onBack={handleBack} />
+    return (
+      <Layout title="游戏详情" showTabBar={false}>
+        <ResultPreview config={RESULT_CONFIG} value={detailData} onChange={setDetailData} />
+      </Layout>
+    )
   }
 
   return (
@@ -94,11 +115,8 @@ export default function FavoriteGamesPage() {
                       删除
                     </Text>
                   </View>
-                  <Text className="text-sm text-gray-5 mb-2">
-                    {truncateDescription(game.game_name)}
-                  </Text>
                   <View className="flex gap-4">
-                    <Text className="text-xs text-gray-7">平均年龄：{game.age}</Text>
+                    <Text className="text-xs text-gray-7">{game.age}岁</Text>
                     <View className="px-2 py-1 bg-orange-1 rounded-full">
                       <Text className="text-xs text-orange-6">{game.game_type}</Text>
                     </View>
