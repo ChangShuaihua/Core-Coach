@@ -1,7 +1,17 @@
 import Taro from '@tarojs/taro'
 import { create } from 'zustand'
 import * as chatApi from '@/api/chat'
+import { ws } from '@/services/ws'
 import { Conversation, Message, MessageStatus, Skill } from '@/types/chat'
+import type {
+  WsStreamChunkData,
+  WsStreamDoneData,
+  WsReplyData,
+  WsErrorData,
+  WsAbortResultData,
+  WsSessionReleasedData,
+} from '@/types/ws'
+import { WS_ERROR_CODES } from '@/types/ws'
 
 // 基础工作流 ID，不选技能时使用
 const DEFAULT_WORKFLOW_ID = '7639722909792419886'
@@ -31,42 +41,29 @@ function persistSkill(skill: Skill | null) {
 interface ChatStore {
   // ====== State ======
 
-  // 会话表（扁平化，Record<id, Conversation>）
   conversations: Record<string, Conversation>
-
-  // 消息表（按会话分组，Record<sessionId, Message[]>）
   messagesBySession: Record<string, Message[]>
-
-  // 当前选中的会话 ID
   currentConversationId: string | null
-
-  // 技能列表
   skills: Skill[]
-
-  // 选中的技能（持久化）
   selectedSkill: Skill | null
-
-  // 消息分页状态
   messageCursor: string | null
   hasMoreMessages: boolean
   isLoadingMore: boolean
 
-  // 进行中的流式消息（支持多条并发）
-  streamingMessages: Record<string, { sessionId: string; content: string }>
-
-  // 当前请求任务（用于 abort 打断）
-  currentRequest: Taro.RequestTask<any> | null
+  // WebSocket 相关
+  wsConnected: boolean
+  sessionOccupied: Record<string, boolean>
+  activeRequestId: string | null
+  requestToAssistantMsg: Record<string, { sessionId: string; msgId: string }>
 
   // ====== Actions ======
 
-  // 会话
   loadConversations: () => Promise<void>
   ensurePendingConversation: () => void
   switchConversation: (id: string) => Promise<void>
   deleteConversation: (id: string) => void
   addConversation: (conv: Conversation) => void
 
-  // 消息
   loadMessages: (sessionId: string) => Promise<void>
   loadMoreMessages: () => Promise<void>
   appendMessage: (sessionId: string, message: Message) => void
@@ -77,16 +74,17 @@ interface ChatStore {
     content?: string
   ) => void
 
-  // 发送消息
   sendMessage: (content: string) => Promise<string | undefined>
-
-  // 打断
   stopResponding: () => void
 
-  // 技能
   loadSkills: () => Promise<void>
   toggleSkill: (skill: Skill) => void
   getCurrentWorkflowId: () => string
+
+  setWsConnected: (connected: boolean) => void
+  setSessionOccupied: (sessionId: string, occupied: boolean) => void
+
+  initWsHandlers: () => void
 }
 
 export const useChatStore = create<ChatStore>()((set, get) => ({
@@ -99,8 +97,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   messageCursor: null,
   hasMoreMessages: true,
   isLoadingMore: false,
-  streamingMessages: {},
-  currentRequest: null,
+  wsConnected: false,
+  sessionOccupied: {},
+  activeRequestId: null,
+  requestToAssistantMsg: {},
 
   // ====== 会话 Actions ======
 
@@ -108,13 +108,11 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const result = await chatApi.getConversations()
     const { conversations } = get()
 
-    // 合并：保留本地临时会话，更新远程会话
     const merged: Record<string, Conversation> = { ...conversations }
     result.conversations.forEach((conv) => {
       if (!merged[conv.id]) {
         merged[conv.id] = conv
       } else {
-        // 更新已有会话的元数据
         merged[conv.id] = {
           ...merged[conv.id],
           title: conv.title,
@@ -148,6 +146,12 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   switchConversation: async (id: string) => {
+    const { currentConversationId } = get()
+    if (currentConversationId && currentConversationId !== id) {
+      ws.switchSession(currentConversationId, id)
+    }
+    ws.setCurrentSession(id)
+
     set({
       currentConversationId: id,
       messageCursor: null,
@@ -155,10 +159,8 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       isLoadingMore: false,
     })
 
-    // 临时会话跳过请求
     if (id.startsWith('pending-')) return
 
-    // 如果已有缓存消息，不重新加载
     const { messagesBySession } = get()
     if (messagesBySession[id]) return
 
@@ -243,7 +245,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       const messages = state.messagesBySession[sessionId] || []
       const updatedMessages = [...messages, message]
 
-      // 更新会话元数据
       const conv = state.conversations[sessionId]
       const updatedConv = conv
         ? {
@@ -257,7 +258,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           }
         : undefined
 
-      // 当前置顶当前会话
       if (updatedConv) {
         const { [sessionId]: _, ...rest } = state.conversations
         return {
@@ -287,14 +287,20 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
   },
 
-  // ====== 发送消息 ======
+  // ====== 发送消息（通过 WebSocket） ======
 
   sendMessage: async (content: string) => {
-    const { currentConversationId, selectedSkill } = get()
+    const { currentConversationId, selectedSkill, sessionOccupied } = get()
     const workflowId = selectedSkill?.workflowId || DEFAULT_WORKFLOW_ID
     const isNewConversation = !currentConversationId || currentConversationId.startsWith('pending-')
 
-    // 创建消息
+    // 检查会话是否被占用
+    if (currentConversationId && sessionOccupied[currentConversationId]) {
+      Taro.showToast({ title: '该会话正在其他设备使用中', icon: 'none' })
+      return
+    }
+
+    // 创建乐观消息
     const userMsg: Message = {
       id: 'u-' + Date.now(),
       role: 'user',
@@ -311,70 +317,47 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       status: 'pending',
     }
 
-    // 乐观更新
     const targetSessionId = currentConversationId || 'pending-' + Date.now()
     get().appendMessage(targetSessionId, userMsg)
     get().appendMessage(targetSessionId, aiMsg)
 
-    // 调用 API
-    const sessionId = isNewConversation ? undefined : currentConversationId
-    const { request, promise } = chatApi.sendMessage(content, workflowId, sessionId)
+    // 通过 WebSocket 发送
+    const requestId = ws.generateRequestId()
+    set({
+      activeRequestId: requestId,
+      requestToAssistantMsg: {
+        ...get().requestToAssistantMsg,
+        [requestId]: { sessionId: targetSessionId, msgId: aiMsgId },
+      },
+    })
 
-    set({ currentRequest: request })
+    ws.sendChat({
+      output_type: 'stream',
+      request_id: requestId,
+      session_id: isNewConversation ? '' : currentConversationId!,
+      content,
+      workflow_id: workflowId,
+      create_time: Math.floor(Date.now() / 1000),
+    })
 
-    try {
-      const result = await promise
-      const newSessionId = result.sessionId
-
-      // 新会话：替换临时 ID
-      if (isNewConversation && currentConversationId?.startsWith('pending-')) {
-        set((state) => {
-          const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
-          const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
-
-          const newConv: Conversation = {
-            ...(pendingConv as Conversation),
-            id: newSessionId,
-            title: content.slice(0, 20) || '新对话',
-          }
-
-          return {
-            currentConversationId: newSessionId,
-            conversations: { [newSessionId]: newConv, ...restConvs },
-            messagesBySession: { [newSessionId]: pendingMsgs || [], ...restMsgs },
-          }
-        })
-      }
-
-      // 更新 AI 消息
-      const finalSessionId = isNewConversation ? newSessionId : currentConversationId!
-      get().updateMessageStatus(finalSessionId, aiMsgId, 'success', result.content)
-
-      return newSessionId
-    } catch (err: any) {
-      if (err?.errMsg?.includes('abort') || err?.message?.includes('abort')) return
-      const finalSessionId = isNewConversation ? targetSessionId : currentConversationId!
-      get().updateMessageStatus(finalSessionId, aiMsgId, 'error', '发送失败')
-    } finally {
-      set({ currentRequest: null })
-    }
+    return targetSessionId
   },
 
-  // ====== 打断 ======
+  // ====== 打断（通过 WebSocket） ======
 
   stopResponding: () => {
-    const { currentConversationId, messagesBySession, currentRequest } = get()
-    if (currentRequest) {
-      currentRequest.abort()
+    const { activeRequestId, currentConversationId, messagesBySession } = get()
+    if (activeRequestId && currentConversationId) {
+      ws.sendAbort(currentConversationId, activeRequestId)
+      // 标记 pending/streaming 消息为已停止
+      const messages = messagesBySession[currentConversationId] || []
+      messages.forEach((m) => {
+        if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
+          get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
+        }
+      })
+      set({ activeRequestId: null })
     }
-    if (!currentConversationId) return
-
-    const messages = messagesBySession[currentConversationId] || []
-    messages.forEach((m) => {
-      if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
-        get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
-      }
-    })
   },
 
   // ====== 技能 ======
@@ -394,5 +377,169 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   getCurrentWorkflowId: () => {
     const { selectedSkill } = get()
     return selectedSkill?.workflowId || DEFAULT_WORKFLOW_ID
+  },
+
+  // ====== WebSocket 状态 ======
+
+  setWsConnected: (connected: boolean) => set({ wsConnected: connected }),
+
+  setSessionOccupied: (sessionId: string, occupied: boolean) => {
+    set((state) => ({
+      sessionOccupied: { ...state.sessionOccupied, [sessionId]: occupied },
+    }))
+  },
+
+  // ====== WebSocket 事件处理注册 ======
+
+  initWsHandlers: () => {
+    // 流式分片
+    ws.on('stream_chunk', (data: WsStreamChunkData) => {
+      const { requestToAssistantMsg } = get()
+      const mapping = requestToAssistantMsg[data.request_id]
+      if (!mapping) return
+
+      const { sessionId, msgId } = mapping
+      const messages = get().messagesBySession[sessionId] || []
+      const msg = messages.find((m) => m.id === msgId)
+      if (!msg) return
+
+      // 追加内容，状态改为 streaming
+      const newContent = msg.content + data.content
+      get().updateMessageStatus(sessionId, msgId, 'streaming', newContent)
+    })
+
+    // 流式结束
+    ws.on('stream_done', (data: WsStreamDoneData) => {
+      const { requestToAssistantMsg, currentConversationId } = get()
+      const mapping = requestToAssistantMsg[data.request_id]
+      if (!mapping) return
+
+      const { sessionId, msgId } = mapping
+      // 使用服务端拼接的完整内容
+      get().updateMessageStatus(sessionId, msgId, 'success', data.content)
+
+      // 新会话：更新 sessionId
+      if (currentConversationId?.startsWith('pending-')) {
+        set((state) => {
+          const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
+          const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
+
+          const newConv: Conversation = {
+            ...(pendingConv as Conversation),
+            id: data.session_id,
+            title: data.content.slice(0, 20) || '新对话',
+          }
+
+          return {
+            currentConversationId: data.session_id,
+            conversations: { [data.session_id]: newConv, ...restConvs },
+            messagesBySession: { [data.session_id]: pendingMsgs || [], ...restMsgs },
+          }
+        })
+        ws.setCurrentSession(data.session_id)
+      }
+
+      // 清理映射
+      set((state) => {
+        const { [data.request_id]: _, ...rest } = state.requestToAssistantMsg
+        return { requestToAssistantMsg: rest, activeRequestId: null }
+      })
+    })
+
+    // 非流式回复
+    ws.on('reply', (data: WsReplyData) => {
+      const { requestToAssistantMsg, currentConversationId } = get()
+      const mapping = requestToAssistantMsg[data.request_id]
+      if (!mapping) return
+
+      const { sessionId, msgId } = mapping
+      get().updateMessageStatus(sessionId, msgId, 'success', data.content)
+
+      // 新会话：更新 sessionId
+      if (currentConversationId?.startsWith('pending-')) {
+        set((state) => {
+          const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
+          const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
+
+          const newConv: Conversation = {
+            ...(pendingConv as Conversation),
+            id: data.session_id,
+            title: data.content.slice(0, 20) || '新对话',
+          }
+
+          return {
+            currentConversationId: data.session_id,
+            conversations: { [data.session_id]: newConv, ...restConvs },
+            messagesBySession: { [data.session_id]: pendingMsgs || [], ...restMsgs },
+          }
+        })
+        ws.setCurrentSession(data.session_id)
+      }
+
+      set((state) => {
+        const { [data.request_id]: _, ...rest } = state.requestToAssistantMsg
+        return { requestToAssistantMsg: rest, activeRequestId: null }
+      })
+    })
+
+    // 错误处理
+    ws.on('error', (data: WsErrorData) => {
+      if (data.code === WS_ERROR_CODES.SESSION_OCCUPIED && data.session_id) {
+        get().setSessionOccupied(data.session_id, true)
+        Taro.showToast({ title: '该会话正在其他设备使用，仅可浏览', icon: 'none' })
+        return
+      }
+
+      // 其他错误：标记对应消息为失败
+      if (data.request_id) {
+        const { requestToAssistantMsg } = get()
+        const mapping = requestToAssistantMsg[data.request_id]
+        if (mapping) {
+          get().updateMessageStatus(
+            mapping.sessionId,
+            mapping.msgId,
+            'error',
+            data.message || '发送失败'
+          )
+          set((state) => {
+            const { [data.request_id!]: _, ...rest } = state.requestToAssistantMsg
+            return { requestToAssistantMsg: rest, activeRequestId: null }
+          })
+        }
+      }
+
+      Taro.showToast({ title: data.message || '请求失败', icon: 'none' })
+    })
+
+    // 中断确认
+    ws.on('abort_result', (data: WsAbortResultData) => {
+      if (data.session_id) {
+        const messages = get().messagesBySession[data.session_id] || []
+        messages.forEach((m) => {
+          if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
+            get().updateMessageStatus(data.session_id, m.id, 'error', '已停止生成')
+          }
+        })
+      }
+      set((state) => {
+        const { [data.request_id]: _, ...rest } = state.requestToAssistantMsg
+        return { requestToAssistantMsg: rest, activeRequestId: null }
+      })
+    })
+
+    // 会话释放
+    ws.on('session_released', (data: WsSessionReleasedData) => {
+      get().setSessionOccupied(data.session_id, false)
+      Taro.showToast({ title: '会话已可使用', icon: 'none' })
+    })
+
+    // 连接状态
+    ws.on('connected', () => {
+      get().setWsConnected(true)
+    })
+
+    ws.on('disconnect', () => {
+      get().setWsConnected(false)
+    })
   },
 }))

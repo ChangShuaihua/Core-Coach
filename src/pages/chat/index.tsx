@@ -36,10 +36,18 @@ export default function ChatPage() {
   const loadSkills = useChatStore((s) => s.loadSkills)
   const toggleSkill = useChatStore((s) => s.toggleSkill)
   const selectedSkill = useChatStore((s) => s.selectedSkill)
+  const sessionOccupied = useChatStore((s) => s.sessionOccupied)
+  const initWsHandlers = useChatStore((s) => s.initWsHandlers)
 
   const isResponding = messages.some(
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
   )
+  const isOccupied = currentConversationId ? !!sessionOccupied[currentConversationId] : false
+
+  // 初始化 WebSocket 事件处理（只执行一次）
+  useEffect(() => {
+    initWsHandlers()
+  }, [initWsHandlers])
 
   // 页面挂载：拉取会话列表和技能列表，然后确保有临时会话
   useEffect(() => {
@@ -137,12 +145,21 @@ export default function ChatPage() {
               onSelect={handleSelectSkill}
             />
           </View>
+          {isOccupied && (
+            <View
+              className="mx-4 mb-2 px-4 py-2 rounded-lg text-center"
+              style={{ backgroundColor: '#fef3c7', color: '#92400e', fontSize: '13px' }}
+            >
+              该会话正在其他设备使用，仅可浏览
+            </View>
+          )}
           <ChatInput
             onSend={handleSend}
             onStop={handleStop}
             onSkillClick={() => setShowPopup((prev) => !prev)}
             isResponding={isResponding}
             selectedSkillName={selectedSkill?.title}
+            disabled={isOccupied}
           />
         </View>
       </View>
