@@ -23,14 +23,14 @@ export default function Login() {
     setRefreshExpireTime,
     setUserInfo,
   } = useUserStore()
-  const { isChecking } = useAuthCheck()
+  useAuthCheck()
 
   // 检查登录状态，如果已登录则跳转
   useEffect(() => {
-    if (!isChecking && useUserStore.getState().accessToken) {
+    if (useUserStore.getState().accessToken) {
       Taro.switchTab({ url: '/pages/chat/index' })
     }
-  }, [isChecking])
+  }, [])
 
   const handleWechatLogin = async () => {
     const MAX_RETRY = 2

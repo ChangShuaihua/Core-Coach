@@ -152,6 +152,8 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
   if (withToken) {
     const token = await ensureTokenValid()
     if (!token) {
+      Taro.redirectTo({ url: '/pages/login/index' })
+      Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
       return Promise.reject(new Error('token 已失效'))
     }
     header['Authorization'] = `Bearer ${token}`
