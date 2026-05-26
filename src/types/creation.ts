@@ -1,3 +1,14 @@
+// 技能/工坊卡片
+export interface Skill {
+  id: number
+  flow_id: string
+  description: string
+  icon: string
+  image_need: number // 0: emoji/icon, 1: 需要图片
+  step_count: number
+  status: number // 0: 未开放, 1: 已开放, 2: 即将开放
+}
+
 export interface GenerateGameParams {
   age: number
   game_type: string

@@ -1,5 +1,5 @@
-import type { Skill } from '@/pages/creation/constants/skills'
 import type {
+  Skill,
   GenerateGameParams,
   GenerateGameResult,
   GameParamsResponse,

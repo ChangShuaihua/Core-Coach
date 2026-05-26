@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Skill } from '@/pages/creation/constants/skills'
+import type { Skill } from '@/types/creation'
 
 export type CreationMode = 'game' | 'lesson' | 'video' | null
 
