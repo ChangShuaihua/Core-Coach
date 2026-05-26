@@ -10,7 +10,6 @@ export interface StepIndicatorProps {
   steps: Step[]
   currentStep: string | number
   onStepClick?: (stepId: string | number) => void
-  size?: 'small' | 'medium' | 'large'
   clickable?: boolean
 }
 
@@ -18,7 +17,6 @@ export default function StepIndicator({
   steps,
   currentStep,
   onStepClick,
-  size = 'small',
   clickable = false,
 }: StepIndicatorProps) {
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep)
@@ -32,21 +30,18 @@ export default function StepIndicator({
     }
   }
 
-  // 统一动态尺寸
-  const dimensions = {
-    small: { circle: 32, font: 12, labelFont: 12 },
-    medium: { circle: 40, font: 14, labelFont: 14 },
-    large: { circle: 56, font: 18, labelFont: 16 },
-  }[size] || { circle: 40, font: 14, labelFont: 14 }
+  // 固定尺寸（不依赖size，稳定）
+  const circleSize = 32
+  const fontSize = 12
+  const labelFontSize = 12
 
   return (
     <View style={{ position: 'relative', width: '100%' }}>
+      {/* 进度条背景线 */}
       <View
         style={{
           position: 'absolute',
-          // 顶距 = 圆心所在高度。即：(圆形大小 / 2) + 外层上边距(16px)
-          top: `${dimensions.circle / 2 + 8}px`,
-          // 左右缩进距离为 1/steps.length 的一半，正好落在两端圆形的中心
+          top: `${circleSize / 2 + 4}px`,
           left: `${100 / steps.length / 2}%`,
           right: `${100 / steps.length / 2}%`,
           height: '2px',
@@ -54,6 +49,7 @@ export default function StepIndicator({
           zIndex: 1,
         }}
       >
+        {/* 已完成进度条 */}
         <View
           style={{
             width: `${(currentStepIndex / (steps.length - 1)) * 100}%`,
@@ -64,6 +60,7 @@ export default function StepIndicator({
         />
       </View>
 
+      {/* 步骤节点 */}
       <View style={{ display: 'flex', width: '100%', position: 'relative', zIndex: 2 }}>
         {steps.map((step, index) => {
           const active = isStepActive(index)
@@ -80,34 +77,31 @@ export default function StepIndicator({
               }}
               onClick={() => handleStepClick(step.id)}
             >
-              {/* 步骤数字圆圈 */}
+              {/* 圆球 */}
               <View
                 style={{
-                  width: `${dimensions.circle}px`,
-                  height: `${dimensions.circle}px`,
+                  width: `${circleSize}px`,
+                  height: `${circleSize}px`,
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 'bold',
-                  boxSizing: 'border-box',
-                  // 未激活时为图中的白底灰边效果
-                  backgroundColor: active ? '#fe6601' : completed ? '#ffa052' : '#ffffff',
+                  backgroundColor: active ? '#fe6601' : completed ? '#ffa052' : '#fff',
                   border: active || completed ? 'none' : '2px solid #e5e6eb',
-                  color: active || completed ? '#ffffff' : '#86909c',
-                  cursor: clickable ? 'pointer' : 'default',
+                  color: active || completed ? '#fff' : '#86909c',
                 }}
               >
-                <Text style={{ fontSize: `${dimensions.font}px`, lineHeight: 1 }}>{index + 1}</Text>
+                <Text style={{ fontSize: `${fontSize}px`, lineHeight: 1 }}>{index + 1}</Text>
               </View>
 
-              {/* 步骤文案 */}
+              {/* 文字 */}
               <Text
                 style={{
-                  marginTop: '10px',
-                  fontSize: `${dimensions.labelFont}px`,
-                  fontWeight: active ? 'bold' : 'normal',
+                  marginTop: '6px',
+                  fontSize: `${labelFontSize}px`,
                   color: active ? '#fe6601' : completed ? '#ffa052' : '#86909c',
+                  fontWeight: active ? 'bold' : 'normal',
                 }}
               >
                 {step.label}

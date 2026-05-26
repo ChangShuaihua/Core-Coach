@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import MusicSettings from './MusicSettings'
+import MusicPlayer from '@/components/MusicPlayer'
+import MusicSettings from '@/pages/wizard/components/MusicSettings'
 
 export interface ResultPreviewConfig {
   step: number
@@ -26,9 +27,15 @@ interface ResultPreviewProps {
   value: Record<string, any>
   onChange: (data: Record<string, any>) => void
   onSubPageChange?: (active: boolean) => void
+  showMusicSwitch?: boolean
 }
 
-export default function ResultPreview({ value, onChange, onSubPageChange }: ResultPreviewProps) {
+export default function ResultPreview({
+  value,
+  onChange,
+  onSubPageChange,
+  showMusicSwitch = true,
+}: ResultPreviewProps) {
   const [showMusicSettings, setShowMusicSettings] = useState(false)
 
   const toggleMusicSettings = (show: boolean) => {
@@ -345,47 +352,52 @@ export default function ResultPreview({ value, onChange, onSubPageChange }: Resu
 
         {/* 背景音乐信息 */}
         {realResult.music && (
-          <View
-            style={{
-              backgroundColor: '#f9fafb',
-              borderRadius: '12px',
-              padding: '16px',
-              marginBottom: '24px',
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <View style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-              <Text style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>
-                背景音乐
-              </Text>
-              <Text
-                style={{
-                  fontSize: '14px',
-                  color: '#374151',
-                  fontWeight: '500',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {realResult.game_name || '游戏配乐'}
-              </Text>
-            </View>
-            <Text
+          <View style={{ marginBottom: '24px' }}>
+            <View
               style={{
-                fontSize: '13px',
-                color: '#f97316',
-                fontWeight: '500',
-                marginLeft: '16px',
-                flexShrink: 0,
+                backgroundColor: '#f9fafb',
+                borderRadius: '12px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '12px',
               }}
-              onClick={() => toggleMusicSettings(true)}
             >
-              更换音乐
-            </Text>
+              <View style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                <Text style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>
+                  背景音乐
+                </Text>
+                <Text
+                  style={{
+                    fontSize: '14px',
+                    color: '#374151',
+                    fontWeight: '500',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {realResult.game_name || '游戏配乐'}
+                </Text>
+              </View>
+              {showMusicSwitch && (
+                <Text
+                  style={{
+                    fontSize: '13px',
+                    color: '#f97316',
+                    fontWeight: '500',
+                    marginLeft: '16px',
+                    flexShrink: 0,
+                  }}
+                  onClick={() => toggleMusicSettings(true)}
+                >
+                  更换音乐
+                </Text>
+              )}
+            </View>
+            <MusicPlayer musicUrl={realResult.music} />
           </View>
         )}
       </View>

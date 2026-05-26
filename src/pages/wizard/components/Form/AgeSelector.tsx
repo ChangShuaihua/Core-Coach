@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, Text } from '@tarojs/components'
-import type { AgeConfig } from '@/api/creation'
+import type { AgeConfig } from '@/types/creation'
 
 export interface AgeSelectorProps {
   value: string // 格式："8岁"

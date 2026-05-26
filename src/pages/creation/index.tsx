@@ -2,35 +2,78 @@ import { useEffect, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { getSkillList } from '@/api/creation'
+import { getRecentCreations } from '@/api/creation-list'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useCreationStore } from '@/store'
+import type { RecentCreation } from '@/types/creation-list'
 import { getStatusText, getModeBySkillId, SKILLS_MOCK_DATA } from './constants/skills'
 import type { Skill } from './constants/skills'
+
+const typeIconMap: Record<string, string> = {
+  game: '🎮',
+  lesson: '📋',
+}
+
+const formatTime = (dateStr: string): string => {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return '刚刚'
+  if (diffMin < 60) return `${diffMin}分钟前`
+  const diffHour = Math.floor(diffMin / 60)
+  if (diffHour < 24) return `${diffHour}小时前`
+  const diffDay = Math.floor(diffHour / 24)
+  if (diffDay === 1) return '昨天'
+  if (diffDay < 30) return `${diffDay}天前`
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
 
 export default function CreationPage() {
   const setMode = useCreationStore((state) => state.setMode)
   const skillList = useCreationStore((state) => state.skillList)
   const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
   const setSkillList = useCreationStore((state) => state.setSkillList)
-  const [loading, setLoading] = useState(false)
+  const [recentList, setRecentList] = useState<RecentCreation[]>([])
 
   useEffect(() => {
+    console.log('skillListLoaded:', skillListLoaded)
     if (!skillListLoaded) {
       fetchSkills()
     }
+    fetchRecent()
   }, [])
 
   const fetchSkills = async () => {
+    console.log('开始获取技能列表...')
     try {
-      setLoading(true)
       const data = await getSkillList()
+      console.log('获取技能列表成功:', data)
       setSkillList(data)
     } catch (error) {
       console.error('获取技能列表失败:', error)
-      setSkillList(SKILLS_MOCK_DATA)
-    } finally {
-      setLoading(false)
+      // mock 数据也加上「更多功能」卡片
+      const MORE_SKILL: Skill = {
+        id: 9999,
+        flow_id: '',
+        description: '更多功能',
+        icon: '➕',
+        image_need: 0,
+        step_count: 0,
+        status: 0,
+      }
+      setSkillList([...SKILLS_MOCK_DATA, MORE_SKILL])
+    }
+  }
+
+  const fetchRecent = async () => {
+    try {
+      const data = await getRecentCreations()
+      console.log('最近创作数据:', data)
+      setRecentList(data)
+    } catch (error) {
+      console.error('获取最近创作失败:', error)
     }
   }
 
@@ -127,53 +170,31 @@ export default function CreationPage() {
           </View>
 
           <View className="flex flex-col gap-3">
-            <View
-              className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 "
-              onClick={() => Taro.navigateTo({ url: '/pages/detail/index?id=3&type=game' })}
-            >
-              <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Text className="text-2xl">🎮</Text>
+            {recentList.length === 0 && (
+              <View className="py-8 text-center">
+                <Text className="text-sm text-gray-400">暂无创作记录</Text>
               </View>
-              <View className="flex-1">
-                <Text className="text-base font-medium text-gray-900 block mb-1">
-                  小兔子跳跳的森林寻宝大冒险
-                </Text>
-                <Text className="text-xs text-gray-500">2分钟前</Text>
+            )}
+            {recentList.map((item) => (
+              <View
+                key={item.id}
+                className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4"
+                onClick={() =>
+                  Taro.navigateTo({ url: `/pages/detail/index?id=${item.id}&type=${item.type}` })
+                }
+              >
+                <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Text className="text-2xl">{typeIconMap[item.type] || '✨'}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-medium text-gray-900 block mb-1">
+                    {item.title}
+                  </Text>
+                  <Text className="text-xs text-gray-500">{formatTime(item.created_at)}</Text>
+                </View>
+                <Text className="text-gray-400 text-xl">›</Text>
               </View>
-              <Text className="text-gray-400 text-xl">›</Text>
-            </View>
-
-            <View
-              className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 "
-              onClick={() => Taro.navigateTo({ url: '/pages/detail/index?id=2&type=game' })}
-            >
-              <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Text className="text-2xl">🎮</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-medium text-gray-900 block mb-1">
-                  小兔子的森林寻宝大冒险
-                </Text>
-                <Text className="text-xs text-gray-500">昨天</Text>
-              </View>
-              <Text className="text-gray-400 text-xl">›</Text>
-            </View>
-
-            <View
-              className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4 "
-              onClick={() => Taro.navigateTo({ url: '/pages/detail/index?id=1&type=game' })}
-            >
-              <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Text className="text-2xl">🎮</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-medium text-gray-900 block mb-1">
-                  小兔子的森林寻宝游戏
-                </Text>
-                <Text className="text-xs text-gray-500">2天前</Text>
-              </View>
-              <Text className="text-gray-400 text-xl">›</Text>
-            </View>
+            ))}
           </View>
         </View>
       </View>

@@ -1,31 +1,52 @@
 import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getGameDetailById } from '@/api/creation-list'
-import GameDetail from '@/components/GameDetail'
 import Layout from '@/components/Layout'
-import type { Game } from '@/types/game'
+import ResultPreview from '@/components/ResultPreview'
+import type { ResultPreviewConfig } from '@/components/ResultPreview'
+
+const RESULT_CONFIG: ResultPreviewConfig = {
+  step: 1,
+  title: '游戏详情',
+}
 
 export default function DetailPage() {
   const router = useRouter()
-  const [game, setGame] = useState<Game | null>(null)
   const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<Record<string, any>>({})
 
   useEffect(() => {
     const params = router.params || {}
-    const id = Number(params.id) || 1
+    const id = params.id
     const type = params.type || 'game'
 
-    if (type === 'game') {
-      fetchGameDetail(id)
+    if (id) {
+      fetchGameDetail(id, type)
     }
   }, [])
 
-  const fetchGameDetail = async (id: number) => {
+  const fetchGameDetail = async (id: string, type: string) => {
     try {
       setLoading(true)
-      const data = await getGameDetailById(id)
-      setGame(data)
+      const game = await getGameDetailById({ id, type })
+      // 转换为 ResultPreview 需要的格式
+      setData({
+        age: game.age,
+        gameType: game.game_type,
+        generatedResults: [
+          {
+            record_id: game.id,
+            age: game.age,
+            game_type: game.game_type,
+            game_name: game.title,
+            generated_content: game.content,
+            music: game.music,
+            created_at: game.created_at,
+          },
+        ],
+      })
     } catch (error) {
       console.error('加载详情失败:', error)
       Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -37,36 +58,39 @@ export default function DetailPage() {
   if (loading) {
     return (
       <Layout title="加载中..." showTabBar={false}>
-        <View
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-          }}
-        >
-          <Text style={{ fontSize: '14px', color: '#9ca3af' }}>加载中...</Text>
+        <View className="flex items-center justify-center h-screen">
+          <Text className="text-gray-400">加载中...</Text>
         </View>
       </Layout>
     )
   }
 
-  if (!game) {
+  if (!data.generatedResults) {
     return (
       <Layout title="错误" showTabBar={false}>
-        <View
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-          }}
-        >
-          <Text style={{ fontSize: '14px', color: '#9ca3af' }}>未找到游戏数据</Text>
+        <View className="flex items-center justify-center h-screen">
+          <Text className="text-gray-400">未找到游戏数据</Text>
         </View>
       </Layout>
     )
   }
 
-  return <GameDetail game={game} />
+  return (
+    <Layout
+      title="游戏详情"
+      showTabBar={false}
+      renderLeft={
+        <View onClick={() => Taro.navigateBack()}>
+          <ArrowLeft />
+        </View>
+      }
+    >
+      <ResultPreview
+        config={RESULT_CONFIG}
+        value={data}
+        onChange={setData}
+        showMusicSwitch={false}
+      />
+    </Layout>
+  )
 }

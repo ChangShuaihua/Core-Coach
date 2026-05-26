@@ -1,21 +1,12 @@
-export type Game = {
-  id: number
-  name?: string
-  allDescription?: string
-  duration?: string
-  players?: number
-  category?: string
-  bgmUrl?: string
-  playSteps?: string[]
-  preparation: string[]
-}
-export type favoriteGame = {
+// 游戏收藏详情（/game/favorite/detail 响应）
+export interface Game {
   id: number
   record_id: number
   game_name: string
   game_type: string
+  age: number
+  generated_content: string
+  music: string
+  music_url: string
   collected_at: string
-  generated_content?: string
-  music?: string
-  age?: number
 }
