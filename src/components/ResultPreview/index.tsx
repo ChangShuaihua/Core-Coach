@@ -93,43 +93,112 @@ export default function ResultPreview({
 
     let name = '新生成游戏'
     let tag = '团队游戏'
-    let rule = '暂无玩法规则描述'
-    const steps: string[] = []
+    let space = ''
+    const preparations: string[] = []
+    const rounds: { title: string; props: string; rule: string; safety: string }[] = []
+    const scripts: { title: string; content: string }[] = []
     const tips: string[] = []
 
-    lines.forEach((line) => {
-      if (line.includes('【游戏名称】')) {
-        name = line.replace(/【游戏名称】[：:]?\s*/, '').trim()
-      } else if (line.includes('【游戏形式】')) {
-        tag = line.replace(/【游戏形式】[：:]?\s*/, '').trim()
-      } else if (line.includes('【玩法规则】')) {
-        rule = line.replace(/【玩法规则】[：:]?\s*/, '').trim()
-      } else if (line.includes('【温馨提示】')) {
-        const cleanTip = line.replace(/【温馨提示】[：:]?\s*/, '').trim()
-        if (cleanTip) tips.push(cleanTip)
-      } else if (line.includes('（安全提醒）')) {
-        const match = line.match(/（安全提醒）[）)]\s*[：:]?\s*(.+)/)
-        if (match) tips.push(match[1].trim())
-      } else if (line.includes('（规则简述）')) {
-        const match = line.match(/（规则简述）[）)]\s*[：:]?\s*(.+)/)
-        if (match) steps.push(match[1].trim())
+    // 当前解析状态
+    let currentSection = '' // 'preparation' | 'outline' | 'script'
+    let currentRound: { title: string; props: string; rule: string; safety: string } | null = null
+    let currentScript: { title: string; content: string } | null = null
+
+    const saveRound = () => {
+      if (currentRound) {
+        rounds.push(currentRound)
+        currentRound = null
       }
+    }
+    const saveScript = () => {
+      if (currentScript) {
+        scripts.push(currentScript)
+        currentScript = null
+      }
+    }
+
+    for (const line of lines) {
+      // 跳过格式标记行
+      if (line.startsWith('<输出格式>') || line.startsWith('<格式结束>')) continue
+
+      // 一级标题：1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣
+      if (line.includes('【游戏名称】')) {
+        name = line.replace(/.*【游戏名称】[：:]?\s*/, '').trim()
+        currentSection = ''
+      } else if (line.includes('【游戏形式】')) {
+        tag = line.replace(/.*【游戏形式】[：:]?\s*/, '').trim()
+      } else if (line.includes('【活动空间】')) {
+        space = line.replace(/.*【活动空间】[：:]?\s*/, '').trim()
+        currentSection = ''
+      } else if (line.includes('【前期准备】')) {
+        const raw = line.replace(/.*【前期准备】[：:]?\s*/, '').trim()
+        // 解析析❶❷❸分隔的道具列表
+        const items = raw.split(/(?=[❶❷❸❹❺❻❼❽❾❿])/).filter(Boolean)
+        items.forEach((item) => {
+          const clean = item.replace(/^[❶❷❸❹❺❻❼❽❾❿]\s*/, '').trim()
+          if (clean) preparations.push(clean)
+        })
+        currentSection = 'preparation'
+      } else if (line.includes('【游戏大纲】')) {
+        saveRound()
+        currentSection = 'outline'
+      } else if (line.includes('【游戏白话稿】')) {
+        saveRound()
+        saveScript()
+        currentSection = 'script'
+      }
+      // 大纲内的轮次：▶❶【第一轮次】
+      else if (currentSection === 'outline' && line.match(/▶[❶❷❸❹❺❻❼❽❾❿]/)) {
+        saveRound()
+        const title = line
+          .replace(/▶[❶❷❸❹❺❻❼❽❾❿]\s*/, '')
+          .replace(/[：:]$/, '')
+          .trim()
+        currentRound = { title, props: '', rule: '', safety: '' }
+      }
+      // 大纲内的子项：▷①②③
+      else if (currentSection === 'outline' && currentRound && line.match(/▷[①②③④⑤⑥⑦⑧⑨⑩]/)) {
+        if (line.includes('（所需道具）')) {
+          currentRound.props = line.replace(/.*（所需道具）[）)]\s*[：:]?\s*/, '').trim()
+        } else if (line.includes('（规则简述）')) {
+          currentRound.rule = line.replace(/.*（规则简述）[）)]\s*[：:]?\s*/, '').trim()
+        } else if (line.includes('（安全提醒）')) {
+          currentRound.safety = line.replace(/.*（安全提醒）[）)]\s*[：:]?\s*/, '').trim()
+        }
+      }
+      // 白话稿内的段落：▶❶开场 / ▶❷第一轮
+      else if (currentSection === 'script' && line.match(/▶[❶❷❸❹❺❻❼❽❾❿]/)) {
+        saveScript()
+        const title = line
+          .replace(/▶[❶❷❸❹❺❻❼❽❾❿]\s*/, '')
+          .replace(/[：:]$/, '')
+          .trim()
+        currentScript = { title, content: '' }
+      }
+      // 白话稿内容续行
+      else if (currentSection === 'script' && currentScript && line.length > 0) {
+        currentScript.content += (currentScript.content ? '\n' : '') + line
+      }
+    }
+
+    saveRound()
+    saveScript()
+
+    // 收集所有安全提醒作为 tips
+    rounds.forEach((r) => {
+      if (r.safety) tips.push(r.safety)
     })
 
-    if (steps.length === 0) {
-      lines.forEach((line) => {
-        const stepMatch = line.match(/^[❶❷❸❹❺❻❼❽❾❿⓫⓬\d\.\-\s、]+(.*)/)
-        if (stepMatch && (line.includes('流程') || steps.length < 5)) {
-          const cleanStep = stepMatch[1].trim()
-          if (cleanStep) steps.push(cleanStep)
-        }
-      })
-    }
+    // 生成步骤摘要
+    const steps = rounds.map((r) => r.rule || r.title)
 
     return {
       name,
       tag,
-      rule,
+      space,
+      preparations,
+      rounds,
+      scripts,
       steps:
         steps.length > 0
           ? steps
@@ -196,7 +265,7 @@ export default function ResultPreview({
               flexShrink: 0,
             }}
           >
-            <Text style={{ fontSize: '12px', color: '#ea580c', fontWeight: '500' }}>
+            <Text style={{ fontSize: '14px', color: '#ea580c', fontWeight: '500' }}>
               {game.tag}
             </Text>
           </View>
@@ -251,104 +320,212 @@ export default function ResultPreview({
           </View>
         </View>
 
-        {/* 玩法规则 */}
-        <View style={{ marginBottom: '24px' }}>
-          <Text
-            style={{
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#111827',
-              marginBottom: '8px',
-              display: 'block',
-            }}
-          >
-            玩法规则
-          </Text>
-          <Text
-            style={{ fontSize: '14px', color: '#4b5563', lineHeight: '24px', textAlign: 'justify' }}
-          >
-            {game.rule}
-          </Text>
-        </View>
+        {/* 活动空间 */}
+        {game.space && (
+          <View style={{ marginBottom: '24px' }}>
+            <Text
+              style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#111827',
+                marginBottom: '8px',
+                display: 'block',
+              }}
+            >
+              📍 活动空间
+            </Text>
+            <Text
+              style={{
+                fontSize: '14px',
+                color: '#4b5563',
+                lineHeight: '24px',
+                textAlign: 'justify',
+              }}
+            >
+              {game.space}
+            </Text>
+          </View>
+        )}
 
-        {/* 执行流程 */}
-        <View style={{ marginBottom: '24px' }}>
-          <Text
-            style={{
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#111827',
-              marginBottom: '12px',
-              display: 'block',
-            }}
-          >
-            执行流程
-          </Text>
-          <View style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {game.steps.map((step, idx) => (
-              <View
-                key={idx}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
-                  gap: '12px',
-                }}
-              >
+        {/* 前期准备 */}
+        {game.preparations.length > 0 && (
+          <View style={{ marginBottom: '24px' }}>
+            <Text
+              style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#111827',
+                marginBottom: '8px',
+                display: 'block',
+              }}
+            >
+              🎒 前期准备
+            </Text>
+            <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {game.preparations.map((item, idx) => (
+                <Text key={idx} style={{ fontSize: '14px', color: '#4b5563', lineHeight: '22px' }}>
+                  📦 {item}
+                </Text>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 游戏大纲 */}
+        {game.rounds.length > 0 && (
+          <View style={{ marginBottom: '24px' }}>
+            <Text
+              style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#111827',
+                marginBottom: '12px',
+                display: 'block',
+              }}
+            >
+              🎯 游戏大纲
+            </Text>
+            <View style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {game.rounds.map((round, idx) => (
                 <View
+                  key={idx}
                   style={{
-                    width: '20px',
-                    height: '20px',
-                    backgroundColor: '#f97316',
-                    borderRadius: '9999px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginTop: '2px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid #f3f4f6',
                   }}
                 >
-                  <Text style={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold' }}>
-                    {idx + 1}
+                  <Text
+                    style={{
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      color: '#f97316',
+                      marginBottom: '10px',
+                      display: 'block',
+                    }}
+                  >
+                    🚀 {round.title}
+                  </Text>
+                  {round.props && (
+                    <View style={{ marginBottom: '8px' }}>
+                      <Text style={{ fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+                        🧸 所需道具：
+                      </Text>
+                      <Text style={{ fontSize: '14px', color: '#374151', lineHeight: '20px' }}>
+                        {round.props}
+                      </Text>
+                    </View>
+                  )}
+                  {round.rule && (
+                    <View style={{ marginBottom: '8px' }}>
+                      <Text style={{ fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+                        📖 规则简述：
+                      </Text>
+                      <Text style={{ fontSize: '14px', color: '#374151', lineHeight: '20px' }}>
+                        {round.rule}
+                      </Text>
+                    </View>
+                  )}
+                  {round.safety && (
+                    <View>
+                      <Text style={{ fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+                        ⚠️ 安全提醒：
+                      </Text>
+                      <Text style={{ fontSize: '14px', color: '#dc2626', lineHeight: '20px' }}>
+                        {round.safety}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 游戏白话稿 */}
+        {game.scripts.length > 0 && (
+          <View style={{ marginBottom: '24px' }}>
+            <Text
+              style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#111827',
+                marginBottom: '12px',
+                display: 'block',
+              }}
+            >
+              游戏白话稿
+            </Text>
+            <View style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {game.scripts.map((script, idx) => (
+                <View
+                  key={idx}
+                  style={{
+                    backgroundColor: '#fffbeb',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid #fef3c7',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: '#92400e',
+                      marginBottom: '8px',
+                      display: 'block',
+                    }}
+                  >
+                    {script.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: '14px',
+                      color: '#78350f',
+                      lineHeight: '22px',
+                      textAlign: 'justify',
+                    }}
+                  >
+                    {script.content}
                   </Text>
                 </View>
-                <Text style={{ fontSize: '14px', color: '#374151', lineHeight: '22px', flex: 1 }}>
-                  {step}
-                </Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* 温馨提示 */}
-        <View
-          style={{
-            backgroundColor: 'rgba(255, 247, 237, 0.7)',
-            borderRadius: '12px',
-            padding: '16px',
-            border: '1px solid #ffedd5',
-            marginBottom: '24px',
-          }}
-        >
-          <Text
+        {/* 安全提醒汇总 */}
+        {game.tips.length > 0 && (
+          <View
             style={{
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#ea580c',
-              marginBottom: '8px',
-              display: 'block',
+              backgroundColor: 'rgba(255, 247, 237, 0.7)',
+              borderRadius: '12px',
+              padding: '16px',
+              border: '1px solid #ffedd5',
+              marginBottom: '24px',
             }}
           >
-            温馨提示
-          </Text>
-          <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {game.tips.map((tip, idx) => (
-              <Text key={idx} style={{ fontSize: '12px', color: '#c2410c', lineHeight: '20px' }}>
-                • {tip}
-              </Text>
-            ))}
+            <Text
+              style={{
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: '#ea580c',
+                marginBottom: '8px',
+                display: 'block',
+              }}
+            >
+              安全提醒
+            </Text>
+            <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {game.tips.map((tip, idx) => (
+                <Text key={idx} style={{ fontSize: '14px', color: '#c2410c', lineHeight: '20px' }}>
+                  • {tip}
+                </Text>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* 背景音乐信息 */}
         {realResult.music && (
@@ -366,7 +543,7 @@ export default function ResultPreview({
               }}
             >
               <View style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>
+                <Text style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '4px' }}>
                   背景音乐
                 </Text>
                 <Text
@@ -385,7 +562,7 @@ export default function ResultPreview({
               {showMusicSwitch && (
                 <Text
                   style={{
-                    fontSize: '13px',
+                    fontSize: '14px',
                     color: '#f97316',
                     fontWeight: '500',
                     marginLeft: '16px',
