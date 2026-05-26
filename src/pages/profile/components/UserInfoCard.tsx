@@ -23,8 +23,8 @@ export default function UserInfoCard({ userInfo }: UserInfoCardProps) {
       {/* 昵称 */}
       <Text className="my-2 text-lg font-semibold">{userInfo.nickname}</Text>
 
-      {/* UID */}
-      <Text className="text-sm text-gray-4">UID:{userInfo.uid}</Text>
+      {/* 账号 */}
+      <Text className="text-sm text-gray-4">UID:{userInfo.account}</Text>
     </View>
   )
 }

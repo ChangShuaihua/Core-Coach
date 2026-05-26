@@ -42,14 +42,33 @@ let pendingQueue: Array<(token: string) => void> = []
 // 提前 2 分钟视为即将过期
 const REFRESH_ADVANCE_MS = 2 * 60 * 1000
 
+// 从 storage 实时读取存储的状态（绕过 store 水合问题）
+function getStoredState(): { accessToken: string; refreshToken: string; accessExpireTime: number } {
+  try {
+    const raw = Taro.getStorageSync('user-storage')
+    if (!raw) return { accessToken: '', refreshToken: '', accessExpireTime: 0 }
+    const str = typeof raw === 'string' ? raw : JSON.stringify(raw)
+    const parsed = JSON.parse(str)
+    const s = parsed?.state || {}
+    return {
+      accessToken: s.accessToken || '',
+      refreshToken: s.refreshToken || '',
+      accessExpireTime: s.accessExpireTime || 0,
+    }
+  } catch {
+    return { accessToken: '', refreshToken: '', accessExpireTime: 0 }
+  }
+}
+
 function isTokenExpiringSoon(): boolean {
-  const { accessExpireTime, accessToken } = useUserStore.getState()
+  const { accessExpireTime, accessToken } = getStoredState()
   if (!accessToken || !accessExpireTime) return false
   return Date.now() + REFRESH_ADVANCE_MS >= accessExpireTime
 }
 
 async function doRefreshToken(): Promise<string> {
-  const refreshTokenStr = useUserStore.getState().refreshToken
+  const refreshTokenStr = getStoredState().refreshToken
+  if (!refreshTokenStr) Taro.redirectTo({ url: '/pages/login/index' })
   log('[Refresh] 开始刷新 token')
   const { refreshToken: refreshFn } = await import('@/api/login')
   const result = await refreshFn(refreshTokenStr)
@@ -64,7 +83,7 @@ async function doRefreshToken(): Promise<string> {
 // 主动刷新（请求前检查到即将过期时调用）
 async function ensureTokenValid(): Promise<string | null> {
   if (!isTokenExpiringSoon()) {
-    return useUserStore.getState().accessToken
+    return getStoredState().accessToken
   }
 
   if (isRefreshing) {
@@ -152,7 +171,8 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
   if (withToken) {
     const token = await ensureTokenValid()
     if (!token) {
-      return Promise.reject(new Error('token 已失效'))
+      Taro.redirectTo({ url: '/pages/login/index' })
+      return Promise.reject(new Error('token 为空！'))
     }
     header['Authorization'] = `Bearer ${token}`
   }
@@ -253,13 +273,4 @@ export function del<T = any>(
   options?: Partial<RequestOptions>
 ) {
   return request<T>({ url, method: 'DELETE', data, ...options })
-}
-
-// 导出供 App useDidShow 调用的公共刷新函数
-export async function refreshTokenIfNeeded(): Promise<void> {
-  try {
-    await ensureTokenValid()
-  } catch {
-    // 刷新失败不处理，让页面守卫去跳转
-  }
 }

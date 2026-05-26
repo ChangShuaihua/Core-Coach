@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro'
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
 import type { UserInfo } from '@/types/profile'
 
 interface UserState {
@@ -21,14 +21,21 @@ const taroStorage = {
   getItem: (name: string) => {
     try {
       const data = Taro.getStorageSync(name)
-      return data ? JSON.parse(typeof data === 'string' ? data : JSON.stringify(data)) : null
-    } catch {
+      console.log('[Storage] getItem', name, '→', typeof data, data)
+      if (!data) return null
+      // Zustand 期望返回的是 JSON 字符串，它自己会 JSON.parse
+      // Taro.getStorageSync 可能返回 object 或 string，统一转为 string
+      return typeof data === 'string' ? data : JSON.stringify(data)
+    } catch (e) {
+      console.warn('[Storage] getItem 失败:', name, e)
       return null
     }
   },
   setItem: (name: string, value: unknown) => {
     try {
-      Taro.setStorageSync(name, JSON.stringify(value))
+      // Zustand 传入的 value 已经是 JSON 字符串，直接存储
+      const data = typeof value === 'string' ? value : JSON.stringify(value)
+      Taro.setStorageSync(name, data)
     } catch {
       console.error('Failed to set storage:', name)
     }
@@ -79,3 +86,32 @@ export const useUserStore = create<UserState>()(
     }
   )
 )
+
+// 手动水合：直接从 Taro storage 读取并写入 store
+// 绕过 persist 中间件的 onRehydrateStorage（在小程序环境下不可靠）
+function manualHydrate() {
+  try {
+    const raw = Taro.getStorageSync('user-storage')
+    if (!raw) return
+    const str = typeof raw === 'string' ? raw : JSON.stringify(raw)
+    const parsed = JSON.parse(str)
+    const storedState = parsed?.state
+    if (storedState?.accessToken) {
+      useUserStore.setState({
+        accessToken: storedState.accessToken,
+        refreshToken: storedState.refreshToken,
+        accessExpireTime: storedState.accessExpireTime,
+        refreshExpireTime: storedState.refreshExpireTime,
+        userInfo: storedState.userInfo,
+      })
+    }
+  } catch (e) {
+    console.warn('[Storage] 手动水合失败:', e)
+  }
+}
+
+// 立即执行水合
+manualHydrate()
+
+// 水合完成的 Promise（已同步完成）
+export const waitForHydration = Promise.resolve()

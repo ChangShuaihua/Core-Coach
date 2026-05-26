@@ -9,8 +9,7 @@ function mapLoginData(data: LoginData): LoginResult {
     accessExpire: data.accessExpire,
     refreshExpire: data.refreshExpire,
     userInfo: {
-      id: data.user.account,
-      uid: data.user.account,
+      account: data.user.account,
       nickname: data.user.nickName,
       avatar: data.user.avatarUrl,
       password: data.user.password,
