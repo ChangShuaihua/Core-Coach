@@ -254,3 +254,12 @@ export function del<T = any>(
 ) {
   return request<T>({ url, method: 'DELETE', data, ...options })
 }
+
+// 导出供 App useDidShow 调用的公共刷新函数
+export async function refreshTokenIfNeeded(): Promise<void> {
+  try {
+    await ensureTokenValid()
+  } catch {
+    // 刷新失败不处理，让页面守卫去跳转
+  }
+}
