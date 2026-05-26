@@ -133,8 +133,8 @@ export default function MusicPlayer({ musicUrl }: MusicPlayerProps) {
               marginTop: '4px',
             }}
           >
-            <Text style={{ fontSize: '11px', color: '#9ca3af' }}>{formatTime(currentTime)}</Text>
-            <Text style={{ fontSize: '11px', color: '#9ca3af' }}>{formatTime(duration)}</Text>
+            <Text style={{ fontSize: '14px', color: '#9ca3af' }}>{formatTime(currentTime)}</Text>
+            <Text style={{ fontSize: '14px', color: '#9ca3af' }}>{formatTime(duration)}</Text>
           </View>
         </View>
       </View>

@@ -7,9 +7,9 @@ import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
 import { useCreationStore } from '@/store'
+import type { Skill } from '@/types/creation'
 import type { RecentCreation } from '@/types/creation-list'
-import { getStatusText, getModeBySkillId, SKILLS_MOCK_DATA } from './constants/skills'
-import type { Skill } from './constants/skills'
+import { getStatusText, getModeBySkillId } from './constants/skills'
 
 const typeIconMap: Record<string, string> = {
   game: '🎮',
@@ -55,17 +55,6 @@ export default function CreationPage() {
       setSkillList(data)
     } catch (error) {
       console.error('获取技能列表失败:', error)
-      // mock 数据也加上「更多功能」卡片
-      const MORE_SKILL: Skill = {
-        id: 9999,
-        flow_id: '',
-        description: '更多功能',
-        icon: '➕',
-        image_need: 0,
-        step_count: 0,
-        status: 0,
-      }
-      setSkillList([...SKILLS_MOCK_DATA, MORE_SKILL])
     }
   }
 

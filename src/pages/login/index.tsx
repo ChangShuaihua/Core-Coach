@@ -15,7 +15,6 @@ export default function Login() {
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [isHydrated, setIsHydrated] = useState(false)
   const {
     setAccessToken,
     setRefreshToken,
@@ -26,7 +25,6 @@ export default function Login() {
 
   useEffect(() => {
     waitForHydration.then(() => {
-      setIsHydrated(true)
       const token = useUserStore.getState().accessToken
       if (token) {
         Taro.switchTab({ url: '/pages/chat/index' })
