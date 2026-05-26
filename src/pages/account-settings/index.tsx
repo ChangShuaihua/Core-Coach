@@ -1,32 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { Popup, Form, Input, Button } from '@nutui/nutui-react-taro'
-import { getAccountInfo, updatePassword, type AccountInfo } from '@/api/account'
+import { updatePassword } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import { useUserStore } from '@/store/useUserStore'
 
 export default function AccountSettingsPage() {
+  const { userInfo, setUserInfo } = useUserStore()
   const [showPopup, setShowPopup] = useState(false)
-  const [accountInfo, setAccountInfo] = useState<AccountInfo>({ phone: '', password: '' })
   const [passwordData, setPasswordData] = useState({
     password: '',
     confirmPassword: '',
   })
-
-  useEffect(() => {
-    loadAccountInfo()
-  }, [])
-
-  const loadAccountInfo = async () => {
-    try {
-      const data = await getAccountInfo()
-      setAccountInfo(data)
-    } catch (error) {
-      console.error('加载账号信息失败:', error)
-    }
-  }
 
   const openPopup = () => {
     setPasswordData({ password: '', confirmPassword: '' })
@@ -58,7 +46,8 @@ export default function AccountSettingsPage() {
 
     Taro.showLoading({ title: '保存中...' })
     try {
-      await updatePassword(password)
+      const res = await updatePassword({ account: userInfo!.account, password })
+      setUserInfo({ ...userInfo!, password: res.password })
       Taro.hideLoading()
       Taro.showToast({ title: '修改成功', icon: 'success' })
       closePopup()
@@ -85,7 +74,7 @@ export default function AccountSettingsPage() {
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-9">账号</Text>
             </View>
-            <Text className="text-sm text-gray-400">{accountInfo.phone || '暂无'}</Text>
+            <Text className="text-sm text-gray-400">{userInfo?.account || '暂无'}</Text>
           </View>
 
           <View className="bg-gray-100" style={{ height: '1px' }} />
@@ -101,7 +90,7 @@ export default function AccountSettingsPage() {
             </View>
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-8 mr-2">
-                {accountInfo.password || '暂未设置密码'}
+                {userInfo?.password || '暂未设置密码'}
               </Text>
             </View>
           </View>

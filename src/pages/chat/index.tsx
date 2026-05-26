@@ -21,8 +21,9 @@ export default function ChatPage() {
   const [scrollToBottomTrigger, setScrollToBottomTrigger] = useState(0)
   const sendingRef = useRef(false)
 
-  const messages = useChatStore((s) => s.currentMessages)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
+  const messagesBySession = useChatStore((s) => s.messagesBySession)
+  const messages = currentConversationId ? messagesBySession[currentConversationId] || [] : []
   const skills = useChatStore((s) => s.skills)
   const loadConversations = useChatStore((s) => s.loadConversations)
   const loadMessages = useChatStore((s) => s.loadMessages)
