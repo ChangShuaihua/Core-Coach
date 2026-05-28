@@ -60,7 +60,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
         <View style={bubbleStyle}>
           {/* pending：打字指示器 */}
           {!isUser && message.status === 'pending' && (
-            <Text style={{ ...textStyle, color: '#9ca3af' }}>正在输入...</Text>
+            <Text style={{ ...textStyle, color: '#9ca3af' }}>AI正在思考...</Text>
           )}
 
           {/* streaming：打字机效果 */}

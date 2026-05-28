@@ -13,13 +13,13 @@ export interface Message {
   status: MessageStatus
 }
 
-// 技能/工作流
+// 技能/工作流（对应 /ai-qa/workflows 接口）
 export interface Skill {
-  id: string
-  workflowId: string
-  title: string
-  prompt: string
-  description?: string
+  id: string // = flow_id，唯一标识
+  title: string // = description，显示名称
+  imageNeed: number // 是否需要图片 0否 1是
+  type: number // 1基础问答 2技能
+  outputType: number // 0非流式 1流式
 }
 
 // 快捷操作接口（deprecated，后续统一用 Skill）

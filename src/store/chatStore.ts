@@ -13,9 +13,6 @@ import type {
 } from '@/types/ws'
 import { WS_ERROR_CODES } from '@/types/ws'
 
-// 基础工作流 ID，不选技能时使用
-const DEFAULT_WORKFLOW_ID = '7639722909792419886'
-
 // 技能持久化 key
 const SKILL_STORAGE_KEY = 'chat_selected_skill'
 
@@ -45,6 +42,7 @@ interface ChatStore {
   messagesBySession: Record<string, Message[]>
   currentConversationId: string | null
   skills: Skill[]
+  defaultWorkflow: Skill | null
   selectedSkill: Skill | null
   messageCursor: string | null
   hasMoreMessages: boolean
@@ -77,7 +75,7 @@ interface ChatStore {
   sendMessage: (content: string) => Promise<string | undefined>
   stopResponding: () => void
 
-  loadSkills: () => Promise<void>
+  loadWorkflows: () => Promise<void>
   toggleSkill: (skill: Skill) => void
   getCurrentWorkflowId: () => string
 
@@ -93,6 +91,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   messagesBySession: {},
   currentConversationId: null,
   skills: [],
+  defaultWorkflow: null,
   selectedSkill: loadPersistedSkill(),
   messageCursor: null,
   hasMoreMessages: true,
@@ -290,8 +289,9 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   // ====== 发送消息（通过 WebSocket） ======
 
   sendMessage: async (content: string) => {
-    const { currentConversationId, selectedSkill, sessionOccupied } = get()
-    const workflowId = selectedSkill?.workflowId || DEFAULT_WORKFLOW_ID
+    const { currentConversationId, selectedSkill, defaultWorkflow, sessionOccupied } = get()
+    const currentWorkflow = selectedSkill || defaultWorkflow
+    const workflowId = currentWorkflow?.id || ''
     const isNewConversation = !currentConversationId || currentConversationId.startsWith('pending-')
 
     // 检查会话是否被占用
@@ -332,7 +332,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
 
     ws.sendChat({
-      output_type: 'stream',
+      output_type: currentWorkflow?.outputType === 0 ? 'sync' : 'stream',
       request_id: requestId,
       session_id: isNewConversation ? '' : currentConversationId!,
       content,
@@ -362,9 +362,11 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   // ====== 技能 ======
 
-  loadSkills: async () => {
-    const skills = await chatApi.getSkills()
-    set({ skills })
+  loadWorkflows: async () => {
+    const all = await chatApi.getWorkflows()
+    const basic = all.find((w) => w.type === 1) || null
+    const skills = all.filter((w) => w.type === 2)
+    set({ defaultWorkflow: basic, skills })
   },
 
   toggleSkill: (skill: Skill) => {
@@ -375,8 +377,8 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   getCurrentWorkflowId: () => {
-    const { selectedSkill } = get()
-    return selectedSkill?.workflowId || DEFAULT_WORKFLOW_ID
+    const { selectedSkill, defaultWorkflow } = get()
+    return selectedSkill?.id || defaultWorkflow?.id || ''
   },
 
   // ====== WebSocket 状态 ======
