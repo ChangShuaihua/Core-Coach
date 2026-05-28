@@ -15,6 +15,6 @@ export async function updateUserInfo(nickName: string, avatarUrl?: string): Prom
 }
 
 export async function uploadAvatar(filePath: string): Promise<string> {
-  const res = await post<{ url: string }>('/upload/avatar', { filePath })
+  const res = await post<{ url: string }>('/upload', { filePath })
   return res.data.url
 }
