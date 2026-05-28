@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
@@ -19,6 +19,8 @@ export default function ChatPage() {
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [scrollToBottomTrigger, setScrollToBottomTrigger] = useState(0)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+  const scrollToBottomRef = useRef<(() => void) | null>(null)
   const sendingRef = useRef(false)
 
   const currentConversationId = useChatStore((s) => s.currentConversationId)
@@ -128,6 +130,8 @@ export default function ChatPage() {
               isLoadingMore={isLoadingMore}
               onLoadMore={loadMoreMessages}
               scrollToBottomTrigger={scrollToBottomTrigger}
+              onScrollToBottomStateChange={setShowScrollToBottom}
+              scrollToBottomRef={scrollToBottomRef}
             />
           )}
         </View>
@@ -145,6 +149,26 @@ export default function ChatPage() {
               onSelect={handleSelectSkill}
             />
           </View>
+          {showScrollToBottom && (
+            <View
+              className="absolute right-5"
+              style={{
+                bottom: '140px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: '#fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 100,
+              }}
+              onClick={() => scrollToBottomRef.current?.()}
+            >
+              <Text style={{ fontSize: '16px', color: '#333' }}>⬇</Text>
+            </View>
+          )}
           {isOccupied && (
             <View
               className="mx-4 mb-2 px-4 py-2 rounded-lg text-center"
