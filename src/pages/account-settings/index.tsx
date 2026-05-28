@@ -7,7 +7,7 @@ import { updatePassword, getEncryptedPassword } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useUserStore } from '@/store/useUserStore'
-import { decryptPassword } from '@/utils/crypto'
+import { verifyAndDecryptPassword } from '@/utils/crypto'
 
 export default function AccountSettingsPage() {
   const { userInfo, setUserInfo } = useUserStore()
@@ -32,8 +32,8 @@ export default function AccountSettingsPage() {
   const handleShowPassword = async () => {
     try {
       Taro.showLoading({ title: '获取中...' })
-      const cipherText = await getEncryptedPassword()
-      const plainPassword = decryptPassword(cipherText)
+      const signedData = await getEncryptedPassword()
+      const plainPassword = verifyAndDecryptPassword(signedData)
       Taro.hideLoading()
 
       if (!plainPassword) {
