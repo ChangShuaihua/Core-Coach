@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { View, Text, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Marshalling, Eye } from '@nutui/icons-react-taro'
-import { Button, Image } from '@nutui/nutui-react-taro'
+import { Button, Image, Avatar, Popup } from '@nutui/nutui-react-taro'
+import { uploadAvatar, updateUserInfo } from '@/api/edit-info'
 import { login } from '@/api/login'
+import defaultAvatar from '@/assets/images/avatar.png'
 import LOGO from '@/assets/images/logo.png'
 import { validateLogin } from '@/schemas/user'
 import { useUserStore, waitForHydration } from '@/store/useUserStore'
@@ -15,6 +17,9 @@ export default function Login() {
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showProfilePopup, setShowProfilePopup] = useState(false)
+  const [nickname, setNickname] = useState('')
+  const [avatar, setAvatar] = useState('')
   const {
     setAccessToken,
     setRefreshToken,
@@ -32,11 +37,62 @@ export default function Login() {
     })
   }, [])
 
+  // 登录成功后判断是否需要完善资料
+  const afterLogin = (userInfo: any) => {
+    // TODO: 测试完改回 if (!userInfo.nickName)
+    setNickname(userInfo.nickName || '')
+    setAvatar(userInfo.avatarUrl || '')
+    setShowProfilePopup(true)
+  }
+
+  // 微信官方 chooseAvatar
+  const handleChooseAvatar = async (e: any) => {
+    const tempFilePath = e.detail.avatarUrl
+    if (!tempFilePath) return
+    try {
+      Taro.showLoading({ title: '上传中...' })
+      const uploadedUrl = await uploadAvatar(tempFilePath)
+      setAvatar(uploadedUrl)
+      Taro.hideLoading()
+    } catch {
+      Taro.hideLoading()
+      Taro.showToast({ title: '头像上传失败', icon: 'none' })
+    }
+  }
+
+  // 保存资料
+  const handleSaveProfile = async () => {
+    if (!nickname.trim()) {
+      Taro.showToast({ title: '请填写昵称', icon: 'none' })
+      return
+    }
+    try {
+      Taro.showLoading({ title: '保存中...' })
+      await updateUserInfo(nickname.trim(), avatar)
+      // 同步到 store
+      const currentUser = useUserStore.getState().userInfo
+      if (currentUser) {
+        setUserInfo({ ...currentUser, nickName: nickname.trim(), avatarUrl: avatar })
+      }
+      Taro.hideLoading()
+      setShowProfilePopup(false)
+      Taro.switchTab({ url: '/pages/chat/index' })
+    } catch {
+      Taro.hideLoading()
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+    }
+  }
+
+  // 跳过填写
+  const handleSkipProfile = () => {
+    setShowProfilePopup(false)
+    Taro.switchTab({ url: '/pages/chat/index' })
+  }
+
   const handleWechatLogin = async () => {
     const MAX_RETRY = 2
     for (let i = 0; i <= MAX_RETRY; i++) {
       try {
-        // 每次重试都重新获取 code，避免 code 过期
         const { code } = await Taro.login()
         const res = await login({ login_type: 'wechat', code, account: '', password: '' })
         setAccessToken(res.accessToken)
@@ -44,10 +100,9 @@ export default function Login() {
         setAccessExpireTime(res.accessExpire)
         setRefreshExpireTime(res.refreshExpire)
         setUserInfo(res.userInfo)
-        Taro.switchTab({ url: '/pages/chat/index' })
+        afterLogin(res.userInfo)
         return
       } catch (err: any) {
-        // 最后一次重试失败，显示错误提示
         if (i === MAX_RETRY) {
           Taro.showToast({ title: err?.message || '微信登录失败，请重试', icon: 'none' })
         }
@@ -69,7 +124,7 @@ export default function Login() {
       setAccessExpireTime(res.accessExpire)
       setRefreshExpireTime(res.refreshExpire)
       setUserInfo(res.userInfo)
-      Taro.switchTab({ url: '/pages/chat/index' })
+      afterLogin(res.userInfo)
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '登录失败，请重试', icon: 'none' })
     }
@@ -166,6 +221,70 @@ export default function Login() {
           </View>
         </View>
       )}
+
+      {/* 完善资料弹窗 */}
+      <Popup
+        visible={showProfilePopup}
+        position="bottom"
+        round
+        closeable
+        onClose={handleSkipProfile}
+        style={{ minHeight: '400px' }}
+      >
+        <View className="p-6">
+          <Text className="text-lg font-medium text-center block mb-6">完善个人资料</Text>
+
+          {/* 头像选择 */}
+          <View className="flex flex-col items-center mb-6">
+            <Button
+              openType="chooseAvatar"
+              onChooseAvatar={handleChooseAvatar}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                margin: 0,
+                lineHeight: 'normal',
+              }}
+            >
+              <Avatar size="large" src={avatar || defaultAvatar} />
+            </Button>
+            <Text className="text-xs text-gray-400 mt-2">点击选择头像</Text>
+          </View>
+
+          {/* 昵称输入 */}
+          <View className="mb-6">
+            <Text className="text-sm text-gray-7 mb-2 block">昵称</Text>
+            <Input
+              type="nickname"
+              placeholder="请输入昵称"
+              value={nickname}
+              onInput={(e) => setNickname(e.detail.value)}
+              className="text-sm px-4 py-3"
+              style={{
+                border: '1px solid #e5e5e5',
+                borderRadius: '8px',
+              }}
+            />
+          </View>
+
+          <Button
+            type="primary"
+            size="large"
+            color="var(--gradient-orange)"
+            className="w-full mb-3"
+            onClick={handleSaveProfile}
+          >
+            <Text className="text-base">保存</Text>
+          </Button>
+
+          <View className="text-center">
+            <Text className="text-sm text-gray-400" onClick={handleSkipProfile}>
+              暂时跳过
+            </Text>
+          </View>
+        </View>
+      </Popup>
     </View>
   )
 }
