@@ -62,6 +62,7 @@ export interface WsAbortData {
 }
 
 export interface WsReconnectData {
+  request_id: string
   user_id: string
   token: string
   last_stream_id: string
@@ -148,6 +149,7 @@ export interface WsAbortResultData {
 }
 
 export interface WsReconnectResultData {
+  request_id: string
   success: boolean
   has_active_stream: boolean
   missed_messages: WsMessage[]

@@ -223,6 +223,7 @@
 {
   "event_type": "reconnect",
   "data": {
+    "request_id": "uuid",
     "user_id": "user_123",
     "token": "jwt_xxx",
     "last_stream_id": "1716638400123-5",
@@ -233,6 +234,7 @@
 
 | 字段 | 说明 |
 |---|---|
+| `request_id` | 重连请求的唯一标识，服务端原样回传至 `reconnect_result` |
 | `last_stream_id` | 客户端断网前最后成功接收的 Redis Stream ID，服务端从此 ID 之后开始补推 |
 | `session_id` | 需要恢复的会话 ID |
 
@@ -242,6 +244,7 @@
 {
   "event_type": "reconnect_result",
   "data": {
+    "request_id": "uuid",
     "success": true,
     "has_active_stream": true,
     "missed_messages": [

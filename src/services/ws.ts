@@ -12,11 +12,11 @@ import type {
   WsPingData,
   WsAbortResultData,
 } from '@/types/ws'
-import { getStoredState } from './http'
+import { getStoredState, refreshTokenIfNeeded } from './http'
 
 const WS_URL = 'ws://192.168.10.7:8083/api/v1/ws/connect'
 const PING_INTERVAL = 30_000
-const PONG_TIMEOUT = 90_000
+const PONG_TIMEOUT = 10_000
 const RECONNECT_BASE_DELAY = 1_000
 const RECONNECT_MAX_DELAY = 30_000
 
@@ -32,6 +32,10 @@ class WsManager {
   private reconnectAttempts = 0
   private currentSessionId = ''
   private lastStreamId = ''
+  private token = ''
+  private userId = ''
+  private intentionalClose = false
+  private isReconnecting = false
   private pendingAborts = new Map<string, (data: WsAbortResultData) => void>()
 
   // ============ 状态 ============
@@ -77,6 +81,10 @@ class WsManager {
     if (this._state === 'connecting' || this._state === 'authenticated') {
       return
     }
+    this.token = token
+    this.userId = userId
+    this.intentionalClose = false
+    this.isReconnecting = false
     this._state = 'connecting'
     this.reconnectAttempts = 0
     this.doConnect(token, userId)
@@ -84,6 +92,14 @@ class WsManager {
 
   private doConnect(token: string, userId: string): void {
     console.log('[WS] connecting...')
+
+    // 关闭旧连接，防止微信 5 并发限制
+    if (this.socketTask) {
+      try {
+        this.socketTask.close({})
+      } catch {}
+      this.socketTask = null
+    }
 
     Taro.connectSocket({
       url: WS_URL,
@@ -120,7 +136,7 @@ class WsManager {
     const { accessToken } = getStoredState()
     const authData: WsAuthData = {
       user_id: userId,
-      token: token || accessToken,
+      token: accessToken || token,
     }
     this.send('auth', authData)
   }
@@ -136,6 +152,10 @@ class WsManager {
         session_id: this.currentSessionId,
       }
       this.send('ping', pingData)
+      if (this.pongTimer) {
+        clearTimeout(this.pongTimer)
+        this.pongTimer = null
+      }
       this.pongTimer = setTimeout(() => {
         console.warn('[WS] pong timeout, reconnecting...')
         this.socketTask?.close({})
@@ -156,11 +176,32 @@ class WsManager {
 
   // ============ 断线重连 ============
 
-  private handleDisconnect(token: string, userId: string): void {
+  private async handleDisconnect(token: string, userId: string): Promise<void> {
     this.stopHeartbeat()
     this._state = 'disconnected'
+    if (this.intentionalClose) {
+      this.intentionalClose = false
+      console.log('[WS] intentional close, skip reconnect')
+      return
+    }
+    // 防止 onClose 和 onError 同时触发重复重连
+    if (this.isReconnecting) return
+    this.isReconnecting = true
+
     this.emit('disconnect', { reason: 'connection_lost' })
-    this.scheduleReconnect(token, userId)
+
+    // 断连后先刷新 token，确保重连用最新 token
+    try {
+      await refreshTokenIfNeeded()
+    } catch {
+      console.warn('[WS] token refresh failed, retry with current token')
+    }
+    const { accessToken } = getStoredState()
+    const latestToken = accessToken || token
+    if (latestToken !== this.token) {
+      this.token = latestToken
+    }
+    this.scheduleReconnect(latestToken, userId)
   }
 
   private scheduleReconnect(token: string, userId: string): void {
@@ -194,6 +235,7 @@ class WsManager {
       case 'connected':
         this._state = 'authenticated'
         this.reconnectAttempts = 0
+        this.isReconnecting = false
         this.startHeartbeat()
         console.log('[WS] authenticated')
         if (this.lastStreamId && this.currentSessionId) {
@@ -204,6 +246,10 @@ class WsManager {
       case 'auth_failed':
         console.error('[WS] auth_failed:', data)
         this._state = 'disconnected'
+        // 不自行重试，关闭连接让 onClose → handleDisconnect 走统一的 refresh+reconnect 流程
+        if (!this.intentionalClose) {
+          this.socketTask?.close({})
+        }
         break
 
       case 'pong':
@@ -294,6 +340,7 @@ class WsManager {
   }
 
   disconnect(): void {
+    this.intentionalClose = true
     if (this.currentSessionId) {
       const data: WsDisconnectData = {
         session_id: this.currentSessionId,
@@ -310,6 +357,7 @@ class WsManager {
     this.socketTask?.close({})
     this.socketTask = null
     this._state = 'disconnected'
+    this.isReconnecting = false
     this.reconnectAttempts = 0
     this.pendingAborts.clear()
   }
@@ -317,8 +365,9 @@ class WsManager {
   private sendReconnect(): void {
     const { accessToken } = getStoredState()
     const data: WsReconnectData = {
-      user_id: '',
-      token: accessToken,
+      request_id: this.generateRequestId(),
+      user_id: this.userId,
+      token: accessToken || this.token,
       last_stream_id: this.lastStreamId,
       session_id: this.currentSessionId,
     }
