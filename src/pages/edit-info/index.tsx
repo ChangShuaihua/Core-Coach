@@ -11,9 +11,8 @@ import { useUserStore } from '@/store/useUserStore'
 
 export default function EditInfoPage() {
   const { userInfo, setUserInfo } = useUserStore()
-
-  const [nickname, setNickname] = useState(userInfo?.nickname || '')
-  const [avatar, setAvatar] = useState(userInfo?.avatar || '')
+  const [nickname, setNickname] = useState(userInfo?.nickname ?? '')
+  const [avatar, setAvatar] = useState(userInfo?.avatar ?? '')
 
   const handleChooseAvatar = () => {
     Taro.chooseImage({
@@ -24,8 +23,8 @@ export default function EditInfoPage() {
         const tempFilePath = res.tempFilePaths[0]
         try {
           Taro.showLoading({ title: '上传中...' })
-          const uploadedResult = await uploadAvatar(tempFilePath)
-          setAvatar(uploadedResult.url)
+          const uploadedUrl = await uploadAvatar(tempFilePath)
+          setAvatar(uploadedUrl)
           Taro.hideLoading()
           Taro.showToast({ title: '上传成功', icon: 'success' })
         } catch (error) {
@@ -57,16 +56,11 @@ export default function EditInfoPage() {
     }
     Taro.showLoading({ title: '保存中...' })
     try {
-      const result = await updateUserInfo(nickname.trim(), avatar)
-
+      await updateUserInfo(nickname.trim(), avatar)
+      // 同步回 store
       if (userInfo) {
-        setUserInfo({
-          ...userInfo,
-          nickname: result.nickname,
-          avatar: result.avatar,
-        })
+        setUserInfo({ ...userInfo, nickname: nickname.trim(), avatar })
       }
-
       Taro.hideLoading()
       Taro.showToast({ title: '保存成功', icon: 'success' })
       setTimeout(() => {

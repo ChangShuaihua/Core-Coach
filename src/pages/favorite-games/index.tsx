@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft, Star } from '@nutui/icons-react-taro'
-import { getFavoriteGames, removeFavoriteGame } from '@/api/favorite-game'
+import { getFavoriteGames, getGameDetail, removeFavoriteGame } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
@@ -50,23 +50,33 @@ export default function FavoriteGamesPage() {
     })
   }
 
-  const handleGameClick = (game: Game) => {
-    setSelectedGame(game)
-    setDetailData({
-      age: game.age,
-      gameType: game.game_type,
-      generatedResults: [
-        {
-          record_id: game.record_id,
-          age: game.age,
-          game_type: game.game_type,
-          game_name: game.game_name,
-          generated_content: game.generated_content,
-          music: game.music,
-          created_at: game.collected_at,
-        },
-      ],
-    })
+  const handleGameClick = async (game: Game) => {
+    try {
+      const detail = await getGameDetail(game.id)
+      if (!detail) {
+        Taro.showToast({ title: '加载失败', icon: 'none' })
+        return
+      }
+      setSelectedGame(detail)
+      setDetailData({
+        age: detail.age,
+        gameType: detail.game_type,
+        generatedResults: [
+          {
+            record_id: detail.record_id,
+            age: detail.age,
+            game_type: detail.game_type,
+            game_name: detail.game_name,
+            generated_content: detail.generated_content,
+            music: detail.music,
+            created_at: detail.collected_at,
+          },
+        ],
+      })
+    } catch (error) {
+      console.error('加载游戏详情失败:', error)
+      Taro.showToast({ title: '加载失败', icon: 'none' })
+    }
   }
 
   const handleBack = () => {
@@ -80,7 +90,15 @@ export default function FavoriteGamesPage() {
 
   if (selectedGame) {
     return (
-      <Layout title="游戏详情" showTabBar={false}>
+      <Layout
+        title="游戏详情"
+        showTabBar={false}
+        renderLeft={
+          <View onClick={handleBack}>
+            <ArrowLeft />
+          </View>
+        }
+      >
         <ResultPreview config={RESULT_CONFIG} value={detailData} onChange={setDetailData} />
       </Layout>
     )

@@ -5,9 +5,8 @@ import { Marshalling, Eye } from '@nutui/icons-react-taro'
 import { Button, Image } from '@nutui/nutui-react-taro'
 import { login } from '@/api/login'
 import LOGO from '@/assets/images/logo.png'
-import { useAuthCheck } from '@/hooks'
 import { validateLogin } from '@/schemas/user'
-import { useUserStore } from '@/store/useUserStore'
+import { useUserStore, waitForHydration } from '@/store/useUserStore'
 
 type LoginMode = 'wechat' | 'account'
 
@@ -23,14 +22,15 @@ export default function Login() {
     setRefreshExpireTime,
     setUserInfo,
   } = useUserStore()
-  const { isChecking } = useAuthCheck()
 
-  // 检查登录状态，如果已登录则跳转
   useEffect(() => {
-    if (!isChecking && useUserStore.getState().accessToken) {
-      Taro.switchTab({ url: '/pages/chat/index' })
-    }
-  }, [isChecking])
+    waitForHydration.then(() => {
+      const token = useUserStore.getState().accessToken
+      if (token) {
+        Taro.switchTab({ url: '/pages/chat/index' })
+      }
+    })
+  }, [])
 
   const handleWechatLogin = async () => {
     const MAX_RETRY = 2

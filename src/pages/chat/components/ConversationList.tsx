@@ -34,12 +34,12 @@ function ConversationItem({
 }
 
 export default function ConversationList({ onSelect }: { onSelect?: () => void }) {
-  const conversations = useChatStore((s) => s.conversations)
+  const conversationsMap = useChatStore((s) => s.conversations)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const switchConversation = useChatStore((s) => s.switchConversation)
 
-  // 按更新时间倒序排列
-  const sorted = conversations.slice().sort((a, b) => b.updatedAt - a.updatedAt)
+  // 从 Record 转为数组，按更新时间倒序排列
+  const sorted = Object.values(conversationsMap).sort((a, b) => b.updatedAt - a.updatedAt)
 
   const handleClick = (id: string) => {
     switchConversation(id)

@@ -1,5 +1,24 @@
-import { get, post, del } from '@/services/http'
+import { put, get, post, del } from '@/services/http'
 import type { Game } from '@/types/game'
+
+// ============ 账号设置 ============
+
+interface UpdatePasswordParams {
+  account: string | number
+  password: string
+}
+
+interface UpdatePasswordResult {
+  account: string
+  password: string
+}
+
+export async function updatePassword(params: UpdatePasswordParams): Promise<UpdatePasswordResult> {
+  const res = await put<UpdatePasswordResult>('/app/user/password', params)
+  return res.data
+}
+
+// ============ 收藏游戏 ============
 
 export async function getFavoriteGames(): Promise<Game[]> {
   const result = await get<{ total: number; list: Game[] }>('/game/favorite/list')

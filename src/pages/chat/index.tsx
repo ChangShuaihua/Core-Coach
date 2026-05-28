@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
+import { useAuthCheck } from '@/hooks'
 import { useChatStore } from '@/store/chatStore'
 import { Skill } from '@/types/chat'
 import ChatInput from './components/ChatInput'
@@ -13,14 +14,16 @@ import QuickActionsPopup from './components/QuickActions'
 import WelcomeScreen from './components/WelcomeScreen'
 
 export default function ChatPage() {
+  useAuthCheck()
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [scrollToBottomTrigger, setScrollToBottomTrigger] = useState(0)
   const sendingRef = useRef(false)
 
-  const messages = useChatStore((s) => s.currentMessages)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
+  const messagesBySession = useChatStore((s) => s.messagesBySession)
+  const messages = currentConversationId ? messagesBySession[currentConversationId] || [] : []
   const skills = useChatStore((s) => s.skills)
   const loadConversations = useChatStore((s) => s.loadConversations)
   const loadMessages = useChatStore((s) => s.loadMessages)

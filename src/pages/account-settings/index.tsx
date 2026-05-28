@@ -3,46 +3,18 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { Popup, Form, Input, Button } from '@nutui/nutui-react-taro'
-import { updatePassword, type AccountInfo } from '@/api/account'
+import { updatePassword } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useUserStore } from '@/store/useUserStore'
 
 export default function AccountSettingsPage() {
-  // React Hooks 必须在组件顶层调用，不能在条件判断之后
-  const { userInfo, accessToken, setUserInfo } = useUserStore()
+  const { userInfo, setUserInfo } = useUserStore()
   const [showPopup, setShowPopup] = useState(false)
   const [passwordData, setPasswordData] = useState({
     password: '',
     confirmPassword: '',
   })
-
-  const accountInfo: AccountInfo = {
-    account: userInfo?.account || '',
-    password: '',
-  }
-
-  // 检查登录状态
-  if (!accessToken) {
-    return (
-      <Layout title="账号设置" showTabBar={false}>
-        <View
-          className="p-4 flex flex-col items-center justify-center"
-          style={{ minHeight: '50vh' }}
-        >
-          <Text className="text-gray-6 mb-4">请先登录后再进行操作</Text>
-          <Button
-            type="primary"
-            color="var(--gradient-orange)"
-            size="large"
-            onClick={() => Taro.redirectTo({ url: '/pages/login/index' })}
-          >
-            去登录
-          </Button>
-        </View>
-      </Layout>
-    )
-  }
 
   const openPopup = () => {
     setPasswordData({ password: '', confirmPassword: '' })
@@ -83,16 +55,8 @@ export default function AccountSettingsPage() {
 
     Taro.showLoading({ title: '保存中...' })
     try {
-      const result = await updatePassword(password)
-
-      if (userInfo) {
-        setUserInfo({
-          ...userInfo,
-          account: result.account,
-          password: result.password,
-        })
-      }
-
+      const res = await updatePassword({ account: userInfo!.account, password })
+      setUserInfo({ ...userInfo!, password: res.password })
       Taro.hideLoading()
       Taro.showToast({ title: '修改成功', icon: 'success' })
       closePopup()
@@ -119,7 +83,7 @@ export default function AccountSettingsPage() {
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-9">账号</Text>
             </View>
-            <Text className="text-sm text-gray-400">{accountInfo.account || '暂无'}</Text>
+            <Text className="text-sm text-gray-400">{userInfo?.account || '暂无'}</Text>
           </View>
 
           <View className="bg-gray-100" style={{ height: '1px' }} />
@@ -134,7 +98,9 @@ export default function AccountSettingsPage() {
               <Text className="text-sm text-gray-9">密码</Text>
             </View>
             <View className="flex flex-row items-center">
-              <Text className="text-sm text-gray-400 mr-2">修改密码</Text>
+              <Text className="text-sm text-gray-8 mr-2">
+                {userInfo?.password || '暂未设置密码'}
+              </Text>
             </View>
           </View>
         </Card>
