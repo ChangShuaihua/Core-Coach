@@ -1,4 +1,4 @@
-import { JSEncrypt } from 'jsencrypt'
+import WxmpRsa from 'wxmp-rsa'
 
 const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvts8T06L8b1plhkOIDhM
@@ -17,18 +17,18 @@ interface DecryptedData {
 }
 
 const usedNonces = new Set<number>()
+const rsa = new WxmpRsa()
+
+rsa.setPublicKey(PUBLIC_KEY)
 
 export function decryptPassword(cipherText: string): string | null {
-  const decrypt = new JSEncrypt()
-  decrypt.setPublicKey(PUBLIC_KEY)
-
-  const decrypted = decrypt.decrypt(cipherText)
-  if (!decrypted) {
-    console.error('解密失败')
-    return null
-  }
-
   try {
+    const decrypted = rsa.decryptLong(cipherText)
+    if (!decrypted) {
+      console.error('解密失败')
+      return null
+    }
+
     const data: DecryptedData = JSON.parse(decrypted)
 
     // 校验过期时间（允许5分钟误差）
