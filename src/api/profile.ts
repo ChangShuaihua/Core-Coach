@@ -18,6 +18,11 @@ export async function updatePassword(params: UpdatePasswordParams): Promise<Upda
   return res.data
 }
 
+export async function getEncryptedPassword(): Promise<string> {
+  const res = await get<{ cipherText: string }>('/app/user/info')
+  return res.data.cipherText
+}
+
 // ============ 收藏游戏 ============
 
 export async function getFavoriteGames(): Promise<Game[]> {

@@ -10,8 +10,8 @@ function mapLoginData(data: LoginData): LoginResult {
     refreshExpire: data.refreshExpire,
     userInfo: {
       account: data.user.account,
-      nickname: data.user.nickName,
-      avatar: data.user.avatarUrl,
+      nickName: data.user.nickName,
+      avatarUrl: data.user.avatarUrl,
       password: data.user.password,
     },
   }

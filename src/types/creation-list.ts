@@ -3,6 +3,7 @@ export interface RecentCreation {
   type: 'game' | 'lesson'
   title: string
   created_at: string
+  status?: number // 0=失败, 1=成功, 2=排队中, 3=生成中
 }
 
 export interface RecentListResponse {

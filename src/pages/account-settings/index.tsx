@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { Popup, Form, Input, Button } from '@nutui/nutui-react-taro'
-import { updatePassword } from '@/api/profile'
+import { updatePassword, getEncryptedPassword } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useUserStore } from '@/store/useUserStore'
+import { decryptPassword } from '@/utils/crypto'
 
 export default function AccountSettingsPage() {
   const { userInfo, setUserInfo } = useUserStore()
@@ -15,6 +16,9 @@ export default function AccountSettingsPage() {
     password: '',
     confirmPassword: '',
   })
+  const [displayPassword, setDisplayPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const openPopup = () => {
     setPasswordData({ password: '', confirmPassword: '' })
@@ -23,6 +27,35 @@ export default function AccountSettingsPage() {
 
   const closePopup = () => {
     setShowPopup(false)
+  }
+
+  const handleShowPassword = async () => {
+    try {
+      Taro.showLoading({ title: '获取中...' })
+      const cipherText = await getEncryptedPassword()
+      const plainPassword = decryptPassword(cipherText)
+      Taro.hideLoading()
+
+      if (!plainPassword) {
+        Taro.showToast({ title: '密码解密失败', icon: 'none' })
+        return
+      }
+
+      setDisplayPassword(plainPassword)
+      setShowPassword(true)
+
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
+      timerRef.current = setTimeout(() => {
+        setDisplayPassword('')
+        setShowPassword(false)
+        timerRef.current = null
+      }, 5000)
+    } catch {
+      Taro.hideLoading()
+      Taro.showToast({ title: '获取密码失败', icon: 'none' })
+    }
   }
 
   const handleSubmit = async () => {
@@ -83,15 +116,28 @@ export default function AccountSettingsPage() {
             className="flex flex-row items-center justify-between px-4 py-4"
             hoverClass="bg-gray-50"
             hoverStayTime={100}
-            onClick={openPopup}
+            onClick={handleShowPassword}
           >
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-9">密码</Text>
             </View>
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-8 mr-2">
-                {userInfo?.password || '暂未设置密码'}
+                {showPassword ? displayPassword : '点击查看密码'}
               </Text>
+            </View>
+          </View>
+
+          <View className="bg-gray-100" style={{ height: '1px' }} />
+
+          <View
+            className="flex flex-row items-center justify-between px-4 py-4"
+            hoverClass="bg-gray-50"
+            hoverStayTime={100}
+            onClick={openPopup}
+          >
+            <View className="flex flex-row items-center">
+              <Text className="text-sm text-gray-9">修改密码</Text>
             </View>
           </View>
         </Card>

@@ -16,6 +16,13 @@ const typeIconMap: Record<string, string> = {
   lesson: '📋',
 }
 
+const statusConfig: Record<number, { text: string; color: string; icon: string }> = {
+  0: { text: '生成失败', color: 'text-red-500', icon: '😢' },
+  1: { text: '', color: '', icon: '' },
+  2: { text: '排队中', color: 'text-orange-500', icon: '⏳' },
+  3: { text: '生成中', color: 'text-orange-500', icon: '✨' },
+}
+
 const formatTime = (dateStr: string): string => {
   const date = new Date(dateStr)
   const now = new Date()
@@ -166,26 +173,64 @@ export default function CreationPage() {
                 <Text className="text-sm text-gray-400">暂无创作记录</Text>
               </View>
             )}
-            {recentList.map((item) => (
-              <View
-                key={item.id}
-                className="bg-white rounded-lg p-4 border border-gray-200 flex items-center gap-4"
-                onClick={() =>
-                  Taro.navigateTo({ url: `/pages/detail/index?id=${item.id}&type=${item.type}` })
-                }
-              >
-                <View className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Text className="text-2xl">{typeIconMap[item.type] || '✨'}</Text>
+            {recentList.map((item) => {
+              const isProcessing = item.status === 2 || item.status === 3
+              const isFailed = item.status === 0
+              const config = item.status !== undefined ? statusConfig[item.status] : null
+
+              return (
+                <View
+                  key={item.id}
+                  className={`bg-white rounded-lg p-4 border flex items-center gap-4 ${
+                    isProcessing ? 'border-orange-300 bg-orange-50' : 'border-gray-200'
+                  }`}
+                  onClick={() => {
+                    if (isProcessing) {
+                      Taro.navigateTo({ url: `/pages/result/index?recordId=${item.id}` })
+                    } else {
+                      Taro.navigateTo({
+                        url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
+                      })
+                    }
+                  }}
+                >
+                  <View
+                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      isProcessing ? 'bg-orange-200' : isFailed ? 'bg-red-100' : 'bg-orange-100'
+                    }`}
+                  >
+                    <Text className="text-2xl">
+                      {isProcessing
+                        ? config?.icon || '✨'
+                        : isFailed
+                          ? '😢'
+                          : typeIconMap[item.type] || '✨'}
+                    </Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-base font-medium text-gray-900 block mb-1">
+                      {item.title}
+                    </Text>
+                    <View className="flex items-center gap-2">
+                      <Text className="text-xs text-gray-500">{formatTime(item.created_at)}</Text>
+                      {isProcessing && (
+                        <Text className={`text-xs font-medium ${config?.color}`}>
+                          {config?.text}
+                        </Text>
+                      )}
+                      {isFailed && (
+                        <Text className="text-xs font-medium text-red-500">生成失败</Text>
+                      )}
+                    </View>
+                  </View>
+                  {isProcessing ? (
+                    <View className="w-5 h-5 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+                  ) : (
+                    <Text className="text-gray-400 text-xl">›</Text>
+                  )}
                 </View>
-                <View className="flex-1">
-                  <Text className="text-base font-medium text-gray-900 block mb-1">
-                    {item.title}
-                  </Text>
-                  <Text className="text-xs text-gray-500">{formatTime(item.created_at)}</Text>
-                </View>
-                <Text className="text-gray-400 text-xl">›</Text>
-              </View>
-            ))}
+              )
+            })}
           </View>
         </View>
       </View>

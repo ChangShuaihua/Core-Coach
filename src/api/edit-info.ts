@@ -1,57 +1,49 @@
+import Taro from '@tarojs/taro'
+import { put } from '@/services/http'
+import { useUserStore } from '@/store/useUserStore'
+
 export interface UserInfo {
-  nickname: string
-  avatar: string
+  nickName: string
+  avatarUrl: string
 }
 
-const mockUserInfo: UserInfo = {
-  nickname: '跑酷教练大鹏',
-  avatar: '',
-}
-
-const useMock = true
-
-const BASE_URL = '/api'
+const BASE_URL = process.env.TARO_APP_API_URL || 'http://192.168.10.7:8083/api/v1'
 
 export async function getUserInfo(): Promise<UserInfo> {
-  if (useMock) {
-    return Promise.resolve(mockUserInfo)
-  }
-
-  const response = await fetch(`${BASE_URL}/user/info`)
-  return response.json()
+  const res = await put<UserInfo>('/user/info')
+  return res.data
 }
 
-export async function updateUserInfo(nickname: string, avatar?: string): Promise<void> {
-  if (useMock) {
-    mockUserInfo.nickname = nickname
-    if (avatar !== undefined) {
-      mockUserInfo.avatar = avatar
-    }
-    return Promise.resolve()
-  }
-
-  await fetch(`${BASE_URL}/user/info`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ nickname, avatar }),
-  })
+export async function updateUserInfo(nickName: string, avatarUrl?: string): Promise<void> {
+  await put('/app/user/profile', { nickName, avatarUrl })
 }
 
 export async function uploadAvatar(filePath: string): Promise<string> {
-  if (useMock) {
-    mockUserInfo.avatar = filePath
-    return Promise.resolve(filePath)
-  }
+  const token = useUserStore.getState().accessToken
 
-  const response = await fetch(`${BASE_URL}/upload/avatar`, {
-    method: 'POST',
-    body: JSON.stringify({ filePath }),
-    headers: {
-      'Content-Type': 'application/json',
-    },
+  return new Promise((resolve, reject) => {
+    Taro.uploadFile({
+      url: `${BASE_URL}/upload`,
+      filePath,
+      name: 'file',
+      header: {
+        Authorization: `Bearer ${token}`,
+      },
+      success: (res) => {
+        try {
+          const data = JSON.parse(res.data)
+          if (data.code === 0) {
+            resolve(data.data.file_url)
+          } else {
+            reject(new Error(data.message || '上传失败'))
+          }
+        } catch {
+          reject(new Error('解析响应失败'))
+        }
+      },
+      fail: (err) => {
+        reject(new Error(err.errMsg || '上传失败'))
+      },
+    })
   })
-  const data = await response.json()
-  return data.url
 }

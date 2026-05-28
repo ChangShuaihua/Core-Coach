@@ -11,8 +11,8 @@ import { useUserStore } from '@/store/useUserStore'
 
 export default function EditInfoPage() {
   const { userInfo, setUserInfo } = useUserStore()
-  const [nickname, setNickname] = useState(userInfo?.nickname ?? '')
-  const [avatar, setAvatar] = useState(userInfo?.avatar ?? '')
+  const [nickname, setNickname] = useState(userInfo?.nickName ?? '')
+  const [avatar, setAvatar] = useState(userInfo?.avatarUrl ?? '')
 
   const handleChooseAvatar = () => {
     Taro.chooseImage({
@@ -59,7 +59,7 @@ export default function EditInfoPage() {
       await updateUserInfo(nickname.trim(), avatar)
       // 同步回 store
       if (userInfo) {
-        setUserInfo({ ...userInfo, nickname: nickname.trim(), avatar })
+        setUserInfo({ ...userInfo, nickName: nickname.trim(), avatarUrl: avatar })
       }
       Taro.hideLoading()
       Taro.showToast({ title: '保存成功', icon: 'success' })
