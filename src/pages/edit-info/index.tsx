@@ -62,7 +62,7 @@ export default function EditInfoPage() {
       if (userInfo) {
         setUserInfo({
           ...userInfo,
-          nickname: result.nickName,
+          nickname: result.nickname,
           avatar: result.avatar,
         })
       }

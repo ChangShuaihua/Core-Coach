@@ -1,4 +1,5 @@
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
+import { Avatar } from '@nutui/nutui-react-taro'
 import defaultAvatar from '@/assets/images/avatar.png'
 import type { UserInfo } from '@/types/profile'
 
@@ -8,13 +9,16 @@ interface UserInfoCardProps {
 
 export default function UserInfoCard({ userInfo }: UserInfoCardProps) {
   return (
-    <View className="flex flex-col items-center px-5 py-5">
+    <View
+      style={{
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
       {/* 头像 */}
-      <Image
-        src={userInfo.avatar || defaultAvatar}
-        className="w-16 h-16 rounded-full"
-        mode="aspectFill"
-      />
+      <Avatar size="large" src={userInfo.avatar || defaultAvatar} />
 
       {/* 昵称 */}
       <Text className="my-2 text-lg font-semibold">{userInfo.nickname}</Text>
