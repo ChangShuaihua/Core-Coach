@@ -3,9 +3,8 @@ import type { ReactNode } from 'react'
 // 用户信息类型
 export interface UserInfo {
   account: string | number
-  nickname: string
-  avatar?: string
-  account?: string
+  nickName: string
+  avatarUrl?: string
   password?: string
 }
 

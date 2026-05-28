@@ -18,10 +18,10 @@ export default function UserInfoCard({ userInfo }: UserInfoCardProps) {
       }}
     >
       {/* 头像 */}
-      <Avatar size="large" src={userInfo.avatar || defaultAvatar} />
+      <Avatar size="large" src={userInfo.avatarUrl || defaultAvatar} />
 
       {/* 昵称 */}
-      <Text className="my-2 text-lg font-semibold">{userInfo.nickname}</Text>
+      <Text className="my-2 text-lg font-semibold">{userInfo.nickName}</Text>
 
       {/* 账号 */}
       <Text className="text-sm text-gray-4">UID:{userInfo.account}</Text>

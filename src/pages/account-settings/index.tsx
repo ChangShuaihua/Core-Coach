@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { Popup, Form, Input, Button } from '@nutui/nutui-react-taro'
-import { updatePassword } from '@/api/profile'
+import { updatePassword, getEncryptedPassword } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useUserStore } from '@/store/useUserStore'
+import { decryptPassword } from '@/utils/crypto'
 
 export default function AccountSettingsPage() {
   const { userInfo, setUserInfo } = useUserStore()
@@ -15,6 +16,9 @@ export default function AccountSettingsPage() {
     password: '',
     confirmPassword: '',
   })
+  const [displayPassword, setDisplayPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const openPopup = () => {
     setPasswordData({ password: '', confirmPassword: '' })
@@ -25,29 +29,49 @@ export default function AccountSettingsPage() {
     setShowPopup(false)
   }
 
-  const validatePassword = (password: string): string | null => {
-    if (!password) return '请输入新密码'
-    if (password.length < 6) return '密码不能少于6位'
-    if (password.length > 18) return '密码不能超过18位'
-    if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]+$/.test(password))
-      return '密码包含非法字符'
-    return null
+  const handleShowPassword = async () => {
+    try {
+      Taro.showLoading({ title: '获取中...' })
+      const cipherText = await getEncryptedPassword()
+      const plainPassword = decryptPassword(cipherText)
+      Taro.hideLoading()
+
+      if (!plainPassword) {
+        Taro.showToast({ title: '密码解密失败', icon: 'none' })
+        return
+      }
+
+      setDisplayPassword(plainPassword)
+      setShowPassword(true)
+
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
+      timerRef.current = setTimeout(() => {
+        setDisplayPassword('')
+        setShowPassword(false)
+        timerRef.current = null
+      }, 5000)
+    } catch {
+      Taro.hideLoading()
+      Taro.showToast({ title: '获取密码失败', icon: 'none' })
+    }
   }
 
   const handleSubmit = async () => {
     const { password, confirmPassword } = passwordData
-
-    const validationError = validatePassword(password)
-    if (validationError) {
-      Taro.showToast({ title: validationError, icon: 'none' })
+    if (!password) {
+      Taro.showToast({ title: '请输入新密码', icon: 'none' })
       return
     }
-
+    if (password.length < 6) {
+      Taro.showToast({ title: '密码至少6位', icon: 'none' })
+      return
+    }
     if (!confirmPassword) {
       Taro.showToast({ title: '请输入确认密码', icon: 'none' })
       return
     }
-
     if (password !== confirmPassword) {
       Taro.showToast({ title: '两次密码输入不一致', icon: 'none' })
       return
@@ -92,15 +116,28 @@ export default function AccountSettingsPage() {
             className="flex flex-row items-center justify-between px-4 py-4"
             hoverClass="bg-gray-50"
             hoverStayTime={100}
-            onClick={openPopup}
+            onClick={handleShowPassword}
           >
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-9">密码</Text>
             </View>
             <View className="flex flex-row items-center">
               <Text className="text-sm text-gray-8 mr-2">
-                {userInfo?.password || '暂未设置密码'}
+                {showPassword ? displayPassword : '点击查看密码'}
               </Text>
+            </View>
+          </View>
+
+          <View className="bg-gray-100" style={{ height: '1px' }} />
+
+          <View
+            className="flex flex-row items-center justify-between px-4 py-4"
+            hoverClass="bg-gray-50"
+            hoverStayTime={100}
+            onClick={openPopup}
+          >
+            <View className="flex flex-row items-center">
+              <Text className="text-sm text-gray-9">修改密码</Text>
             </View>
           </View>
         </Card>
@@ -125,8 +162,8 @@ export default function AccountSettingsPage() {
                 <Input
                   value={passwordData.password}
                   type="text"
-                  placeholder="请输入新密码（6-18位字母、数字或特殊字符）"
-                  maxLength={18}
+                  placeholder="请输入新密码"
+                  maxLength={20}
                   onChange={(val) => setPasswordData((prev) => ({ ...prev, password: val }))}
                 />
               </View>
@@ -138,7 +175,7 @@ export default function AccountSettingsPage() {
                 value={passwordData.confirmPassword}
                 type="text"
                 placeholder="请再次输入新密码"
-                maxLength={18}
+                maxLength={20}
                 onChange={(val) => setPasswordData((prev) => ({ ...prev, confirmPassword: val }))}
               />
             </View>
