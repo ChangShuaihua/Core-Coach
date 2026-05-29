@@ -221,7 +221,7 @@ export function initWsHandlers() {
     }
   })
 
-  // ---- 重连结果（按 session_id 路由，处理 missed_messages） ----
+  // ---- 重连结果（按 session_id 路由，missed_messages 复用已有 handler） ----
   ws.on('reconnect_result', (data: WsReconnectResultData) => {
     if (!data.success) return
 
@@ -229,32 +229,18 @@ export function initWsHandlers() {
     const sessionId = data.session_id
     const runtime = sessionRuntimes[sessionId]
 
-    // 更新 lastStreamId
-    if (data.has_active_stream && runtime) {
-      get().setLastStreamId(sessionId, data.request_id)
+    // 将 missed_messages 重新注入事件系统
+    if (data.missed_messages?.length) {
+      ws.reemit(
+        data.missed_messages.map((m) => ({
+          event_type: m.event_type,
+          data: { ...m.data, request_id: m.request_id, session_id: sessionId },
+        }))
+      )
     }
 
-    // 处理错过的消息
-    if (data.missed_messages?.length && runtime) {
-      for (const msg of data.missed_messages) {
-        const msgData = msg.data
-        if (msg.event_type === 'stream_chunk' && msgData) {
-          const messages = get().messagesBySession[sessionId] || []
-          const targetMsg = messages.find((m) => m.id === runtime.assistantMsgId)
-          if (targetMsg) {
-            const newContent = targetMsg.content + msgData.content
-            get().updateMessageStatus(sessionId, runtime.assistantMsgId, 'streaming', newContent)
-          }
-        } else if ((msg.event_type === 'stream_done' || msg.event_type === 'reply') && msgData) {
-          get().updateMessageStatus(sessionId, runtime.assistantMsgId, 'success', msgData.content)
-          useChatStore.setState((state) => {
-            const { [sessionId]: _, ...rest } = state.sessionRuntimes
-            return { sessionRuntimes: rest }
-          })
-        }
-      }
-    } else if (!data.has_active_stream && runtime) {
-      // 服务端没有活跃流，清理 runtime
+    // 服务端没有活跃流且本地还有 runtime，清理
+    if (!data.has_active_stream && runtime) {
       useChatStore.setState((state) => {
         const { [sessionId]: _, ...rest } = state.sessionRuntimes
         return { sessionRuntimes: rest }
