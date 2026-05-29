@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
@@ -19,6 +19,8 @@ export default function ChatPage() {
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [scrollToBottomTrigger, setScrollToBottomTrigger] = useState(0)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+  const scrollToBottomRef = useRef<(() => void) | null>(null)
   const sendingRef = useRef(false)
 
   const currentConversationId = useChatStore((s) => s.currentConversationId)
@@ -33,19 +35,27 @@ export default function ChatPage() {
   const sendMessage = useChatStore((s) => s.sendMessage)
   const stopResponding = useChatStore((s) => s.stopResponding)
   const ensurePendingConversation = useChatStore((s) => s.ensurePendingConversation)
-  const loadSkills = useChatStore((s) => s.loadSkills)
+  const loadWorkflows = useChatStore((s) => s.loadWorkflows)
   const toggleSkill = useChatStore((s) => s.toggleSkill)
   const selectedSkill = useChatStore((s) => s.selectedSkill)
+  const sessionOccupied = useChatStore((s) => s.sessionOccupied)
+  const initWsHandlers = useChatStore((s) => s.initWsHandlers)
 
   const isResponding = messages.some(
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
   )
+  const isOccupied = currentConversationId ? !!sessionOccupied[currentConversationId] : false
+
+  // 初始化 WebSocket 事件处理（只执行一次）
+  useEffect(() => {
+    initWsHandlers()
+  }, [initWsHandlers])
 
   // 页面挂载：拉取会话列表和技能列表，然后确保有临时会话
   useEffect(() => {
     loadConversations().then(() => ensurePendingConversation())
-    loadSkills()
-  }, [loadConversations, ensurePendingConversation, loadSkills])
+    loadWorkflows()
+  }, [loadConversations, ensurePendingConversation, loadWorkflows])
 
   // 切换会话时拉取消息（发送期间跳过，防止覆盖乐观更新的消息）
   useEffect(() => {
@@ -120,6 +130,8 @@ export default function ChatPage() {
               isLoadingMore={isLoadingMore}
               onLoadMore={loadMoreMessages}
               scrollToBottomTrigger={scrollToBottomTrigger}
+              onScrollToBottomStateChange={setShowScrollToBottom}
+              scrollToBottomRef={scrollToBottomRef}
             />
           )}
         </View>
@@ -128,7 +140,7 @@ export default function ChatPage() {
           className="relative flex-shrink-0"
           style={{ paddingBottom: `${keyboardHeight - 60}px` }}
         >
-          <View className="absolute left-6" style={{ top: '-150px' }}>
+          <View className="absolute left-6" style={{ bottom: '140px' }}>
             <QuickActionsPopup
               visible={showPopup}
               skills={skills}
@@ -137,12 +149,41 @@ export default function ChatPage() {
               onSelect={handleSelectSkill}
             />
           </View>
+          {showScrollToBottom && (
+            <View
+              className="absolute right-5"
+              style={{
+                bottom: '140px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: '#fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 100,
+              }}
+              onClick={() => scrollToBottomRef.current?.()}
+            >
+              <Text style={{ fontSize: '16px', color: '#333' }}>⬇</Text>
+            </View>
+          )}
+          {isOccupied && (
+            <View
+              className="mx-4 mb-2 px-4 py-2 rounded-lg text-center"
+              style={{ backgroundColor: '#fef3c7', color: '#92400e', fontSize: '13px' }}
+            >
+              该会话正在其他设备使用，仅可浏览
+            </View>
+          )}
           <ChatInput
             onSend={handleSend}
             onStop={handleStop}
             onSkillClick={() => setShowPopup((prev) => !prev)}
             isResponding={isResponding}
             selectedSkillName={selectedSkill?.title}
+            disabled={isOccupied}
           />
         </View>
       </View>

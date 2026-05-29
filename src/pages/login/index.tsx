@@ -6,7 +6,9 @@ import { Button, Image } from '@nutui/nutui-react-taro'
 import { login } from '@/api/login'
 import LOGO from '@/assets/images/logo.png'
 import { validateLogin } from '@/schemas/user'
-import { useUserStore, waitForHydration } from '@/store/useUserStore'
+// import { useUserStore, waitForHydration } from '@/store/useUserStore'
+import { ws } from '@/services/ws'
+import { useUserStore } from '@/store/useUserStore'
 
 type LoginMode = 'wechat' | 'account'
 
@@ -24,12 +26,12 @@ export default function Login() {
   } = useUserStore()
 
   useEffect(() => {
-    waitForHydration.then(() => {
-      const token = useUserStore.getState().accessToken
-      if (token) {
-        Taro.switchTab({ url: '/pages/chat/index' })
-      }
-    })
+    // waitForHydration.then(() => {
+    const token = useUserStore.getState().accessToken
+    if (token) {
+      Taro.switchTab({ url: '/pages/chat/index' })
+    }
+    // })
   }, [])
 
   const handleWechatLogin = async () => {
@@ -44,6 +46,7 @@ export default function Login() {
         setAccessExpireTime(res.accessExpire)
         setRefreshExpireTime(res.refreshExpire)
         setUserInfo(res.userInfo)
+        ws.connect(res.accessToken, String(res.userInfo.account))
         Taro.switchTab({ url: '/pages/chat/index' })
         return
       } catch (err: any) {
@@ -69,6 +72,7 @@ export default function Login() {
       setAccessExpireTime(res.accessExpire)
       setRefreshExpireTime(res.refreshExpire)
       setUserInfo(res.userInfo)
+      ws.connect(res.accessToken, String(res.userInfo.account))
       Taro.switchTab({ url: '/pages/chat/index' })
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '登录失败，请重试', icon: 'none' })
