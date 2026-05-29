@@ -1,4 +1,4 @@
-import { JSEncrypt } from 'jsencrypt'
+import WxmpRsa from 'wxmp-rsa'
 
 const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvts8T06L8b1plhkOIDhM
@@ -19,19 +19,21 @@ interface DecryptedData {
 const usedNonces = new Set<number>()
 
 export function decryptPassword(cipherText: string): string | null {
-  const decrypt = new JSEncrypt()
-  decrypt.setPublicKey(PUBLIC_KEY)
-
-  const decrypted = decrypt.decrypt(cipherText)
-  if (!decrypted) {
-    console.error('解密失败')
-    return null
-  }
-
   try {
+    // 替换为小程序专用 RSA
+    const rsa = new WxmpRsa()
+    rsa.setPublicKey(PUBLIC_KEY)
+
+    // 重点：小程序必须用 decryptLong 解密长文本
+    const decrypted = rsa.decryptLong(cipherText)
+    if (!decrypted) {
+      console.error('解密失败')
+      return null
+    }
+
     const data: DecryptedData = JSON.parse(decrypted)
 
-    // 校验过期时间（允许5分钟误差）
+    // 校验过期时间
     const now = Date.now()
     const timeDiff = Math.abs(now - data.exp)
     if (timeDiff > 5 * 60 * 1000) {
@@ -39,21 +41,22 @@ export function decryptPassword(cipherText: string): string | null {
       return null
     }
 
-    // 校验 nonce 是否重复
+    // 校验 nonce
     if (usedNonces.has(data.nonce)) {
       console.error('nonce 重复，拒绝展示')
       return null
     }
     usedNonces.add(data.nonce)
 
+    // 清理缓存
     if (usedNonces.size > 100) {
       const arr = Array.from(usedNonces)
       arr.slice(0, 50).forEach((n) => usedNonces.delete(n))
     }
 
     return data.pwd
-  } catch {
-    console.error('解密数据格式错误')
+  } catch (err) {
+    console.error('解密异常：', err)
     return null
   }
 }
