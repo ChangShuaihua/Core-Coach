@@ -43,10 +43,15 @@ let pendingQueue: Array<(token: string) => void> = []
 const REFRESH_ADVANCE_MS = 2 * 60 * 1000
 
 // 从 storage 实时读取存储的状态（绕过 store 水合问题）
-function getStoredState(): { accessToken: string; refreshToken: string; accessExpireTime: number } {
+export function getStoredState(): {
+  accessToken: string
+  refreshToken: string
+  accessExpireTime: number
+  userInfo: { account: string; nickname: string; avatar: string } | null
+} {
   try {
     const raw = Taro.getStorageSync('user-storage')
-    if (!raw) return { accessToken: '', refreshToken: '', accessExpireTime: 0 }
+    if (!raw) return { accessToken: '', refreshToken: '', accessExpireTime: 0, userInfo: null }
     const str = typeof raw === 'string' ? raw : JSON.stringify(raw)
     const parsed = JSON.parse(str)
     const s = parsed?.state || {}
@@ -54,9 +59,10 @@ function getStoredState(): { accessToken: string; refreshToken: string; accessEx
       accessToken: s.accessToken || '',
       refreshToken: s.refreshToken || '',
       accessExpireTime: s.accessExpireTime || 0,
+      userInfo: s.userInfo || null,
     }
   } catch {
-    return { accessToken: '', refreshToken: '', accessExpireTime: 0 }
+    return { accessToken: '', refreshToken: '', accessExpireTime: 0, userInfo: null }
   }
 }
 

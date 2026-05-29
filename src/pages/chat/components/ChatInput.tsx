@@ -9,6 +9,7 @@ interface ChatInputProps {
   onSkillClick?: () => void
   isResponding?: boolean
   selectedSkillName?: string | null
+  disabled?: boolean
 }
 
 const ChatInput = ({
@@ -17,11 +18,12 @@ const ChatInput = ({
   onSkillClick,
   isResponding,
   selectedSkillName,
+  disabled,
 }: ChatInputProps) => {
   const [value, setValue] = useState('')
 
   const handleSend = () => {
-    if (!value.trim() || isResponding) return
+    if (!value.trim() || isResponding || disabled) return
     onSend(value)
     setValue('')
   }
@@ -50,7 +52,7 @@ const ChatInput = ({
           <Textarea
             value={value}
             onInput={(e) => setValue(e.detail.value)}
-            placeholder="发送消息..."
+            placeholder={disabled ? '该会话正在其他设备使用中' : '发送消息...'}
             placeholderClass="text-gray-400"
             adjustPosition={false}
             showConfirmBar={false}
@@ -65,7 +67,7 @@ const ChatInput = ({
           onClick={handleAction}
           className="shadow w-7 rounded-xl flex items-center justify-center"
           style={{
-            backgroundColor: value.trim() ? '#f97316' : '#d1d5db',
+            backgroundColor: disabled ? '#e5e7eb' : value.trim() ? '#f97316' : '#d1d5db',
             minHeight: '70px',
           }}
         >

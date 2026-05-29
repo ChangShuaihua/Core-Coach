@@ -1,13 +1,24 @@
 import Taro from '@tarojs/taro'
 import { create } from 'zustand'
 import * as chatApi from '@/api/chat'
-import { Conversation, Message, MessageStatus, Skill } from '@/types/chat'
-
-// 基础工作流 ID，不选技能时使用
-const DEFAULT_WORKFLOW_ID = '7639722909792419886'
+import { ws } from '@/services/ws'
+import { Conversation, Message, MessageStatus, Skill, SessionRuntime } from '@/types/chat'
+import type { WsAbortResultData } from '@/types/ws'
 
 // 技能持久化 key
 const SKILL_STORAGE_KEY = 'chat_selected_skill'
+
+// 发送超时（30 秒无响应标记为失败）
+const SEND_TIMEOUT_MS = 30_000
+const sendTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+
+export function clearSendTimeout(sessionId: string) {
+  const timer = sendTimeouts.get(sessionId)
+  if (timer) {
+    clearTimeout(timer)
+    sendTimeouts.delete(sessionId)
+  }
+}
 
 function loadPersistedSkill(): Skill | null {
   try {
@@ -31,42 +42,32 @@ function persistSkill(skill: Skill | null) {
 interface ChatStore {
   // ====== State ======
 
-  // 会话表（扁平化，Record<id, Conversation>）
   conversations: Record<string, Conversation>
-
-  // 消息表（按会话分组，Record<sessionId, Message[]>）
   messagesBySession: Record<string, Message[]>
-
-  // 当前选中的会话 ID
   currentConversationId: string | null
-
-  // 技能列表
   skills: Skill[]
-
-  // 选中的技能（持久化）
+  defaultWorkflow: Skill | null
   selectedSkill: Skill | null
-
-  // 消息分页状态
   messageCursor: string | null
   hasMoreMessages: boolean
   isLoadingMore: boolean
 
-  // 进行中的流式消息（支持多条并发）
-  streamingMessages: Record<string, { sessionId: string; content: string }>
-
-  // 当前请求任务（用于 abort 打断）
-  currentRequest: Taro.RequestTask<any> | null
+  // WebSocket 相关
+  wsConnected: boolean
+  sessionRoles: Record<string, 'chatter' | 'viewer'>
+  sessionRuntimes: Record<string, SessionRuntime>
+  lastStreamIds: Record<string, string>
+  pendingAborts: Map<string, (data: WsAbortResultData) => void>
 
   // ====== Actions ======
 
-  // 会话
   loadConversations: () => Promise<void>
   ensurePendingConversation: () => void
   switchConversation: (id: string) => Promise<void>
   deleteConversation: (id: string) => void
   addConversation: (conv: Conversation) => void
+  updateConversation: (id: string, updates: Partial<Conversation>) => void
 
-  // 消息
   loadMessages: (sessionId: string) => Promise<void>
   loadMoreMessages: () => Promise<void>
   appendMessage: (sessionId: string, message: Message) => void
@@ -77,16 +78,16 @@ interface ChatStore {
     content?: string
   ) => void
 
-  // 发送消息
   sendMessage: (content: string) => Promise<string | undefined>
-
-  // 打断
   stopResponding: () => void
 
-  // 技能
-  loadSkills: () => Promise<void>
+  loadWorkflows: () => Promise<void>
   toggleSkill: (skill: Skill) => void
   getCurrentWorkflowId: () => string
+
+  setWsConnected: (connected: boolean) => void
+  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => void
+  setLastStreamId: (sessionId: string, streamId: string) => void
 }
 
 export const useChatStore = create<ChatStore>()((set, get) => ({
@@ -95,12 +96,16 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   messagesBySession: {},
   currentConversationId: null,
   skills: [],
+  defaultWorkflow: null,
   selectedSkill: loadPersistedSkill(),
   messageCursor: null,
   hasMoreMessages: true,
   isLoadingMore: false,
-  streamingMessages: {},
-  currentRequest: null,
+  wsConnected: false,
+  sessionRoles: {},
+  sessionRuntimes: {},
+  lastStreamIds: {},
+  pendingAborts: new Map(),
 
   // ====== 会话 Actions ======
 
@@ -108,13 +113,11 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const result = await chatApi.getConversations()
     const { conversations } = get()
 
-    // 合并：保留本地临时会话，更新远程会话
     const merged: Record<string, Conversation> = { ...conversations }
     result.conversations.forEach((conv) => {
       if (!merged[conv.id]) {
         merged[conv.id] = conv
       } else {
-        // 更新已有会话的元数据
         merged[conv.id] = {
           ...merged[conv.id],
           title: conv.title,
@@ -148,6 +151,17 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   switchConversation: async (id: string) => {
+    const { currentConversationId } = get()
+
+    // 离开旧会话（pending 不用通知服务端）
+    if (currentConversationId && !currentConversationId.startsWith('pending-')) {
+      ws.send('session_leave', {
+        session_id: currentConversationId,
+        create_time: Math.floor(Date.now() / 1000),
+      })
+    }
+
+    // 前端状态切换
     set({
       currentConversationId: id,
       messageCursor: null,
@@ -155,10 +169,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       isLoadingMore: false,
     })
 
-    // 临时会话跳过请求
+    // 进入新会话（pending 不用通知服务端）
     if (id.startsWith('pending-')) return
 
-    // 如果已有缓存消息，不重新加载
+    ws.send('session_enter', {
+      session_id: id,
+      create_time: Math.floor(Date.now() / 1000),
+    })
+
+    // 加载消息（如果未缓存）
     const { messagesBySession } = get()
     if (messagesBySession[id]) return
 
@@ -197,10 +216,21 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }))
   },
 
+  updateConversation: (id: string, updates: Partial<Conversation>) => {
+    set((state) => {
+      const conv = state.conversations[id]
+      if (!conv) return state
+      return {
+        conversations: { ...state.conversations, [id]: { ...conv, ...updates } },
+      }
+    })
+  },
+
   // ====== 消息 Actions ======
 
   loadMessages: async (sessionId: string) => {
     if (sessionId.startsWith('pending-')) return
+    if (get().sessionRuntimes[sessionId]) return
 
     const result = await chatApi.getMessages(sessionId)
     if (get().currentConversationId === sessionId) {
@@ -243,21 +273,19 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       const messages = state.messagesBySession[sessionId] || []
       const updatedMessages = [...messages, message]
 
-      // 更新会话元数据
       const conv = state.conversations[sessionId]
       const updatedConv = conv
         ? {
             ...conv,
             title:
               conv.title === '新对话' && message.role === 'user'
-                ? message.content.slice(0, 20) || '新对话'
+                ? message.content.slice(0, 10) || '新对话'
                 : conv.title,
             updatedAt: message.timestamp,
             messageCount: updatedMessages.length,
           }
         : undefined
 
-      // 当前置顶当前会话
       if (updatedConv) {
         const { [sessionId]: _, ...rest } = state.conversations
         return {
@@ -287,14 +315,19 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
   },
 
-  // ====== 发送消息 ======
+  // ====== 发送消息（通过 WebSocket） ======
 
   sendMessage: async (content: string) => {
-    const { currentConversationId, selectedSkill } = get()
-    const workflowId = selectedSkill?.workflowId || DEFAULT_WORKFLOW_ID
+    const { currentConversationId, selectedSkill, defaultWorkflow, sessionRoles } = get()
+    const currentWorkflow = selectedSkill || defaultWorkflow
+    const workflowId = currentWorkflow?.id || ''
     const isNewConversation = !currentConversationId || currentConversationId.startsWith('pending-')
 
-    // 创建消息
+    if (currentConversationId && sessionRoles[currentConversationId] === 'viewer') {
+      Taro.showToast({ title: '你当前是浏览模式，无法发送消息', icon: 'none' })
+      return
+    }
+
     const userMsg: Message = {
       id: 'u-' + Date.now(),
       role: 'user',
@@ -311,77 +344,134 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       status: 'pending',
     }
 
-    // 乐观更新
     const targetSessionId = currentConversationId || 'pending-' + Date.now()
     get().appendMessage(targetSessionId, userMsg)
     get().appendMessage(targetSessionId, aiMsg)
 
-    // 调用 API
-    const sessionId = isNewConversation ? undefined : currentConversationId
-    const { request, promise } = chatApi.sendMessage(content, workflowId, sessionId)
+    const requestId = ws.generateRequestId()
+    set((state) => ({
+      sessionRuntimes: {
+        ...state.sessionRuntimes,
+        [targetSessionId]: { requestId, assistantMsgId: aiMsgId, status: 'pending' },
+      },
+    }))
 
-    set({ currentRequest: request })
+    // 检查连接状态
+    if (!ws.canSend()) {
+      ws.tryReconnect()
+      Taro.showToast({ title: '连接断开，正在重连...', icon: 'none' })
+      get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '连接断开，请稍后重试')
+      set((state) => {
+        const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
+        return { sessionRuntimes: rest }
+      })
+      return
+    }
 
-    try {
-      const result = await promise
-      const newSessionId = result.sessionId
+    ws.send('chat', {
+      output_type: currentWorkflow?.outputType === 0 ? 'sync' : 'stream',
+      request_id: requestId,
+      session_id: isNewConversation ? '' : currentConversationId!,
+      content,
+      workflow_id: workflowId,
+      create_time: Math.floor(Date.now() / 1000),
+    })
 
-      // 新会话：替换临时 ID
-      if (isNewConversation && currentConversationId?.startsWith('pending-')) {
+    // 启动发送超时定时器
+    const timer = setTimeout(() => {
+      sendTimeouts.delete(targetSessionId)
+      const runtime = get().sessionRuntimes[targetSessionId]
+      if (runtime && runtime.assistantMsgId === aiMsgId) {
+        get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '请求超时，请重试')
         set((state) => {
-          const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
-          const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
-
-          const newConv: Conversation = {
-            ...(pendingConv as Conversation),
-            id: newSessionId,
-            title: content.slice(0, 20) || '新对话',
-          }
-
-          return {
-            currentConversationId: newSessionId,
-            conversations: { [newSessionId]: newConv, ...restConvs },
-            messagesBySession: { [newSessionId]: pendingMsgs || [], ...restMsgs },
-          }
+          const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
+          return { sessionRuntimes: rest }
         })
       }
+    }, SEND_TIMEOUT_MS)
+    sendTimeouts.set(targetSessionId, timer)
 
-      // 更新 AI 消息
-      const finalSessionId = isNewConversation ? newSessionId : currentConversationId!
-      get().updateMessageStatus(finalSessionId, aiMsgId, 'success', result.content)
-
-      return newSessionId
-    } catch (err: any) {
-      if (err?.errMsg?.includes('abort') || err?.message?.includes('abort')) return
-      const finalSessionId = isNewConversation ? targetSessionId : currentConversationId!
-      get().updateMessageStatus(finalSessionId, aiMsgId, 'error', '发送失败')
-    } finally {
-      set({ currentRequest: null })
-    }
+    return targetSessionId
   },
 
-  // ====== 打断 ======
+  // ====== 打断（通过 WebSocket） ======
 
   stopResponding: () => {
-    const { currentConversationId, messagesBySession, currentRequest } = get()
-    if (currentRequest) {
-      currentRequest.abort()
-    }
+    const { currentConversationId, sessionRuntimes } = get()
     if (!currentConversationId) return
 
-    const messages = messagesBySession[currentConversationId] || []
-    messages.forEach((m) => {
-      if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
-        get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
-      }
+    const runtime = sessionRuntimes[currentConversationId]
+    if (!runtime) return
+
+    clearSendTimeout(currentConversationId)
+
+    if (!ws.canSend()) {
+      // 连接不可用，直接清理本地状态
+      const messages = get().messagesBySession[currentConversationId] || []
+      messages.forEach((m) => {
+        if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
+          get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
+        }
+      })
+      set((state) => {
+        const { [currentConversationId]: _, ...rest } = state.sessionRuntimes
+        return { sessionRuntimes: rest }
+      })
+      return
+    }
+
+    // 注册 pendingAbort resolver
+    const requestId = runtime.requestId
+    new Promise<WsAbortResultData>((resolve) => {
+      set((state) => {
+        const newMap = new Map(state.pendingAborts)
+        newMap.set(requestId, resolve)
+        return { pendingAborts: newMap }
+      })
+
+      ws.send('abort', {
+        request_id: requestId,
+        session_id: currentConversationId,
+        reason: 'user_cancelled',
+        create_time: Math.floor(Date.now() / 1000),
+      })
+
+      setTimeout(() => {
+        const { pendingAborts } = get()
+        if (pendingAborts.has(requestId)) {
+          pendingAborts.delete(requestId)
+          resolve({
+            request_id: requestId,
+            session_id: currentConversationId,
+            success: true,
+            stopped_at_chunk: 0,
+            message: '中断超时',
+            create_time: Math.floor(Date.now() / 1000),
+          })
+        }
+      }, 5000)
+    }).then(() => {
+      // abort 确认后清理（chatWsHandlers 中 abort_result 也会处理）
+      const messages = get().messagesBySession[currentConversationId] || []
+      messages.forEach((m) => {
+        if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
+          get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
+        }
+      })
+      set((state) => {
+        const { [currentConversationId]: _, ...rest } = state.sessionRuntimes
+        return { sessionRuntimes: rest }
+      })
     })
   },
 
   // ====== 技能 ======
 
-  loadSkills: async () => {
-    const skills = await chatApi.getSkills()
-    set({ skills })
+  loadWorkflows: async () => {
+    const all = await chatApi.getWorkflows()
+    const basic = all.find((w) => w.type === 1) || null
+    const skills = all.filter((w) => w.type === 2)
+    set({ defaultWorkflow: basic, skills })
   },
 
   toggleSkill: (skill: Skill) => {
@@ -392,7 +482,37 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   getCurrentWorkflowId: () => {
-    const { selectedSkill } = get()
-    return selectedSkill?.workflowId || DEFAULT_WORKFLOW_ID
+    const { selectedSkill, defaultWorkflow } = get()
+    return selectedSkill?.id || defaultWorkflow?.id || ''
+  },
+
+  // ====== WebSocket 状态 ======
+
+  setWsConnected: (connected: boolean) => set({ wsConnected: connected }),
+
+  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => {
+    set((state) => ({
+      sessionRoles: { ...state.sessionRoles, [sessionId]: role },
+    }))
+  },
+
+  setLastStreamId: (sessionId: string, streamId: string) => {
+    set((state) => ({
+      lastStreamIds: { ...state.lastStreamIds, [sessionId]: streamId },
+    }))
   },
 }))
+
+// ============ 注入 ws 重连上下文 getter ============
+
+ws.setReconnectContextGetter(() => {
+  const state = useChatStore.getState()
+  const sessions = Object.entries(state.lastStreamIds).map(([sessionId, lastStreamId]) => ({
+    sessionId,
+    lastStreamId,
+  }))
+  return {
+    currentSessionId: state.currentConversationId || '',
+    sessions,
+  }
+})

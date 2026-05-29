@@ -8,7 +8,9 @@ import { login } from '@/api/login'
 import defaultAvatar from '@/assets/images/avatar.png'
 import LOGO from '@/assets/images/logo.png'
 import { validateLogin } from '@/schemas/user'
-import { useUserStore, waitForHydration } from '@/store/useUserStore'
+// import { useUserStore, waitForHydration } from '@/store/useUserStore'
+import { ws } from '@/services/ws'
+import { useUserStore } from '@/store/useUserStore'
 
 type LoginMode = 'wechat' | 'account'
 
@@ -29,12 +31,12 @@ export default function Login() {
   } = useUserStore()
 
   useEffect(() => {
-    waitForHydration.then(() => {
-      const token = useUserStore.getState().accessToken
-      if (token) {
-        Taro.switchTab({ url: '/pages/chat/index' })
-      }
-    })
+    // waitForHydration.then(() => {
+    const token = useUserStore.getState().accessToken
+    if (token) {
+      Taro.switchTab({ url: '/pages/chat/index' })
+    }
+    // })
   }, [])
 
   // 登录成功后判断是否需要完善资料
@@ -101,6 +103,8 @@ export default function Login() {
         setRefreshExpireTime(res.refreshExpire)
         setUserInfo(res.userInfo)
         afterLogin(res.userInfo)
+        ws.connect(res.accessToken, String(res.userInfo.account))
+        Taro.switchTab({ url: '/pages/chat/index' })
         return
       } catch (err: any) {
         if (i === MAX_RETRY) {
@@ -125,6 +129,8 @@ export default function Login() {
       setRefreshExpireTime(res.refreshExpire)
       setUserInfo(res.userInfo)
       afterLogin(res.userInfo)
+      ws.connect(res.accessToken, String(res.userInfo.account))
+      Taro.switchTab({ url: '/pages/chat/index' })
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '登录失败，请重试', icon: 'none' })
     }

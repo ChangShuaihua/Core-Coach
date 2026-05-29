@@ -38,8 +38,14 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const switchConversation = useChatStore((s) => s.switchConversation)
 
-  // 从 Record 转为数组，按更新时间倒序排列
-  const sorted = Object.values(conversationsMap).sort((a, b) => b.updatedAt - a.updatedAt)
+  // 从 Record 转为数组，pending 会话置顶，其余按更新时间倒序
+  const sorted = Object.values(conversationsMap).sort((a, b) => {
+    const aPending = a.id.startsWith('pending-')
+    const bPending = b.id.startsWith('pending-')
+    if (aPending && !bPending) return -1
+    if (!aPending && bPending) return 1
+    return b.updatedAt - a.updatedAt
+  })
 
   const handleClick = (id: string) => {
     switchConversation(id)
@@ -62,7 +68,7 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
               onClick={() => handleClick(conv.id)}
             />
           ))}
-          <View className="h-2" />
+          <View className="h-4" />
         </>
       )}
     </ScrollView>

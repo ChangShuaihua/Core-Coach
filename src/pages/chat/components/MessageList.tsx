@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { ScrollView, View, Text } from '@tarojs/components'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { ScrollView, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Message } from '@/types/chat'
 import MessageBubble from './MessageBubble'
@@ -10,6 +10,8 @@ interface MessageListProps {
   isLoadingMore: boolean
   onLoadMore: () => void
   scrollToBottomTrigger?: number
+  onScrollToBottomStateChange?: (show: boolean) => void
+  scrollToBottomRef?: React.MutableRefObject<(() => void) | null>
 }
 
 const MessageList = ({
@@ -18,13 +20,14 @@ const MessageList = ({
   isLoadingMore,
   onLoadMore,
   scrollToBottomTrigger,
+  onScrollToBottomStateChange,
+  scrollToBottomRef,
 }: MessageListProps) => {
   const [toView, setToView] = useState('')
   const scrollCountRef = useRef(0)
   const isAutoScrollRef = useRef(true)
   const scrollViewRef = useRef<any>(null)
   const loadingRef = useRef(false)
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
 
   const isResponding = messages.some(
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
@@ -35,23 +38,29 @@ const MessageList = ({
     loadingRef.current = isLoadingMore
   }, [isLoadingMore])
 
-  // 滚动到底部的方法
-  const scrollToBottom = () => {
+  // 暴露 scrollToBottom 给父组件
+  const scrollToBottom = useCallback(() => {
     scrollCountRef.current += 1
     const anchorId = `bottomAnchor-${scrollCountRef.current}`
     setToView('')
     setTimeout(() => {
       setToView(anchorId)
-      setShowScrollToBottom(false)
+      onScrollToBottomStateChange?.(false)
     }, 100)
-  }
+  }, [onScrollToBottomStateChange])
+
+  useEffect(() => {
+    if (scrollToBottomRef) {
+      scrollToBottomRef.current = scrollToBottom
+    }
+  }, [scrollToBottomRef, scrollToBottom])
 
   // 监听消息变化，自动滚动到底部（仅新消息时）
   useEffect(() => {
     if (messages.length > 0 && isAutoScrollRef.current) {
       scrollToBottom()
     }
-  }, [messages.length, isResponding])
+  }, [messages.length, isResponding, scrollToBottom])
 
   // 监听外部触发的滚动到底部
   useEffect(() => {
@@ -74,7 +83,7 @@ const MessageList = ({
     const scrollViewHeight = (Taro.getWindowInfo?.().windowHeight || 600) - 200
     const isNearBottom = scrollHeight - scrollTop - scrollViewHeight < 100
     isAutoScrollRef.current = isNearBottom
-    setShowScrollToBottom(!isNearBottom)
+    onScrollToBottomStateChange?.(!isNearBottom)
   }
 
   return (
@@ -96,25 +105,6 @@ const MessageList = ({
           style={{ height: '20px', width: '100%' }}
         />
       </View>
-
-      {showScrollToBottom && (
-        <View
-          onClick={scrollToBottom}
-          style={{
-            position: 'fixed',
-            bottom: '200px',
-            right: '20px',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            color: '#fff',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            fontSize: '14px',
-            zIndex: 100,
-          }}
-        >
-          <Text>⬇</Text>
-        </View>
-      )}
     </ScrollView>
   )
 }
