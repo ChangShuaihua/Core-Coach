@@ -68,53 +68,18 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
     if (!currentStep) return false
     if (!currentStep.required) return true
 
-    const fieldKey = `step_${currentStep.step}`
-    const selectedValue = data[fieldKey]
-
-    switch (currentStep.type) {
-      case 'selector':
-        if (currentStep.multiple) {
-          if (!Array.isArray(selectedValue) || selectedValue.length === 0) {
-            showToast(`请选择${currentStep.title}`)
-            return false
-          }
-          if (currentStep.maxSelect && selectedValue.length > currentStep.maxSelect) {
-            showToast(`最多只能选择${currentStep.maxSelect}项`)
-            return false
-          }
-        } else {
-          if (!selectedValue) {
-            showToast(`请选择${currentStep.title}`)
-            return false
-          }
-        }
-        return true
-      case 'upload':
-        if (!data[fieldKey]) {
-          showToast(
-            currentStep.type === 'upload'
-              ? `请上传${currentStep.title}`
-              : `请选择${currentStep.title}`
-          )
+    if (currentStep.type === 'param_settings') {
+      const requiredFields = ['age', 'gameType']
+      for (const field of requiredFields) {
+        const val = data[field]
+        if (val === undefined || val === null || val === '') {
+          showToast(`请完成所有必填项`)
           return false
         }
-        return true
-
-      case 'param_settings': {
-        const requiredFields = ['age', 'gameType']
-        for (const field of requiredFields) {
-          const val = data[field]
-          if (val === undefined || val === null || val === '') {
-            showToast(`请完成所有必填项`)
-            return false
-          }
-        }
-        return true
       }
-
-      default:
-        return true
     }
+
+    return true
   }
 
   const showToast = (title: string) => {

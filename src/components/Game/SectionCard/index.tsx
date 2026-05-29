@@ -29,7 +29,7 @@ export default function SectionCard({
       style={{
         backgroundColor: style.bg,
         borderRadius: '12px',
-        padding: '16px',
+        padding: '12px 0px',
         border: `1px solid ${style.border}`,
         marginBottom: '24px',
       }}

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { getSkillList } from '@/api/creation'
 import { getRecentCreations } from '@/api/more'
 import Card from '@/components/Card'
@@ -45,14 +45,7 @@ export default function CreationPage() {
   const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
   const setSkillList = useCreationStore((state) => state.setSkillList)
   const [recentList, setRecentList] = useState<RecentCreation[]>([])
-
-  useEffect(() => {
-    console.log('skillListLoaded:', skillListLoaded)
-    if (!skillListLoaded) {
-      fetchSkills()
-    }
-    fetchRecent()
-  }, [])
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchSkills = async () => {
     console.log('开始获取技能列表...')
@@ -65,15 +58,59 @@ export default function CreationPage() {
     }
   }
 
-  const fetchRecent = async () => {
+  const fetchRecent = useCallback(async () => {
     try {
       const data = await getRecentCreations()
       console.log('最近创作数据:', data)
       setRecentList(data)
+      return data
     } catch (error) {
       console.error('获取最近创作失败:', error)
+      return null
     }
-  }
+  }, [])
+
+  // 有处理中任务时启动轮询，全部完成时停止
+  const startPollIfNeeded = useCallback(
+    (list: RecentCreation[]) => {
+      const hasProcessing = list.some((item) => item.status === 2 || item.status === 3)
+      if (hasProcessing && !pollTimerRef.current) {
+        pollTimerRef.current = setInterval(async () => {
+          const fresh = await fetchRecent()
+          if (fresh && !fresh.some((item) => item.status === 2 || item.status === 3)) {
+            if (pollTimerRef.current) {
+              clearInterval(pollTimerRef.current)
+              pollTimerRef.current = null
+            }
+          }
+        }, 3000)
+      }
+    },
+    [fetchRecent]
+  )
+
+  // 页面每次可见时刷新列表
+  useDidShow(() => {
+    fetchRecent().then((data) => {
+      if (data) startPollIfNeeded(data)
+    })
+  })
+
+  useEffect(() => {
+    if (!skillListLoaded) {
+      fetchSkills()
+    }
+  }, [])
+
+  // 组件卸载时清理轮询
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current)
+        pollTimerRef.current = null
+      }
+    }
+  }, [])
 
   const handleSkillClick = (skill: Skill) => {
     if (skill.status !== 1) {

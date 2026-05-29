@@ -86,9 +86,6 @@ importers:
       dayjs:
         specifier: ^1.11.20
         version: 1.11.20
-      jsencrypt:
-        specifier: ^3.5.4
-        version: 3.5.4
       react:
         specifier: ^18.0.0
         version: 18.3.1
@@ -98,6 +95,9 @@ importers:
       react-hook-form:
         specifier: ^7.75.0
         version: 7.75.0(react@18.3.1)
+      wxmp-rsa:
+        specifier: ^2.1.0
+        version: 2.1.0
       zustand:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@18.3.28)(react@18.3.1)
@@ -4363,9 +4363,6 @@ packages:
       canvas:
         optional: true
 
-  jsencrypt@3.5.4:
-    resolution: {integrity: sha512-kNjfYEMNASxrDGsmcSQh/rUTmcoRfSUkxnAz+MMywM8jtGu+fFEZ3nJjHM58zscVnwR0fYmG9sGkTDjqUdpiwA==}
-
   jsesc@3.1.0:
     resolution: {integrity: sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA==}
     engines: {node: '>=6'}
@@ -6824,6 +6821,9 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  wxmp-rsa@2.1.0:
+    resolution: {integrity: sha512-VbWMJ+vf8t7G93sjkqjCn5yGy/Si3M8uD6OFebqjJWJ1R0WCyle7X6SNia7WWG6Qe1F2/OWxhbcSGA6ebUBwIA==}
 
   xml-name-validator@5.0.0:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
@@ -11656,8 +11656,6 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  jsencrypt@3.5.4: {}
-
   jsesc@3.1.0: {}
 
   json-buffer@3.0.0: {}
@@ -14221,6 +14219,8 @@ snapshots:
       signal-exit: 3.0.7
 
   ws@8.20.1: {}
+
+  wxmp-rsa@2.1.0: {}
 
   xml-name-validator@5.0.0: {}
 
