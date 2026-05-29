@@ -113,3 +113,55 @@ export function verifyAndDecryptPassword(signedData: string): string | null {
     return null
   }
 }
+
+/**
+ * 生成 RSA 1024 位密钥对（异步，小程序环境可能耗时数秒）
+ */
+export async function generateRsaKeyPair(): Promise<{
+  publicKey: string
+  privateKey: string
+}> {
+  return new Promise((resolve, reject) => {
+    try {
+      const keyPair = new WxmpRsa()
+      keyPair.getKey(() => {
+        try {
+          const publicKey = keyPair.getPublicKey()
+          const privateKey = keyPair.getPrivateKey()
+          if (!publicKey || !privateKey) {
+            reject(new Error('密钥对生成结果为空'))
+            return
+          }
+          resolve({ publicKey, privateKey })
+        } catch (err) {
+          reject(err)
+        }
+      })
+    } catch {
+      // 回调方式失败时回退到同步生成
+      try {
+        const keyPair = new WxmpRsa()
+        keyPair.getKey()
+        const publicKey = keyPair.getPublicKey()
+        const privateKey = keyPair.getPrivateKey()
+        resolve({ publicKey, privateKey })
+      } catch (syncErr) {
+        reject(syncErr)
+      }
+    }
+  })
+}
+
+/**
+ * 用私钥解密后端返回的密码密文
+ */
+export function decryptWithPrivateKey(cipherText: string, privateKeyPem: string): string | null {
+  try {
+    const decryptor = new WxmpRsa()
+    decryptor.setPrivateKey(privateKeyPem)
+    return decryptor.decryptLong(cipherText) || null
+  } catch {
+    console.error('RSA 私钥解密失败')
+    return null
+  }
+}
