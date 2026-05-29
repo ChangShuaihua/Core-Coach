@@ -16,8 +16,8 @@ export default function ProfilePage() {
 
   const userInfo = storeUserInfo ?? {
     account: '',
-    nickname: '未登录',
-    avatar: '',
+    nickName: '未登录',
+    avatarUrl: '',
   }
 
   const handleLogout = async () => {
