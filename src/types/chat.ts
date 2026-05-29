@@ -22,6 +22,13 @@ export interface Skill {
   outputType: number // 0非流式 1流式
 }
 
+// 单个 session 的实时流运行状态
+export interface SessionRuntime {
+  requestId: string // 当前活跃的 request_id
+  assistantMsgId: string // 对应的 assistant 消息 ID
+  status: 'pending' | 'streaming' | 'done'
+}
+
 // 快捷操作接口（deprecated，后续统一用 Skill）
 export interface QuickAction {
   id: string

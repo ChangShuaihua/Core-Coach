@@ -31,7 +31,7 @@ class WsManager {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectAttempts = 0
   private currentSessionId = ''
-  private lastStreamId = ''
+  private lastStreamIds: Record<string, string> = {}
   private token = ''
   private userId = ''
   private intentionalClose = false
@@ -230,6 +230,11 @@ class WsManager {
     }
 
     const { event_type, data } = msg
+    console.log(
+      '[WS] received event:',
+      event_type,
+      data?.session_id ? `session_id: ${data.session_id}` : ''
+    )
 
     switch (event_type) {
       case 'connected':
@@ -238,7 +243,7 @@ class WsManager {
         this.isReconnecting = false
         this.startHeartbeat()
         console.log('[WS] authenticated')
-        if (this.lastStreamId && this.currentSessionId) {
+        if (Object.keys(this.lastStreamIds).length > 0) {
           this.sendReconnect()
         }
         break
@@ -260,7 +265,9 @@ class WsManager {
         break
 
       case 'stream_chunk':
-        this.lastStreamId = data.stream_id
+        if (data.session_id) {
+          this.lastStreamIds[data.session_id] = data.stream_id
+        }
         break
 
       case 'abort_result':
@@ -360,15 +367,18 @@ class WsManager {
     this.isReconnecting = false
     this.reconnectAttempts = 0
     this.pendingAborts.clear()
+    this.lastStreamIds = {}
   }
 
   private sendReconnect(): void {
     const { accessToken } = getStoredState()
+    // 使用当前 session 的 lastStreamId（向后兼容）
+    const lastStreamId = this.lastStreamIds[this.currentSessionId] || ''
     const data: WsReconnectData = {
       request_id: this.generateRequestId(),
       user_id: this.userId,
       token: accessToken || this.token,
-      last_stream_id: this.lastStreamId,
+      last_stream_id: lastStreamId,
       session_id: this.currentSessionId,
     }
     this.send('reconnect', data)
