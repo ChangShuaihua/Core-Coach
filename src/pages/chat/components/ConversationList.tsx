@@ -62,7 +62,7 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
               onClick={() => handleClick(conv.id)}
             />
           ))}
-          <View className="h-2" />
+          <View className="h-4" />
         </>
       )}
     </ScrollView>

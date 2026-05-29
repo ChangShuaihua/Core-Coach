@@ -21,13 +21,9 @@ const taroStorage = {
   getItem: (name: string) => {
     try {
       const data = Taro.getStorageSync(name)
-      console.log('[Storage] getItem', name, '→', typeof data, data)
       if (!data) return null
-      // Zustand 期望返回的是 JSON 字符串，它自己会 JSON.parse
-      // Taro.getStorageSync 可能返回 object 或 string，统一转为 string
       return typeof data === 'string' ? data : JSON.stringify(data)
     } catch (e) {
-      console.warn('[Storage] getItem 失败:', name, e)
       return null
     }
   },
