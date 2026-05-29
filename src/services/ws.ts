@@ -52,6 +52,10 @@ class WsManager {
     return this.currentSessionId
   }
 
+  private canSend(): boolean {
+    return this._state === 'authenticated' && !!this.socketTask
+  }
+
   // ============ 事件订阅 ============
 
   on(event: WsEventType, handler: EventHandler): void {
@@ -300,8 +304,26 @@ class WsManager {
 
   // ============ 公共 API ============
 
-  sendChat(data: WsChatData): void {
+  sendChat(data: WsChatData): boolean {
+    if (!this.canSend()) {
+      console.warn('[WS] cannot send chat, state:', this._state)
+      this.tryReconnect()
+      return false
+    }
     this.send('chat', data)
+    return true
+  }
+
+  private tryReconnect(): void {
+    if (this._state === 'connecting' || this._state === 'authenticated') return
+    const { accessToken } = getStoredState()
+    const token = accessToken || this.token
+    if (!token || !this.userId) {
+      console.warn('[WS] cannot reconnect: no token or userId')
+      return
+    }
+    this._state = 'disconnected'
+    this.scheduleReconnect(token, this.userId)
   }
 
   switchSession(oldSessionId: string, newSessionId: string): void {
@@ -318,6 +340,17 @@ class WsManager {
 
   sendAbort(sessionId: string, requestId: string): Promise<WsAbortResultData> {
     return new Promise((resolve) => {
+      if (!this.canSend()) {
+        resolve({
+          request_id: requestId,
+          session_id: sessionId,
+          success: false,
+          stopped_at_chunk: 0,
+          message: '连接不可用',
+          create_time: Math.floor(Date.now() / 1000),
+        })
+        return
+      }
       this.pendingAborts.set(requestId, resolve)
       const data: WsAbortData = {
         request_id: requestId,
