@@ -54,7 +54,7 @@ interface ChatStore {
 
   // WebSocket 相关
   wsConnected: boolean
-  sessionOccupied: Record<string, boolean>
+  sessionRoles: Record<string, 'chatter' | 'viewer'>
   sessionRuntimes: Record<string, SessionRuntime>
   lastStreamIds: Record<string, string>
   pendingAborts: Map<string, (data: WsAbortResultData) => void>
@@ -86,7 +86,7 @@ interface ChatStore {
   getCurrentWorkflowId: () => string
 
   setWsConnected: (connected: boolean) => void
-  setSessionOccupied: (sessionId: string, occupied: boolean) => void
+  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => void
   setLastStreamId: (sessionId: string, streamId: string) => void
 }
 
@@ -102,7 +102,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   hasMoreMessages: true,
   isLoadingMore: false,
   wsConnected: false,
-  sessionOccupied: {},
+  sessionRoles: {},
   sessionRuntimes: {},
   lastStreamIds: {},
   pendingAborts: new Map(),
@@ -151,6 +151,17 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   switchConversation: async (id: string) => {
+    const { currentConversationId } = get()
+
+    // 离开旧会话（pending 不用通知服务端）
+    if (currentConversationId && !currentConversationId.startsWith('pending-')) {
+      ws.send('session_leave', {
+        session_id: currentConversationId,
+        create_time: Math.floor(Date.now() / 1000),
+      })
+    }
+
+    // 前端状态切换
     set({
       currentConversationId: id,
       messageCursor: null,
@@ -158,8 +169,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       isLoadingMore: false,
     })
 
+    // 进入新会话（pending 不用通知服务端）
     if (id.startsWith('pending-')) return
 
+    ws.send('session_enter', {
+      session_id: id,
+      create_time: Math.floor(Date.now() / 1000),
+    })
+
+    // 加载消息（如果未缓存）
     const { messagesBySession } = get()
     if (messagesBySession[id]) return
 
@@ -300,13 +318,13 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   // ====== 发送消息（通过 WebSocket） ======
 
   sendMessage: async (content: string) => {
-    const { currentConversationId, selectedSkill, defaultWorkflow, sessionOccupied } = get()
+    const { currentConversationId, selectedSkill, defaultWorkflow, sessionRoles } = get()
     const currentWorkflow = selectedSkill || defaultWorkflow
     const workflowId = currentWorkflow?.id || ''
     const isNewConversation = !currentConversationId || currentConversationId.startsWith('pending-')
 
-    if (currentConversationId && sessionOccupied[currentConversationId]) {
-      Taro.showToast({ title: '该会话正在其他设备使用中', icon: 'none' })
+    if (currentConversationId && sessionRoles[currentConversationId] === 'viewer') {
+      Taro.showToast({ title: '你当前是浏览模式，无法发送消息', icon: 'none' })
       return
     }
 
@@ -472,9 +490,9 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   setWsConnected: (connected: boolean) => set({ wsConnected: connected }),
 
-  setSessionOccupied: (sessionId: string, occupied: boolean) => {
+  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => {
     set((state) => ({
-      sessionOccupied: { ...state.sessionOccupied, [sessionId]: occupied },
+      sessionRoles: { ...state.sessionRoles, [sessionId]: role },
     }))
   },
 

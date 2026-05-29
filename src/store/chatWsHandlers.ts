@@ -7,7 +7,8 @@ import type {
   WsReplyData,
   WsErrorData,
   WsAbortResultData,
-  WsSessionReleasedData,
+  WsSessionEnterResultData,
+  WsSessionRoleChangeData,
 } from '@/types/ws'
 import { WS_ERROR_CODES } from '@/types/ws'
 import { useChatStore, clearSendTimeout } from './chatStore'
@@ -154,7 +155,7 @@ export function initWsHandlers() {
   // ---- 错误处理（优先 session_id，兜底 request_id） ----
   ws.on('error', (data: WsErrorData) => {
     if (data.code === WS_ERROR_CODES.SESSION_OCCUPIED && data.session_id) {
-      get().setSessionOccupied(data.session_id, true)
+      get().setSessionRole(data.session_id, 'viewer')
       Taro.showToast({ title: '该会话正在其他设备使用，仅可浏览', icon: 'none' })
       return
     }
@@ -219,15 +220,31 @@ export function initWsHandlers() {
     }
   })
 
-  // ---- 会话释放 ----
-  ws.on('session_released', (data: WsSessionReleasedData) => {
-    get().setSessionOccupied(data.session_id, false)
-    Taro.showToast({ title: '会话已可使用', icon: 'none' })
+  // ---- 会话进入确认 ----
+  ws.on('session_enter_result', (data: WsSessionEnterResultData) => {
+    get().setSessionRole(data.session_id, data.role)
   })
 
-  // ---- 连接状态 ----
+  // ---- 会话角色变更 ----
+  ws.on('session_role_change', (data: WsSessionRoleChangeData) => {
+    get().setSessionRole(data.session_id, data.new_role)
+    if (data.new_role === 'viewer') {
+      Taro.showToast({ title: '你的聊天权限已变更为浏览模式', icon: 'none' })
+    } else {
+      Taro.showToast({ title: '你已恢复聊天权限', icon: 'none' })
+    }
+  })
+
+  // ---- 连接状态（重连后重新进入当前会话） ----
   ws.on('connected', () => {
     get().setWsConnected(true)
+    const { currentConversationId } = get()
+    if (currentConversationId && !currentConversationId.startsWith('pending-')) {
+      ws.send('session_enter', {
+        session_id: currentConversationId,
+        create_time: Math.floor(Date.now() / 1000),
+      })
+    }
   })
 
   ws.on('disconnect', () => {

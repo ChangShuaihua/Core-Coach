@@ -39,12 +39,12 @@ export default function ChatPage() {
   const loadWorkflows = useChatStore((s) => s.loadWorkflows)
   const toggleSkill = useChatStore((s) => s.toggleSkill)
   const selectedSkill = useChatStore((s) => s.selectedSkill)
-  const sessionOccupied = useChatStore((s) => s.sessionOccupied)
+  const sessionRoles = useChatStore((s) => s.sessionRoles)
 
   const isResponding = messages.some(
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
   )
-  const isOccupied = currentConversationId ? !!sessionOccupied[currentConversationId] : false
+  const isViewer = currentConversationId ? sessionRoles[currentConversationId] === 'viewer' : false
 
   // 初始化 WebSocket 事件处理（只执行一次）
   useEffect(() => {
@@ -169,12 +169,12 @@ export default function ChatPage() {
               <Text style={{ fontSize: '16px', color: '#333' }}>⬇</Text>
             </View>
           )}
-          {isOccupied && (
+          {isViewer && (
             <View
               className="mx-4 mb-2 px-4 py-2 rounded-lg text-center"
               style={{ backgroundColor: '#fef3c7', color: '#92400e', fontSize: '13px' }}
             >
-              该会话正在其他设备使用，仅可浏览
+              你当前是浏览模式，无法发送消息
             </View>
           )}
           <ChatInput
@@ -183,7 +183,7 @@ export default function ChatPage() {
             onSkillClick={() => setShowPopup((prev) => !prev)}
             isResponding={isResponding}
             selectedSkillName={selectedSkill?.title}
-            disabled={isOccupied}
+            disabled={isViewer}
           />
         </View>
       </View>
