@@ -51,7 +51,7 @@ export async function getMessages(
     role: m.role,
     content: m.content,
     timestamp: dayjs(m.created_at).valueOf(),
-    status: 'success' as const,
+    status: m.result === 'failure' ? 'error' : 'success',
   }))
 
   return {

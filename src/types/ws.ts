@@ -11,6 +11,10 @@ export type WsEventType =
   | 'stream_chunk'
   | 'stream_done'
   | 'error'
+  | 'session_enter'
+  | 'session_leave'
+  | 'session_enter_result'
+  | 'session_role_change'
   | 'session_switch'
   | 'session_released'
   | 'abort'
@@ -61,12 +65,14 @@ export interface WsAbortData {
   create_time: number
 }
 
-export interface WsReconnectData {
-  request_id: string
-  user_id: string
-  token: string
-  last_stream_id: string
+export interface WsReconnectSession {
   session_id: string
+  last_stream_id: string
+}
+
+export interface WsReconnectData {
+  token: string
+  sessions: WsReconnectSession[]
 }
 
 export interface WsDisconnectData {
@@ -78,6 +84,16 @@ export interface WsDisconnectData {
 export interface WsPingData {
   timestamp: number
   session_id: string
+}
+
+export interface WsSessionEnterData {
+  session_id: string
+  create_time: number
+}
+
+export interface WsSessionLeaveData {
+  session_id: string
+  create_time: number
 }
 
 // ============ 服务端 → 客户端 ============
@@ -150,6 +166,7 @@ export interface WsAbortResultData {
 
 export interface WsReconnectResultData {
   request_id: string
+  session_id: string
   success: boolean
   has_active_stream: boolean
   missed_messages: WsMessage[]
@@ -159,6 +176,18 @@ export interface WsReconnectResultData {
 export interface WsSessionReleasedData {
   session_id: string
   message: string
+  create_time: number
+}
+
+export interface WsSessionEnterResultData {
+  session_id: string
+  role: 'chatter' | 'viewer'
+  create_time: number
+}
+
+export interface WsSessionRoleChangeData {
+  session_id: string
+  new_role: 'chatter' | 'viewer'
   create_time: number
 }
 

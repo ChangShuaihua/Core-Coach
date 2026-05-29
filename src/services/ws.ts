@@ -4,13 +4,9 @@ import type {
   WsEventType,
   WsConnectionState,
   WsAuthData,
-  WsChatData,
-  WsSessionSwitchData,
-  WsAbortData,
   WsReconnectData,
   WsDisconnectData,
   WsPingData,
-  WsAbortResultData,
 } from '@/types/ws'
 import { getStoredState, refreshTokenIfNeeded } from './http'
 
@@ -22,6 +18,21 @@ const RECONNECT_MAX_DELAY = 30_000
 
 type EventHandler = (data: any) => void
 
+export interface ReconnectSession {
+  sessionId: string
+  lastStreamId: string
+}
+
+export interface ReconnectContext {
+  currentSessionId: string
+  sessions: ReconnectSession[]
+}
+
+/**
+ * WebSocket 纯连接层
+ * 职责：连接/断开/重连/认证/心跳/发送原始事件/事件分发
+ * 业务逻辑（sendChat/sendAbort/lastStreamIds/pendingAborts）由 chatStore 管理
+ */
 class WsManager {
   private socketTask: Taro.SocketTask | null = null
   private _state: WsConnectionState = 'disconnected'
@@ -30,14 +41,14 @@ class WsManager {
   private pongTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectAttempts = 0
-  private currentSessionId = ''
-  private lastStreamIds: Record<string, string> = {}
   private token = ''
   private userId = ''
   private intentionalClose = false
-  private pendingAborts = new Map<string, (data: WsAbortResultData) => void>()
   private connectionId = 0
   private isOnline = true
+
+  // chatStore 注入的 getter
+  private _getReconnectContext: (() => ReconnectContext) | null = null
 
   // ============ 状态 ============
 
@@ -49,12 +60,10 @@ class WsManager {
     return this._state === 'authenticated'
   }
 
-  get sessionId(): string {
-    return this.currentSessionId
-  }
+  // ============ 注入回调 ============
 
-  private canSend(): boolean {
-    return this._state === 'authenticated' && !!this.socketTask
+  setReconnectContextGetter(getter: () => ReconnectContext): void {
+    this._getReconnectContext = getter
   }
 
   // ============ 事件订阅 ============
@@ -85,7 +94,6 @@ class WsManager {
   connect(token: string, userId: string): void {
     if (this._state === 'authenticated') return
 
-    // 如果正在连接中，取消旧的定时器，以前台连接为准
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
@@ -103,7 +111,6 @@ class WsManager {
     const connId = ++this.connectionId
     console.log('[WS] connecting...', `conn#${connId}`)
 
-    // 关闭旧连接，防止微信 5 并发限制
     if (this.socketTask) {
       try {
         this.socketTask.close({})
@@ -135,7 +142,6 @@ class WsManager {
         this.handleMessage(res.data as string)
       })
 
-      // 合并 onClose/onError，用 connectionId 防重复
       let disconnected = false
       const onDisconnect = (reason: string) => {
         if (connId !== this.connectionId) return
@@ -173,7 +179,7 @@ class WsManager {
       if (this._state !== 'authenticated') return
       const pingData: WsPingData = {
         timestamp: Math.floor(Date.now() / 1000),
-        session_id: this.currentSessionId,
+        session_id: this._getReconnectContext?.().currentSessionId || '',
       }
       this.send('ping', pingData)
       if (this.pongTimer) {
@@ -209,7 +215,6 @@ class WsManager {
       return
     }
 
-    // 断网时暂停重连，等联网后再恢复
     if (!this.isOnline) {
       console.log('[WS] offline, skip reconnect')
       this.emit('disconnect', { reason: 'offline' })
@@ -218,7 +223,6 @@ class WsManager {
 
     this.emit('disconnect', { reason: 'connection_lost' })
 
-    // 断连后先刷新 token，确保重连用最新 token
     try {
       await refreshTokenIfNeeded()
     } catch {
@@ -250,7 +254,7 @@ class WsManager {
     }, delay)
   }
 
-  // ============ 消息处理 ============
+  // ============ 消息处理（连接层：只处理连接相关事件） ============
 
   private handleMessage(raw: string): void {
     let msg: WsMessage
@@ -274,15 +278,18 @@ class WsManager {
         this.reconnectAttempts = 0
         this.startHeartbeat()
         console.log('[WS] authenticated')
-        if (Object.keys(this.lastStreamIds).length > 0) {
-          this.sendReconnect()
+        // 有活跃 stream 时发送重连恢复
+        {
+          const ctx = this._getReconnectContext?.()
+          if (ctx && ctx.sessions.length > 0) {
+            this.sendReconnect(ctx)
+          }
         }
         break
 
       case 'auth_failed':
         console.error('[WS] auth_failed:', data)
         this._state = 'disconnected'
-        // 不自行重试，关闭连接让 onClose → handleDisconnect 走统一的 refresh+reconnect 流程
         if (!this.intentionalClose) {
           this.socketTask?.close({})
         }
@@ -294,30 +301,15 @@ class WsManager {
           this.pongTimer = null
         }
         break
-
-      case 'stream_chunk':
-        if (data.session_id) {
-          this.lastStreamIds[data.session_id] = data.stream_id
-        }
-        break
-
-      case 'abort_result':
-        {
-          const resolver = this.pendingAborts.get(data.request_id)
-          if (resolver) {
-            resolver(data)
-            this.pendingAborts.delete(data.request_id)
-          }
-        }
-        break
     }
 
+    // 所有事件（包括业务事件）都 emit 出去，由 chatWsHandlers 处理
     this.emit(event_type, data)
   }
 
   // ============ 发送消息 ============
 
-  private send(event_type: WsEventType, data: any): void {
+  send(event_type: WsEventType, data: any): void {
     if (!this.socketTask) {
       console.warn('[WS] no socket task, cannot send')
       return
@@ -329,19 +321,11 @@ class WsManager {
     })
   }
 
-  // ============ 公共 API ============
-
-  sendChat(data: WsChatData): boolean {
-    if (!this.canSend()) {
-      console.warn('[WS] cannot send chat, state:', this._state)
-      this.tryReconnect()
-      return false
-    }
-    this.send('chat', data)
-    return true
+  canSend(): boolean {
+    return this._state === 'authenticated' && !!this.socketTask
   }
 
-  private tryReconnect(): void {
+  tryReconnect(): void {
     if (this._state === 'connecting' || this._state === 'authenticated') return
     const { accessToken } = getStoredState()
     const token = accessToken || this.token
@@ -353,64 +337,12 @@ class WsManager {
     this.scheduleReconnect(token, this.userId)
   }
 
-  switchSession(oldSessionId: string, newSessionId: string): void {
-    const data: WsSessionSwitchData = {
-      request_id: this.generateRequestId(),
-      old_session_id: oldSessionId,
-      new_session_id: newSessionId,
-      switch_reason: 'user_initiated',
-      create_time: Math.floor(Date.now() / 1000),
-    }
-    this.currentSessionId = newSessionId
-    this.send('session_switch', data)
-  }
-
-  sendAbort(sessionId: string, requestId: string): Promise<WsAbortResultData> {
-    return new Promise((resolve) => {
-      if (!this.canSend()) {
-        resolve({
-          request_id: requestId,
-          session_id: sessionId,
-          success: false,
-          stopped_at_chunk: 0,
-          message: '连接不可用',
-          create_time: Math.floor(Date.now() / 1000),
-        })
-        return
-      }
-      this.pendingAborts.set(requestId, resolve)
-      const data: WsAbortData = {
-        request_id: requestId,
-        session_id: sessionId,
-        reason: 'user_cancelled',
-        create_time: Math.floor(Date.now() / 1000),
-      }
-      this.send('abort', data)
-      setTimeout(() => {
-        if (this.pendingAborts.has(requestId)) {
-          this.pendingAborts.delete(requestId)
-          resolve({
-            request_id: requestId,
-            session_id: sessionId,
-            success: true,
-            stopped_at_chunk: 0,
-            message: '中断超时',
-            create_time: Math.floor(Date.now() / 1000),
-          })
-        }
-      }, 5000)
-    })
-  }
-
-  setCurrentSession(sessionId: string): void {
-    this.currentSessionId = sessionId
-  }
-
   disconnect(): void {
     this.intentionalClose = true
-    if (this.currentSessionId) {
+    const sessionId = this._getReconnectContext?.().currentSessionId || ''
+    if (sessionId) {
       const data: WsDisconnectData = {
-        session_id: this.currentSessionId,
+        session_id: sessionId,
         reason: 'user_leaving',
         create_time: Math.floor(Date.now() / 1000),
       }
@@ -425,20 +357,16 @@ class WsManager {
     this.socketTask = null
     this._state = 'disconnected'
     this.reconnectAttempts = 0
-    this.pendingAborts.clear()
-    this.lastStreamIds = {}
   }
 
-  private sendReconnect(): void {
+  private sendReconnect(ctx: ReconnectContext): void {
     const { accessToken } = getStoredState()
-    // 使用当前 session 的 lastStreamId（向后兼容）
-    const lastStreamId = this.lastStreamIds[this.currentSessionId] || ''
     const data: WsReconnectData = {
-      request_id: this.generateRequestId(),
-      user_id: this.userId,
       token: accessToken || this.token,
-      last_stream_id: lastStreamId,
-      session_id: this.currentSessionId,
+      sessions: ctx.sessions.map((s) => ({
+        session_id: s.sessionId,
+        last_stream_id: s.lastStreamId,
+      })),
     }
     this.send('reconnect', data)
   }
@@ -456,7 +384,6 @@ class WsManager {
       this.isOnline = res.isConnected
 
       if (!wasOnline && res.isConnected) {
-        // 联网恢复，如果当前断线则主动重连
         console.log('[WS] network restored, checking connection...')
         if (this._state === 'disconnected' && this.token && this.userId) {
           this.reconnectAttempts = 0
@@ -464,7 +391,6 @@ class WsManager {
         }
       } else if (!res.isConnected) {
         console.log('[WS] network lost')
-        // 清除排队中的重连
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer)
           this.reconnectTimer = null
