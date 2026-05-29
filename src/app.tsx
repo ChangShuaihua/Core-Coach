@@ -12,7 +12,9 @@ function App({ children }) {
   dayjs.locale('zh-cn')
   dayjs.extend(relativeTime)
 
-  useEffect(() => {}, [])
+  useEffect(() => {
+    ws.initNetworkListener()
+  }, [])
 
   // 后台时断开 WebSocket
   useDidHide(() => {

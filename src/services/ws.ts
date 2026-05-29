@@ -35,8 +35,9 @@ class WsManager {
   private token = ''
   private userId = ''
   private intentionalClose = false
-  private isReconnecting = false
   private pendingAborts = new Map<string, (data: WsAbortResultData) => void>()
+  private connectionId = 0
+  private isOnline = true
 
   // ============ 状态 ============
 
@@ -82,20 +83,25 @@ class WsManager {
   // ============ 连接 ============
 
   connect(token: string, userId: string): void {
-    if (this._state === 'connecting' || this._state === 'authenticated') {
-      return
+    if (this._state === 'authenticated') return
+
+    // 如果正在连接中，取消旧的定时器，以前台连接为准
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
     }
+
     this.token = token
     this.userId = userId
     this.intentionalClose = false
-    this.isReconnecting = false
     this._state = 'connecting'
     this.reconnectAttempts = 0
     this.doConnect(token, userId)
   }
 
   private doConnect(token: string, userId: string): void {
-    console.log('[WS] connecting...')
+    const connId = ++this.connectionId
+    console.log('[WS] connecting...', `conn#${connId}`)
 
     // 关闭旧连接，防止微信 5 并发限制
     if (this.socketTask) {
@@ -107,29 +113,43 @@ class WsManager {
 
     Taro.connectSocket({
       url: WS_URL,
-      success: () => console.log('[WS] connectSocket success'),
+      success: () => console.log('[WS] connectSocket success', `conn#${connId}`),
       fail: (err) => {
         console.error('[WS] connectSocket fail:', err)
+        if (connId !== this.connectionId) return
         this._state = 'disconnected'
         this.scheduleReconnect(token, userId)
       },
     }).then((task) => {
+      if (connId !== this.connectionId) return
       this.socketTask = task
+
       task.onOpen(() => {
-        console.log('[WS] onOpen')
+        if (connId !== this.connectionId) return
+        console.log('[WS] onOpen', `conn#${connId}`)
         this._state = 'connected'
         this.sendAuth(token, userId)
       })
       task.onMessage((res) => {
+        if (connId !== this.connectionId) return
         this.handleMessage(res.data as string)
       })
-      task.onClose((res) => {
-        console.log('[WS] onClose:', res?.code, res?.reason)
+
+      // 合并 onClose/onError，用 connectionId 防重复
+      let disconnected = false
+      const onDisconnect = (reason: string) => {
+        if (connId !== this.connectionId) return
+        if (disconnected) return
+        disconnected = true
+        console.log(`[WS] ${reason}`, `conn#${connId}`)
         this.handleDisconnect(token, userId)
+      }
+
+      task.onClose((res) => {
+        onDisconnect(`onClose: ${res?.code} ${res?.reason}`)
       })
       task.onError((err) => {
-        console.error('[WS] onError:', err)
-        this.handleDisconnect(token, userId)
+        onDisconnect(`onError: ${JSON.stringify(err)}`)
       })
     })
   }
@@ -188,9 +208,13 @@ class WsManager {
       console.log('[WS] intentional close, skip reconnect')
       return
     }
-    // 防止 onClose 和 onError 同时触发重复重连
-    if (this.isReconnecting) return
-    this.isReconnecting = true
+
+    // 断网时暂停重连，等联网后再恢复
+    if (!this.isOnline) {
+      console.log('[WS] offline, skip reconnect')
+      this.emit('disconnect', { reason: 'offline' })
+      return
+    }
 
     this.emit('disconnect', { reason: 'connection_lost' })
 
@@ -210,6 +234,10 @@ class WsManager {
 
   private scheduleReconnect(token: string, userId: string): void {
     if (this.reconnectTimer) return
+    if (!this.isOnline) {
+      console.log('[WS] offline, skip scheduleReconnect')
+      return
+    }
     const delay = Math.min(
       RECONNECT_BASE_DELAY * Math.pow(2, this.reconnectAttempts),
       RECONNECT_MAX_DELAY
@@ -244,7 +272,6 @@ class WsManager {
       case 'connected':
         this._state = 'authenticated'
         this.reconnectAttempts = 0
-        this.isReconnecting = false
         this.startHeartbeat()
         console.log('[WS] authenticated')
         if (Object.keys(this.lastStreamIds).length > 0) {
@@ -397,7 +424,6 @@ class WsManager {
     this.socketTask?.close({})
     this.socketTask = null
     this._state = 'disconnected'
-    this.isReconnecting = false
     this.reconnectAttempts = 0
     this.pendingAborts.clear()
     this.lastStreamIds = {}
@@ -415,6 +441,36 @@ class WsManager {
       session_id: this.currentSessionId,
     }
     this.send('reconnect', data)
+  }
+
+  // ============ 断网感知 ============
+
+  initNetworkListener(): void {
+    Taro.getNetworkType({
+      success: (res) => {
+        this.isOnline = res.networkType !== 'none'
+      },
+    })
+    Taro.onNetworkStatusChange((res) => {
+      const wasOnline = this.isOnline
+      this.isOnline = res.isConnected
+
+      if (!wasOnline && res.isConnected) {
+        // 联网恢复，如果当前断线则主动重连
+        console.log('[WS] network restored, checking connection...')
+        if (this._state === 'disconnected' && this.token && this.userId) {
+          this.reconnectAttempts = 0
+          this.doConnect(this.token, this.userId)
+        }
+      } else if (!res.isConnected) {
+        console.log('[WS] network lost')
+        // 清除排队中的重连
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer)
+          this.reconnectTimer = null
+        }
+      }
+    })
   }
 
   generateRequestId(): string {
