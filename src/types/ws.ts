@@ -65,12 +65,14 @@ export interface WsAbortData {
   create_time: number
 }
 
-export interface WsReconnectData {
-  request_id: string
-  user_id: string
-  token: string
-  last_stream_id: string
+export interface WsReconnectSession {
   session_id: string
+  last_stream_id: string
+}
+
+export interface WsReconnectData {
+  token: string
+  sessions: WsReconnectSession[]
 }
 
 export interface WsDisconnectData {
@@ -164,6 +166,7 @@ export interface WsAbortResultData {
 
 export interface WsReconnectResultData {
   request_id: string
+  session_id: string
   success: boolean
   has_active_stream: boolean
   missed_messages: WsMessage[]

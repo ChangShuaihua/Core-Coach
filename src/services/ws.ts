@@ -361,14 +361,12 @@ class WsManager {
 
   private sendReconnect(ctx: ReconnectContext): void {
     const { accessToken } = getStoredState()
-    const currentSession = ctx.sessions.find((s) => s.sessionId === ctx.currentSessionId)
-    const lastStreamId = currentSession?.lastStreamId || ''
     const data: WsReconnectData = {
-      request_id: this.generateRequestId(),
-      user_id: this.userId,
       token: accessToken || this.token,
-      last_stream_id: lastStreamId,
-      session_id: ctx.currentSessionId,
+      sessions: ctx.sessions.map((s) => ({
+        session_id: s.sessionId,
+        last_stream_id: s.lastStreamId,
+      })),
     }
     this.send('reconnect', data)
   }

@@ -7,6 +7,7 @@ import type {
   WsReplyData,
   WsErrorData,
   WsAbortResultData,
+  WsReconnectResultData,
   WsSessionEnterResultData,
   WsSessionRoleChangeData,
 } from '@/types/ws'
@@ -215,6 +216,47 @@ export function initWsHandlers() {
       })
       useChatStore.setState((state) => {
         const { [runtimeKey]: _, ...rest } = state.sessionRuntimes
+        return { sessionRuntimes: rest }
+      })
+    }
+  })
+
+  // ---- 重连结果（按 session_id 路由，处理 missed_messages） ----
+  ws.on('reconnect_result', (data: WsReconnectResultData) => {
+    if (!data.success) return
+
+    const { sessionRuntimes } = get()
+    const sessionId = data.session_id
+    const runtime = sessionRuntimes[sessionId]
+
+    // 更新 lastStreamId
+    if (data.has_active_stream && runtime) {
+      get().setLastStreamId(sessionId, data.request_id)
+    }
+
+    // 处理错过的消息
+    if (data.missed_messages?.length && runtime) {
+      for (const msg of data.missed_messages) {
+        const msgData = msg.data
+        if (msg.event_type === 'stream_chunk' && msgData) {
+          const messages = get().messagesBySession[sessionId] || []
+          const targetMsg = messages.find((m) => m.id === runtime.assistantMsgId)
+          if (targetMsg) {
+            const newContent = targetMsg.content + msgData.content
+            get().updateMessageStatus(sessionId, runtime.assistantMsgId, 'streaming', newContent)
+          }
+        } else if ((msg.event_type === 'stream_done' || msg.event_type === 'reply') && msgData) {
+          get().updateMessageStatus(sessionId, runtime.assistantMsgId, 'success', msgData.content)
+          useChatStore.setState((state) => {
+            const { [sessionId]: _, ...rest } = state.sessionRuntimes
+            return { sessionRuntimes: rest }
+          })
+        }
+      }
+    } else if (!data.has_active_stream && runtime) {
+      // 服务端没有活跃流，清理 runtime
+      useChatStore.setState((state) => {
+        const { [sessionId]: _, ...rest } = state.sessionRuntimes
         return { sessionRuntimes: rest }
       })
     }
