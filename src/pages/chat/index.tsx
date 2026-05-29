@@ -6,6 +6,7 @@ import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
 import { useChatStore } from '@/store/chatStore'
+import { initWsHandlers } from '@/store/chatWsHandlers'
 import { Skill } from '@/types/chat'
 import ChatInput from './components/ChatInput'
 import ConversationList from './components/ConversationList'
@@ -39,7 +40,6 @@ export default function ChatPage() {
   const toggleSkill = useChatStore((s) => s.toggleSkill)
   const selectedSkill = useChatStore((s) => s.selectedSkill)
   const sessionOccupied = useChatStore((s) => s.sessionOccupied)
-  const initWsHandlers = useChatStore((s) => s.initWsHandlers)
 
   const isResponding = messages.some(
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
@@ -49,7 +49,7 @@ export default function ChatPage() {
   // 初始化 WebSocket 事件处理（只执行一次）
   useEffect(() => {
     initWsHandlers()
-  }, [initWsHandlers])
+  }, [])
 
   // 页面挂载：拉取会话列表和技能列表，然后确保有临时会话
   useEffect(() => {
