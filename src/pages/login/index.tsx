@@ -53,8 +53,8 @@ export default function Login() {
     if (!tempFilePath) return
     try {
       Taro.showLoading({ title: '上传中...' })
-      const uploadedUrl = await uploadAvatar(tempFilePath)
-      setAvatar(uploadedUrl)
+      const result = await uploadAvatar(tempFilePath)
+      setAvatar(result.file_url)
       Taro.hideLoading()
     } catch {
       Taro.hideLoading()
