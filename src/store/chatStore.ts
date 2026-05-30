@@ -79,6 +79,11 @@ interface ChatStore {
   hasMoreMessages: boolean
   isLoadingMore: boolean
 
+  // 会话列表分页
+  conversationCursor: string | null
+  hasMoreConversations: boolean
+  isLoadingMoreConversations: boolean
+
   // WebSocket 相关
   wsConnected: boolean
   sessionRoles: Record<string, 'chatter' | 'viewer'>
@@ -89,6 +94,7 @@ interface ChatStore {
   // ====== Actions ======
 
   loadConversations: () => Promise<void>
+  loadMoreConversations: () => Promise<void>
   ensurePendingConversation: () => void
   switchConversation: (id: string) => Promise<void>
   deleteConversation: (id: string) => void
@@ -128,6 +134,9 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   messageCursor: null,
   hasMoreMessages: true,
   isLoadingMore: false,
+  conversationCursor: null,
+  hasMoreConversations: true,
+  isLoadingMoreConversations: false,
   wsConnected: false,
   sessionRoles: {},
   sessionRuntimes: {},
@@ -160,7 +169,43 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       }
     })
 
-    set({ conversations: merged })
+    set({
+      conversations: merged,
+      conversationCursor: result.nextCursor,
+      hasMoreConversations: result.hasMore,
+    })
+  },
+
+  loadMoreConversations: async () => {
+    const { conversationCursor, hasMoreConversations, isLoadingMoreConversations } = get()
+    if (!hasMoreConversations || isLoadingMoreConversations || !conversationCursor) return
+
+    set({ isLoadingMoreConversations: true })
+    try {
+      const result = await chatApi.getConversations(conversationCursor)
+      const { conversations } = get()
+
+      const merged: Record<string, Conversation> = { ...conversations }
+      result.conversations.forEach((conv) => {
+        if (!merged[conv.id]) {
+          merged[conv.id] = conv
+        } else {
+          merged[conv.id] = {
+            ...merged[conv.id],
+            title: conv.title,
+            updatedAt: conv.updatedAt,
+          }
+        }
+      })
+
+      set({
+        conversations: merged,
+        conversationCursor: result.nextCursor,
+        hasMoreConversations: result.hasMore,
+      })
+    } finally {
+      set({ isLoadingMoreConversations: false })
+    }
   },
 
   ensurePendingConversation: () => {
