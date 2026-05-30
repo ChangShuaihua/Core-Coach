@@ -11,11 +11,34 @@ const SKILL_STORAGE_KEY = 'chat_selected_skill'
 const SEND_TIMEOUT_MS = 120_000
 const sendTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
+// abort 兜底定时器（按 requestId 管理，abort_result 返回时取消）
+const abortFallbackTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
 export function clearSendTimeout(sessionId: string) {
   const timer = sendTimeouts.get(sessionId)
   if (timer) {
     clearTimeout(timer)
     sendTimeouts.delete(sessionId)
+  }
+}
+
+/** 清理 session 的 runtime 及其 requestToSession 映射 */
+export function clearRuntime(sessionId: string) {
+  useChatStore.setState((state) => {
+    const runtime = state.sessionRuntimes[sessionId]
+    const { [sessionId]: _, ...restRuntimes } = state.sessionRuntimes
+    if (!runtime) return { sessionRuntimes: restRuntimes }
+    const { [runtime.requestId]: __, ...restMapping } = state.requestToSession
+    return { sessionRuntimes: restRuntimes, requestToSession: restMapping }
+  })
+}
+
+/** 取消 abort 兜底定时器（abort_result 返回时调用） */
+export function clearAbortFallbackTimer(requestId: string) {
+  const timer = abortFallbackTimers.get(requestId)
+  if (timer) {
+    clearTimeout(timer)
+    abortFallbackTimers.delete(requestId)
   }
 }
 
@@ -60,6 +83,7 @@ interface ChatStore {
   wsConnected: boolean
   sessionRoles: Record<string, 'chatter' | 'viewer'>
   sessionRuntimes: Record<string, SessionRuntime>
+  requestToSession: Record<string, string> // requestId -> sessionId 辅助索引
   lastStreamIds: Record<string, string>
 
   // ====== Actions ======
@@ -107,6 +131,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   wsConnected: false,
   sessionRoles: {},
   sessionRuntimes: {},
+  requestToSession: {},
   lastStreamIds: {},
 
   // ====== 会话 Actions ======
@@ -356,6 +381,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         ...state.sessionRuntimes,
         [targetSessionId]: { requestId, assistantMsgId: aiMsgId, status: 'pending' },
       },
+      requestToSession: {
+        ...state.requestToSession,
+        [requestId]: targetSessionId,
+      },
     }))
 
     // 检查连接状态
@@ -363,10 +392,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       ws.tryReconnect()
       Taro.showToast({ title: '连接断开，正在重连...', icon: 'none' })
       get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '连接断开，请稍后重试')
-      set((state) => {
-        const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
-      })
+      clearRuntime(targetSessionId)
       return
     }
 
@@ -385,10 +411,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       const runtime = get().sessionRuntimes[targetSessionId]
       if (runtime && runtime.assistantMsgId === aiMsgId) {
         get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '请求超时，请重试')
-        set((state) => {
-          const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
-          return { sessionRuntimes: rest }
-        })
+        clearRuntime(targetSessionId)
       }
     }, SEND_TIMEOUT_MS)
     sendTimeouts.set(targetSessionId, timer)
@@ -415,10 +438,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
         }
       })
-      set((state) => {
-        const { [currentConversationId]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
-      })
+      clearRuntime(currentConversationId)
       return
     }
 
@@ -433,7 +453,8 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
 
     // 超时兜底：5 秒内服务端没有返回 abort_result，直接清理
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      abortFallbackTimers.delete(requestId)
       const currentRuntime = get().sessionRuntimes[currentConversationId]
       if (currentRuntime && currentRuntime.requestId === requestId) {
         const messages = get().messagesBySession[currentConversationId] || []
@@ -442,12 +463,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
             get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
           }
         })
-        set((state) => {
-          const { [currentConversationId]: _, ...rest } = state.sessionRuntimes
-          return { sessionRuntimes: rest }
-        })
+        clearRuntime(currentConversationId)
       }
     }, 5000)
+    abortFallbackTimers.set(requestId, timer)
   },
 
   // ====== 技能 ======

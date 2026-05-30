@@ -12,19 +12,36 @@ import type {
   WsSessionRoleChangeData,
 } from '@/types/ws'
 import { WS_ERROR_CODES } from '@/types/ws'
-import { useChatStore, clearSendTimeout } from './chatStore'
+import { useChatStore, clearSendTimeout, clearRuntime, clearAbortFallbackTimer } from './chatStore'
 
 // ============ 辅助函数 ============
 
-/** 按 request_id 在所有 runtime 中查找，返回 sessionKey */
-function findSessionByRequestId(
-  runtimes: Record<string, { requestId: string }>,
-  requestId: string
-): string | undefined {
-  return Object.entries(runtimes).find(([, rt]) => rt.requestId === requestId)?.[0]
+/** 按 request_id 通过 requestToSession 索引查找 sessionId */
+function findSessionByRequestId(requestId: string): string | undefined {
+  return useChatStore.getState().requestToSession[requestId]
 }
 
-// chunk 幂等：记录每个 runtime 已处理的最大 chunk_index
+/** 执行 pending -> real session 迁移 */
+function migratePendingSession(pendingId: string, realSessionId: string, title?: string) {
+  useChatStore.setState((state) => {
+    const { [pendingId]: pendingConv, ...restConvs } = state.conversations
+    const { [pendingId]: pendingMsgs, ...restMsgs } = state.messagesBySession
+
+    const newConv: Conversation = {
+      ...(pendingConv as Conversation),
+      id: realSessionId,
+      title: title || '新对话',
+    }
+
+    return {
+      currentConversationId: realSessionId,
+      conversations: { [realSessionId]: newConv, ...restConvs },
+      messagesBySession: { [realSessionId]: pendingMsgs || [], ...restMsgs },
+    }
+  })
+}
+
+// chunk 幂等：记录每个 request 已处理的最大 chunk_index（requestId 维度）
 const processedChunkIndex = new Map<string, number>()
 
 // ============ 事件处理注册 ============
@@ -32,38 +49,51 @@ const processedChunkIndex = new Map<string, number>()
 export function initWsHandlers() {
   const get = useChatStore.getState
 
-  // ---- 流式分片（优先 session_id，兜底 request_id） ----
+  // ---- 流式分片（优先 session_id，兜底 request_id，含首次 chunk 迁移） ----
   ws.on('stream_chunk', (data: WsStreamChunkData) => {
     // 记录 lastStreamId（用于 reconnect 恢复）
     if (data.session_id) {
       get().setLastStreamId(data.session_id, data.stream_id)
     }
 
-    const { sessionRuntimes } = get()
-    const runtimeKey =
+    const { sessionRuntimes, currentConversationId } = get()
+
+    // 按 session_id 或 request_id 定位 runtime
+    let runtimeKey =
       (sessionRuntimes[data.session_id] ? data.session_id : null) ||
-      findSessionByRequestId(sessionRuntimes, data.request_id)
+      findSessionByRequestId(data.request_id)
+
+    // 首次收到真实 session_id 时立即做 pending -> real 迁移（P0 #3）
+    if (!runtimeKey && currentConversationId?.startsWith('pending-') && data.session_id) {
+      runtimeKey = currentConversationId
+      migratePendingSession(currentConversationId, data.session_id)
+    }
+
     if (!runtimeKey) return
 
-    // chunk 幂等：跳过已处理的 chunk
-    const lastIdx = processedChunkIndex.get(runtimeKey) ?? -1
+    // chunk 幂等：按 requestId 维度跳过已处理的 chunk
+    const lastIdx = processedChunkIndex.get(data.request_id) ?? -1
     if (data.chunk_index <= lastIdx) return
-    processedChunkIndex.set(runtimeKey, data.chunk_index)
+    processedChunkIndex.set(data.request_id, data.chunk_index)
 
     clearSendTimeout(runtimeKey)
 
     const runtime = sessionRuntimes[runtimeKey]
-    const messages = get().messagesBySession[runtimeKey] || []
+    const messages =
+      get().messagesBySession[runtimeKey.startsWith('pending-') ? data.session_id : runtimeKey] ||
+      get().messagesBySession[runtimeKey] ||
+      []
     const msg = messages.find((m) => m.id === runtime.assistantMsgId)
     if (!msg) return
 
     const newContent = msg.content + data.content
-    get().updateMessageStatus(runtimeKey, runtime.assistantMsgId, 'streaming', newContent)
+    const msgSessionId = runtimeKey.startsWith('pending-') ? data.session_id : runtimeKey
+    get().updateMessageStatus(msgSessionId, runtime.assistantMsgId, 'streaming', newContent)
 
     useChatStore.setState((state) => ({
       sessionRuntimes: {
         ...state.sessionRuntimes,
-        [runtimeKey]: { ...runtime, status: 'streaming' },
+        [msgSessionId]: { ...runtime, status: 'streaming' },
       },
     }))
   })
@@ -73,42 +103,30 @@ export function initWsHandlers() {
     const { sessionRuntimes, currentConversationId } = get()
     const runtimeKey =
       (sessionRuntimes[data.session_id] ? data.session_id : null) ||
-      findSessionByRequestId(sessionRuntimes, data.request_id)
+      findSessionByRequestId(data.request_id)
     if (!runtimeKey) return
 
     clearSendTimeout(runtimeKey)
-    processedChunkIndex.delete(runtimeKey)
+    processedChunkIndex.delete(data.request_id)
 
     const runtime = sessionRuntimes[runtimeKey]
     get().updateMessageStatus(runtimeKey, runtime.assistantMsgId, 'success', data.content)
 
     // 新会话：pending -> real session 迁移
     if (currentConversationId?.startsWith('pending-')) {
-      useChatStore.setState((state) => {
-        const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
-        const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
-
-        const newConv: Conversation = {
-          ...(pendingConv as Conversation),
-          id: data.session_id,
-          title: data.content.slice(0, 10) || '新对话',
-        }
-
-        const { [runtimeKey]: _, ...restRuntimes } = state.sessionRuntimes
-
-        return {
-          currentConversationId: data.session_id,
-          conversations: { [data.session_id]: newConv, ...restConvs },
-          messagesBySession: { [data.session_id]: pendingMsgs || [], ...restMsgs },
-          sessionRuntimes: restRuntimes,
-        }
-      })
-    } else {
-      useChatStore.setState((state) => {
-        const { [runtimeKey]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
-      })
+      migratePendingSession(
+        currentConversationId,
+        data.session_id,
+        data.content.slice(0, 10) || '新对话'
+      )
     }
+
+    clearRuntime(runtimeKey)
+    // 清理 lastStreamId
+    useChatStore.setState((state) => {
+      const { [data.session_id]: _, ...rest } = state.lastStreamIds
+      return { lastStreamIds: rest }
+    })
   })
 
   // ---- 非流式回复（优先 session_id，兜底 request_id，含 pending 迁移） ----
@@ -116,41 +134,28 @@ export function initWsHandlers() {
     const { sessionRuntimes, currentConversationId } = get()
     const runtimeKey =
       (sessionRuntimes[data.session_id] ? data.session_id : null) ||
-      findSessionByRequestId(sessionRuntimes, data.request_id)
+      findSessionByRequestId(data.request_id)
     if (!runtimeKey) return
 
     clearSendTimeout(runtimeKey)
-    processedChunkIndex.delete(runtimeKey)
+    processedChunkIndex.delete(data.request_id)
 
     const runtime = sessionRuntimes[runtimeKey]
     get().updateMessageStatus(runtimeKey, runtime.assistantMsgId, 'success', data.content)
 
     if (currentConversationId?.startsWith('pending-')) {
-      useChatStore.setState((state) => {
-        const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
-        const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
-
-        const newConv: Conversation = {
-          ...(pendingConv as Conversation),
-          id: data.session_id,
-          title: data.content.slice(0, 10) || '新对话',
-        }
-
-        const { [runtimeKey]: _, ...restRuntimes } = state.sessionRuntimes
-
-        return {
-          currentConversationId: data.session_id,
-          conversations: { [data.session_id]: newConv, ...restConvs },
-          messagesBySession: { [data.session_id]: pendingMsgs || [], ...restMsgs },
-          sessionRuntimes: restRuntimes,
-        }
-      })
-    } else {
-      useChatStore.setState((state) => {
-        const { [runtimeKey]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
-      })
+      migratePendingSession(
+        currentConversationId,
+        data.session_id,
+        data.content.slice(0, 10) || '新对话'
+      )
     }
+
+    clearRuntime(runtimeKey)
+    useChatStore.setState((state) => {
+      const { [data.session_id]: _, ...rest } = state.lastStreamIds
+      return { lastStreamIds: rest }
+    })
   })
 
   // ---- 错误处理（优先 session_id，兜底 request_id，兜底当前会话，含 pending 迁移） ----
@@ -161,10 +166,10 @@ export function initWsHandlers() {
       return
     }
 
-    const { sessionRuntimes, currentConversationId } = get()
+    const { sessionRuntimes, currentConversationId, messagesBySession } = get()
     const targetSessionId =
       (data.session_id && sessionRuntimes[data.session_id] ? data.session_id : null) ||
-      (data.request_id ? findSessionByRequestId(sessionRuntimes, data.request_id) : undefined) ||
+      (data.request_id ? findSessionByRequestId(data.request_id) : undefined) ||
       // 兜底：无法匹配 runtime 时，用当前会话
       (currentConversationId && sessionRuntimes[currentConversationId]
         ? currentConversationId
@@ -172,9 +177,15 @@ export function initWsHandlers() {
 
     if (targetSessionId) {
       clearSendTimeout(targetSessionId)
-      processedChunkIndex.delete(targetSessionId)
+      if (data.request_id) processedChunkIndex.delete(data.request_id)
+
       const runtime = sessionRuntimes[targetSessionId]
       if (runtime) {
+        // 终态幂等：如果消息已经是 error 状态，跳过重复处理
+        const messages = messagesBySession[targetSessionId] || []
+        const msg = messages.find((m) => m.id === runtime.assistantMsgId)
+        if (msg?.status === 'error') return
+
         get().updateMessageStatus(
           targetSessionId,
           runtime.assistantMsgId,
@@ -182,31 +193,21 @@ export function initWsHandlers() {
           data.message || '发送失败'
         )
 
-        // 新会话：pending -> real session 迁移（与 stream_done/reply 一致）
+        // 新会话：pending -> real session 迁移
         if (currentConversationId?.startsWith('pending-') && data.session_id) {
+          migratePendingSession(
+            currentConversationId,
+            data.session_id,
+            data.message?.slice(0, 10) || '新对话'
+          )
+        }
+
+        clearRuntime(targetSessionId)
+        // 清理 lastStreamId
+        if (data.session_id) {
           useChatStore.setState((state) => {
-            const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
-            const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
-
-            const newConv: Conversation = {
-              ...(pendingConv as Conversation),
-              id: data.session_id!,
-              title: data.message?.slice(0, 10) || '新对话',
-            }
-
-            const { [targetSessionId]: _, ...restRuntimes } = state.sessionRuntimes
-
-            return {
-              currentConversationId: data.session_id!,
-              conversations: { [data.session_id!]: newConv, ...restConvs },
-              messagesBySession: { [data.session_id!]: pendingMsgs || [], ...restMsgs },
-              sessionRuntimes: restRuntimes,
-            }
-          })
-        } else {
-          useChatStore.setState((state) => {
-            const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
-            return { sessionRuntimes: rest }
+            const { [data.session_id!]: _, ...rest } = state.lastStreamIds
+            return { lastStreamIds: rest }
           })
         }
       }
@@ -220,12 +221,14 @@ export function initWsHandlers() {
     const { sessionRuntimes, currentConversationId } = get()
     const runtimeKey =
       (data.session_id && sessionRuntimes[data.session_id] ? data.session_id : null) ||
-      findSessionByRequestId(sessionRuntimes, data.request_id)
+      findSessionByRequestId(data.request_id)
 
     if (!runtimeKey) return
 
     clearSendTimeout(runtimeKey)
-    processedChunkIndex.delete(runtimeKey)
+    processedChunkIndex.delete(data.request_id)
+    // 取消 abort 兜底定时器
+    clearAbortFallbackTimer(data.request_id)
 
     // 用服务端返回的消息标记 error
     const messages = get().messagesBySession[runtimeKey] || []
@@ -235,31 +238,21 @@ export function initWsHandlers() {
       }
     })
 
-    // 新会话：pending -> real session 迁移（与 stream_done/reply/error 一致）
+    // 新会话：pending -> real session 迁移
     if (currentConversationId?.startsWith('pending-') && data.session_id) {
+      migratePendingSession(
+        currentConversationId,
+        data.session_id,
+        data.message?.slice(0, 10) || '新对话'
+      )
+    }
+
+    clearRuntime(runtimeKey)
+    // 清理 lastStreamId
+    if (data.session_id) {
       useChatStore.setState((state) => {
-        const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
-        const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
-
-        const newConv: Conversation = {
-          ...(pendingConv as Conversation),
-          id: data.session_id,
-          title: data.message?.slice(0, 10) || '新对话',
-        }
-
-        const { [runtimeKey]: _, ...restRuntimes } = state.sessionRuntimes
-
-        return {
-          currentConversationId: data.session_id,
-          conversations: { [data.session_id]: newConv, ...restConvs },
-          messagesBySession: { [data.session_id]: pendingMsgs || [], ...restMsgs },
-          sessionRuntimes: restRuntimes,
-        }
-      })
-    } else {
-      useChatStore.setState((state) => {
-        const { [runtimeKey]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
+        const { [data.session_id!]: _, ...rest } = state.lastStreamIds
+        return { lastStreamIds: rest }
       })
     }
   })
@@ -284,9 +277,10 @@ export function initWsHandlers() {
 
     // 服务端没有活跃流且本地还有 runtime，清理
     if (!data.has_active_stream && runtime) {
+      clearRuntime(sessionId)
       useChatStore.setState((state) => {
-        const { [sessionId]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
+        const { [sessionId]: _, ...rest } = state.lastStreamIds
+        return { lastStreamIds: rest }
       })
     }
   })

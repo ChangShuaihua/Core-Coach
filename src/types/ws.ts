@@ -76,14 +76,12 @@ export interface WsReconnectData {
 }
 
 export interface WsDisconnectData {
-  session_id: string
   reason: string
   create_time: number
 }
 
 export interface WsPingData {
   timestamp: number
-  session_id: string
 }
 
 export interface WsSessionEnterData {
