@@ -47,14 +47,15 @@ export function decryptPassword(cipherText: string): string | null {
     }
     usedNonces.add(data.nonce)
 
+    // 清理缓存
     if (usedNonces.size > 100) {
       const arr = Array.from(usedNonces)
       arr.slice(0, 50).forEach((n) => usedNonces.delete(n))
     }
 
     return data.pwd
-  } catch {
-    console.error('解密数据格式错误')
+  } catch (err) {
+    console.error('解密异常：', err)
     return null
   }
 }

@@ -1,49 +1,57 @@
-import Taro from '@tarojs/taro'
 import { put } from '@/services/http'
-import { useUserStore } from '@/store/useUserStore'
 
 export interface UserInfo {
-  nickName: string
-  avatarUrl: string
+  nickname: string
+  avatar: string
 }
 
-const BASE_URL = process.env.TARO_APP_API_URL || 'http://192.168.10.7:8083/api/v1'
-
-export async function getUserInfo(): Promise<UserInfo> {
-  const res = await put<UserInfo>('/user/info')
-  return res.data
+export interface UpdateUserInfoResponse {
+  nickname: string
+  avatar: string
 }
 
-export async function updateUserInfo(nickName: string, avatarUrl?: string): Promise<void> {
-  await put('/app/user/profile', { nickName, avatarUrl })
+export interface UploadAvatarResponse {
+  url: string
 }
 
-export async function uploadAvatar(filePath: string): Promise<string> {
-  const token = useUserStore.getState().accessToken
+const useMock = false
 
-  return new Promise((resolve, reject) => {
-    Taro.uploadFile({
-      url: `${BASE_URL}/upload`,
-      filePath,
-      name: 'file',
-      header: {
-        Authorization: `Bearer ${token}`,
-      },
-      success: (res) => {
-        try {
-          const data = JSON.parse(res.data)
-          if (data.code === 0) {
-            resolve(data.data.file_url)
-          } else {
-            reject(new Error(data.message || '上传失败'))
-          }
-        } catch {
-          reject(new Error('解析响应失败'))
-        }
-      },
-      fail: (err) => {
-        reject(new Error(err.errMsg || '上传失败'))
-      },
+export async function updateUserInfo(
+  nickname: string,
+  avatar?: string
+): Promise<UpdateUserInfoResponse> {
+  if (useMock) {
+    return Promise.resolve({
+      nickname,
+      avatar: avatar || '',
     })
-  })
+  }
+
+  const requestData: Record<string, any> = { nickname }
+  if (avatar) {
+    requestData.AvatarURL = avatar
+  }
+  const result = await put<UpdateUserInfoResponse>('/app/user/profile', requestData)
+
+  if (!result.data) {
+    throw new Error((result as any).message || (result as any).msg || '修改个人信息失败')
+  }
+
+  return result.data
+}
+
+export async function uploadAvatar(filePath: string): Promise<UploadAvatarResponse> {
+  if (useMock) {
+    return Promise.resolve({
+      url: filePath,
+    })
+  }
+
+  const result = await put<UploadAvatarResponse>('/upload/avatar', { filePath })
+
+  if (!result.data) {
+    throw new Error((result as any).message || (result as any).msg || '上传头像失败')
+  }
+
+  return result.data
 }
