@@ -1,13 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, Text, Button, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Refresh, Photograph, StarFill } from '@nutui/icons-react-taro'
 import { collectGame } from '@/api/profile'
 import StepIndicator from '@/components/Step'
-import WaitingPage from '@/components/WaitingPage'
 import StepRenderer from '@/pages/wizard/components/StepRenderer'
 import type { StepConfig } from '@/pages/wizard/components/StepRenderer'
-import { useTaskStore } from '@/store/taskStore'
 import { generateAndSaveImage } from '@/utils/shareImage'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
@@ -26,34 +24,16 @@ export interface WizardProps {
   onGenerate?: (
     data: Record<string, any>
   ) => Promise<{ recordId: number; businessType: string } | null>
+  onTaskSubmitted?: (recordId: number) => void
 }
 
-export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps) {
+export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitted }: WizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [data, setData] = useState<Record<string, any>>({})
   const [subPageActive, setSubPageActive] = useState(false)
 
-  const { status, result, startTask, reset: resetTask } = useTaskStore()
-
   const steps = stepConfig.steps || []
   const currentStep = steps[currentStepIndex]
-
-  // 监听任务完成，自动跳转到结果步骤
-  useEffect(() => {
-    if (status === 'completed' && result) {
-      const resultData = {
-        generatedResults: [
-          {
-            ...result,
-            businessType: useTaskStore.getState().businessType,
-          },
-        ],
-      }
-      setData((prev) => ({ ...prev, ...resultData }))
-      setCurrentStepIndex(steps.length - 1) // 跳到最后一步（结果页）
-      resetTask()
-    }
-  }, [status, result, resetTask, steps.length])
 
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex === steps.length - 1
@@ -115,11 +95,6 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
     description: `第${step.step}步`,
   }))
 
-  // 任务进行中，显示等待页面
-  if (status === 'pending' || status === 'processing') {
-    return <WaitingPage title="游戏" />
-  }
-
   return (
     <View className="w-full h-full flex flex-col">
       {/* 隐藏的 Canvas 用于生成分享图片 */}
@@ -179,7 +154,7 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                     if (onGenerate) {
                       const genResult = await onGenerate(data)
                       if (genResult) {
-                        startTask(genResult.recordId, genResult.businessType)
+                        onTaskSubmitted?.(genResult.recordId)
                       }
                     }
                   }}
@@ -263,7 +238,7 @@ export default function Wizard({ stepConfig, onFinish, onGenerate }: WizardProps
                   if (onGenerate) {
                     onGenerate(data).then((genResult) => {
                       if (genResult) {
-                        startTask(genResult.recordId, genResult.businessType)
+                        onTaskSubmitted?.(genResult.recordId)
                       }
                     })
                   }
