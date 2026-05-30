@@ -72,11 +72,10 @@ export default function WaitingPage({ title = '游戏' }: WaitingPageProps) {
       {/* 状态文案 */}
       <Text className="text-lg font-semibold text-gray-900 mb-2">正在为你生成{title}</Text>
       <Text className="text-sm text-gray-500 mb-6">{statusText || '处理中...'}</Text>
+      <Text className="text-xs text-gray-400">预计需要3-4分钟</Text>
 
       {/* 加载动画 */}
       <View className="w-8 h-8 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin mb-8" />
-
-      <Text className="text-xs text-gray-400">预计需要3-4分钟</Text>
     </View>
   )
 }

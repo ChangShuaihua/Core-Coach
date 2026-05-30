@@ -99,7 +99,11 @@ export default function ResultPage() {
           <Text className="text-xs text-gray-400">创建时间：{formatTime(createdAt)}</Text>
         </View>
       )}
-      <ResultPreview config={RESULT_CONFIG} value={data} onChange={setData} />
+      <ResultPreview
+        config={RESULT_CONFIG}
+        value={data}
+        onChange={(newData) => setData((prev) => ({ ...prev, ...newData }))}
+      />
     </Layout>
   )
 }

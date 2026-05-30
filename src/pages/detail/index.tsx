@@ -88,8 +88,8 @@ export default function DetailPage() {
       <ResultPreview
         config={RESULT_CONFIG}
         value={data}
-        onChange={setData}
-        showMusicSwitch={false}
+        onChange={(newData) => setData((prev) => ({ ...prev, ...newData }))}
+        showMusicSwitch
       />
     </Layout>
   )

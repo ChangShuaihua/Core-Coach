@@ -88,12 +88,12 @@ export const generateGame = async (params: GenerateGameParams): Promise<Generate
 
 /**
  * 获取音乐列表（更换音乐页面）
- * 接口: GET /game/music/list
+ * 接口: GET /game/music/options
  * 请求参数: { record_id?: number }
  * 返回: { code, message, data: { current_music, music_list } }
  */
 export const getMusicList = async (params?: MusicListRequest): Promise<MusicListData> => {
-  const res = await get<MusicListData>('/game/music/list', params)
+  const res = await get<MusicListData>('/game/music/options', params)
   return res.data
 }
 
