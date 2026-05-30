@@ -25,9 +25,21 @@ export async function getEncryptedPassword(publicKeyPem: string): Promise<string
 
 // ============ 收藏游戏 ============
 
-export async function getFavoriteGames(): Promise<Game[]> {
-  const result = await get<{ total: number; list: Game[] }>('/game/favorite/list')
-  return result.data.list
+export interface FavoriteGamesResult {
+  total: number
+  page: number
+  page_size: number
+  list: Game[]
+}
+
+export async function getFavoriteGames(
+  page: number = 1,
+  pageSize: number = 10
+): Promise<FavoriteGamesResult> {
+  const result = await get<FavoriteGamesResult>(
+    `/game/favorite/list?page=${page}&page_size=${pageSize}`
+  )
+  return result.data
 }
 
 export async function getGameDetail(id: number): Promise<Game | undefined> {
