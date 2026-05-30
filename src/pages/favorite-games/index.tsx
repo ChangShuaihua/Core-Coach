@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft, Star } from '@nutui/icons-react-taro'
-import { getFavoriteGames, getGameDetail, removeFavoriteGame } from '@/api/profile'
+import {
+  getFavoriteGames,
+  getGameDetail,
+  removeFavoriteGame,
+  type FavoriteGamesResult,
+} from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
@@ -14,22 +19,52 @@ const RESULT_CONFIG: ResultPreviewConfig = {
   title: '游戏详情',
 }
 
+const PAGE_SIZES = [5, 10, 20, 50]
+
 export default function FavoriteGamesPage() {
   const [games, setGames] = useState<Game[]>([])
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [detailData, setDetailData] = useState<Record<string, any>>({})
+  const [pagination, setPagination] = useState<FavoriteGamesResult>({
+    total: 0,
+    page: 1,
+    page_size: 10,
+    list: [],
+  })
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    loadGames()
+    loadGames(1, 10)
   }, [])
 
-  const loadGames = async () => {
+  const loadGames = async (page: number, pageSize: number) => {
+    setLoading(true)
     try {
-      const data = await getFavoriteGames()
-      setGames(data)
+      const data = await getFavoriteGames(page, pageSize)
+      setGames(data.list)
+      setPagination(data)
     } catch (error) {
       console.error('加载游戏失败:', error)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const handlePrev = () => {
+    if (pagination.page > 1) {
+      loadGames(pagination.page - 1, pagination.page_size)
+    }
+  }
+
+  const handleNext = () => {
+    const totalPages = Math.ceil(pagination.total / pagination.page_size)
+    if (pagination.page < totalPages) {
+      loadGames(pagination.page + 1, pagination.page_size)
+    }
+  }
+
+  const handlePageSizeChange = (size: number) => {
+    loadGames(1, size)
   }
 
   const handleRemove = (id: number) => {
@@ -88,6 +123,8 @@ export default function FavoriteGamesPage() {
     }
   }
 
+  const totalPages = Math.ceil(pagination.total / pagination.page_size)
+
   if (selectedGame) {
     return (
       <Layout
@@ -114,34 +151,91 @@ export default function FavoriteGamesPage() {
         </View>
       }
     >
-      <View className="p-4 bg-gray-1 min-h-screen">
-        {games.length > 0 ? (
+      <View className="bg-gray-1 min-h-screen">
+        {loading ? (
+          <View className="flex flex-col items-center justify-center pt-24">
+            <View className="w-10 h-10 border-4 border-orange-6 border-t-orange-2 rounded-full"></View>
+            <Text className="text-sm text-gray-5 mt-4">加载中...</Text>
+          </View>
+        ) : games.length > 0 ? (
           <View>
-            <Text className="text-sm text-gray-6 mb-4">共 {games.length} 个收藏</Text>
-            {games.map((game) => (
-              <Card key={game.id} className="mb-3" onClick={() => handleGameClick(game)}>
-                <View className="px-4 py-3">
-                  <View className="flex items-center justify-between mb-2">
-                    <Text className="text-base font-semibold text-gray-10">{game.game_name}</Text>
-                    <Text
-                      className="text-sm text-red"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemove(game.id)
-                      }}
-                    >
-                      删除
-                    </Text>
-                  </View>
-                  <View className="flex gap-4">
-                    <Text className="text-xs text-gray-7">{game.age}岁</Text>
-                    <View className="px-2 py-1 bg-orange-1 rounded-full">
-                      <Text className="text-xs text-orange-6">{game.game_type}</Text>
+            <View className="p-4">
+              <Text className="text-sm text-gray-6 mb-4">共 {pagination.total} 个收藏</Text>
+              {games.map((game) => (
+                <Card key={game.id} className="mb-3" onClick={() => handleGameClick(game)}>
+                  <View className="px-4 py-3">
+                    <View className="flex items-center justify-between mb-2">
+                      <Text className="text-base font-semibold text-gray-10">{game.game_name}</Text>
+                      <Text
+                        className="text-sm text-red"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRemove(game.id)
+                        }}
+                      >
+                        删除
+                      </Text>
+                    </View>
+                    <View className="flex gap-4">
+                      <Text className="text-xs text-gray-7">{game.age}岁</Text>
+                      <View className="px-2 py-1 bg-orange-1 rounded-full">
+                        <Text className="text-xs text-orange-6">{game.game_type}</Text>
+                      </View>
                     </View>
                   </View>
+                </Card>
+              ))}
+            </View>
+
+            <View className="flex flex-col items-center justify-center py-6 bg-white">
+              <View className="flex items-center gap-4 mb-3">
+                <View
+                  className="px-4 py-1.5 rounded-full bg-orange-2"
+                  onClick={handlePrev}
+                  style={{ opacity: pagination.page === 1 ? 0.5 : 1 }}
+                >
+                  <Text className="text-sm text-orange-6">上一页</Text>
                 </View>
-              </Card>
-            ))}
+
+                <Text className="text-sm text-gray-6">
+                  {pagination.page} / {totalPages}
+                </Text>
+
+                <View
+                  className="px-4 py-1.5 rounded-full bg-orange-2"
+                  onClick={handleNext}
+                  style={{ opacity: pagination.page === totalPages ? 0.5 : 1 }}
+                >
+                  <Text className="text-sm text-orange-6">下一页</Text>
+                </View>
+              </View>
+
+              <View className="flex items-center gap-2">
+                <Text className="text-sm text-gray-5">每页条数</Text>
+                <View className="flex items-center gap-1">
+                  {PAGE_SIZES.map((size) => (
+                    <View
+                      key={size}
+                      className="px-3 py-1 rounded-lg"
+                      style={{
+                        backgroundColor: pagination.page_size === size ? '#ff9500' : '#f5f5f5',
+                      }}
+                      onClick={() => handlePageSizeChange(size)}
+                    >
+                      <Text
+                        className="text-sm"
+                        style={{
+                          color: pagination.page_size === size ? '#ffffff' : '#666666',
+                        }}
+                      >
+                        {size}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <Text className="text-sm text-gray-4 ml-2">共 {pagination.total} 条</Text>
+              </View>
+            </View>
           </View>
         ) : (
           <View className="flex flex-col items-center justify-center pt-24">
