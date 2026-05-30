@@ -39,6 +39,11 @@ function persistSkill(skill: Skill | null) {
   } catch {}
 }
 
+/** 清除持久化的技能选择（退出登录时调用） */
+export function clearSkillStorage() {
+  persistSkill(null)
+}
+
 interface ChatStore {
   // ====== State ======
 
@@ -471,7 +476,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const all = await chatApi.getWorkflows()
     const basic = all.find((w) => w.type === 1) || null
     const skills = all.filter((w) => w.type === 2)
-    set({ defaultWorkflow: basic, skills })
+
+    // 校验持久化的 selectedSkill 是否还在当前工作流列表中
+    const { selectedSkill } = get()
+    if (selectedSkill && !all.some((w) => w.id === selectedSkill.id)) {
+      persistSkill(null)
+      set({ defaultWorkflow: basic, skills, selectedSkill: null })
+    } else {
+      set({ defaultWorkflow: basic, skills })
+    }
   },
 
   toggleSkill: (skill: Skill) => {
