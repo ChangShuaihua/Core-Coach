@@ -153,7 +153,7 @@ export function initWsHandlers() {
     }
   })
 
-  // ---- 错误处理（优先 session_id，兜底 request_id，含 pending 迁移） ----
+  // ---- 错误处理（优先 session_id，兜底 request_id，兜底当前会话，含 pending 迁移） ----
   ws.on('error', (data: WsErrorData) => {
     if (data.code === WS_ERROR_CODES.SESSION_OCCUPIED && data.session_id) {
       get().setSessionRole(data.session_id, 'viewer')
@@ -164,7 +164,11 @@ export function initWsHandlers() {
     const { sessionRuntimes, currentConversationId } = get()
     const targetSessionId =
       (data.session_id && sessionRuntimes[data.session_id] ? data.session_id : null) ||
-      (data.request_id ? findSessionByRequestId(sessionRuntimes, data.request_id) : undefined)
+      (data.request_id ? findSessionByRequestId(sessionRuntimes, data.request_id) : undefined) ||
+      // 兜底：无法匹配 runtime 时，用当前会话
+      (currentConversationId && sessionRuntimes[currentConversationId]
+        ? currentConversationId
+        : null)
 
     if (targetSessionId) {
       clearSendTimeout(targetSessionId)

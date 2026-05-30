@@ -7,8 +7,8 @@ import { Conversation, Message, MessageStatus, Skill, SessionRuntime } from '@/t
 // 技能持久化 key
 const SKILL_STORAGE_KEY = 'chat_selected_skill'
 
-// 发送超时（30 秒无响应标记为失败）
-const SEND_TIMEOUT_MS = 30_000
+// 发送超时（120 秒无响应标记为失败）
+const SEND_TIMEOUT_MS = 120_000
 const sendTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 export function clearSendTimeout(sessionId: string) {
