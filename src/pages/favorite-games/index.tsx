@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ArrowLeft, Star } from '@nutui/icons-react-taro'
+import { ArrowLeft, ArrowRight, Star } from '@nutui/icons-react-taro'
 import {
   getFavoriteGames,
   getGameDetail,
@@ -19,7 +19,7 @@ const RESULT_CONFIG: ResultPreviewConfig = {
   title: '游戏详情',
 }
 
-const PAGE_SIZES = [5, 10, 20, 50]
+const PAGE_SIZES = [1, 5, 10, 25]
 
 export default function FavoriteGamesPage() {
   const [games, setGames] = useState<Game[]>([])
@@ -151,91 +151,39 @@ export default function FavoriteGamesPage() {
         </View>
       }
     >
-      <View className="bg-gray-1 min-h-screen">
+      <View className="bg-gray-1 min-h-screen pb-36">
         {loading ? (
           <View className="flex flex-col items-center justify-center pt-24">
             <View className="w-10 h-10 border-4 border-orange-6 border-t-orange-2 rounded-full"></View>
             <Text className="text-sm text-gray-5 mt-4">加载中...</Text>
           </View>
         ) : games.length > 0 ? (
-          <View>
-            <View className="p-4">
-              <Text className="text-sm text-gray-6 mb-4">共 {pagination.total} 个收藏</Text>
-              {games.map((game) => (
-                <Card key={game.id} className="mb-3" onClick={() => handleGameClick(game)}>
-                  <View className="px-4 py-3">
-                    <View className="flex items-center justify-between mb-2">
-                      <Text className="text-base font-semibold text-gray-10">{game.game_name}</Text>
-                      <Text
-                        className="text-sm text-red"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleRemove(game.id)
-                        }}
-                      >
-                        删除
-                      </Text>
-                    </View>
-                    <View className="flex gap-4">
-                      <Text className="text-xs text-gray-7">{game.age}岁</Text>
-                      <View className="px-2 py-1 bg-orange-1 rounded-full">
-                        <Text className="text-xs text-orange-6">{game.game_type}</Text>
-                      </View>
+          <View className="p-4">
+            <Text className="text-sm text-gray-6 mb-4">共 {pagination.total} 个收藏</Text>
+            {games.map((game) => (
+              <Card key={game.id} className="mb-3" onClick={() => handleGameClick(game)}>
+                <View className="px-4 py-3">
+                  <View className="flex items-center justify-between mb-2">
+                    <Text className="text-base font-semibold text-gray-10">{game.game_name}</Text>
+                    <Text
+                      className="text-sm text-red"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemove(game.id)
+                      }}
+                    >
+                      删除
+                    </Text>
+                  </View>
+                  <View className="flex gap-4">
+                    <Text className="text-xs text-gray-7">{game.age}岁</Text>
+                    <View className="px-2 py-1 bg-orange-1 rounded-full">
+                      <Text className="text-xs text-orange-6">{game.game_type}</Text>
                     </View>
                   </View>
-                </Card>
-              ))}
-            </View>
-
-            <View className="flex flex-col items-center justify-center py-6 bg-white">
-              <View className="flex items-center gap-4 mb-3">
-                <View
-                  className="px-4 py-1.5 rounded-full bg-orange-2"
-                  onClick={handlePrev}
-                  style={{ opacity: pagination.page === 1 ? 0.5 : 1 }}
-                >
-                  <Text className="text-sm text-orange-6">上一页</Text>
                 </View>
-
-                <Text className="text-sm text-gray-6">
-                  {pagination.page} / {totalPages}
-                </Text>
-
-                <View
-                  className="px-4 py-1.5 rounded-full bg-orange-2"
-                  onClick={handleNext}
-                  style={{ opacity: pagination.page === totalPages ? 0.5 : 1 }}
-                >
-                  <Text className="text-sm text-orange-6">下一页</Text>
-                </View>
-              </View>
-
-              <View className="flex items-center gap-2">
-                <Text className="text-sm text-gray-5">每页条数</Text>
-                <View className="flex items-center gap-1">
-                  {PAGE_SIZES.map((size) => (
-                    <View
-                      key={size}
-                      className="px-3 py-1 rounded-lg"
-                      style={{
-                        backgroundColor: pagination.page_size === size ? '#ff9500' : '#f5f5f5',
-                      }}
-                      onClick={() => handlePageSizeChange(size)}
-                    >
-                      <Text
-                        className="text-sm"
-                        style={{
-                          color: pagination.page_size === size ? '#ffffff' : '#666666',
-                        }}
-                      >
-                        {size}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                <Text className="text-sm text-gray-4 ml-2">共 {pagination.total} 条</Text>
-              </View>
-            </View>
+              </Card>
+            ))}
           </View>
         ) : (
           <View className="flex flex-col items-center justify-center pt-24">
@@ -243,6 +191,60 @@ export default function FavoriteGamesPage() {
             <Text className="text-base text-gray-5 mt-4">暂无收藏游戏</Text>
           </View>
         )}
+      </View>
+
+      <View className="fixed bottom-0 left-0 right-0 z-50">
+        <View className="bg-white border-t border-gray-2 py-4 px-6">
+          <View className="flex flex-col items-center justify-center gap-3">
+            <View className="flex items-center gap-2">
+              <View
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50"
+                onClick={handlePrev}
+                style={{ opacity: pagination.page === 1 ? 0.4 : 1 }}
+              >
+                <ArrowLeft className="w-4 h-4 text-gray-7" />
+              </View>
+
+              <View className="flex items-center gap-1">
+                <Text className="text-base font-semibold text-gray-9">{pagination.page}</Text>
+                <Text className="text-xs text-gray-4">/</Text>
+                <Text className="text-sm text-gray-5">{totalPages}</Text>
+              </View>
+
+              <View
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50"
+                onClick={handleNext}
+                style={{ opacity: pagination.page === totalPages ? 0.4 : 1 }}
+              >
+                <ArrowRight className="w-4 h-4 text-gray-7" />
+              </View>
+            </View>
+
+            <View className="flex items-center gap-1">
+              <Text className="text-xs text-gray-6">每页</Text>
+              {PAGE_SIZES.map((size) => (
+                <View
+                  key={size}
+                  className="px-3 py-1 rounded-md"
+                  style={{
+                    backgroundColor: pagination.page_size === size ? '#ff9500' : '#f5f5f5',
+                  }}
+                  onClick={() => handlePageSizeChange(size)}
+                >
+                  <Text
+                    className="text-xs font-medium"
+                    style={{
+                      color: pagination.page_size === size ? '#ffffff' : '#666666',
+                    }}
+                  >
+                    {size}
+                  </Text>
+                </View>
+              ))}
+              <Text className="text-xs text-gray-4 ml-1">共{pagination.total}条</Text>
+            </View>
+          </View>
+        </View>
       </View>
     </Layout>
   )
