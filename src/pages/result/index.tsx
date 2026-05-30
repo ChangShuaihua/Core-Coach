@@ -5,6 +5,7 @@ import { getTaskStatus } from '@/api/creation'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
+import WaitingPage from '@/components/WaitingPage'
 import type { TaskStatusCode } from '@/types/creation'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
@@ -86,19 +87,7 @@ export default function ResultPage() {
   if (status === 2 || status === 3) {
     return (
       <Layout title="生成中" showTabBar>
-        <View className="flex flex-col items-center justify-center h-screen px-8">
-          <View className="mb-8">
-            <View className="w-24 h-24 rounded-full bg-orange-100 flex items-center justify-center animate-pulse">
-              <Text className="text-4xl">✨</Text>
-            </View>
-          </View>
-          <Text className="text-lg font-semibold text-gray-900 mb-2">正在为你生成游戏</Text>
-          <Text className="text-sm text-gray-500 mb-4">{data.userMessage}</Text>
-          {createdAt && (
-            <Text className="text-xs text-gray-400">创建时间：{formatTime(createdAt)}</Text>
-          )}
-          <View className="w-8 h-8 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin mt-6" />
-        </View>
+        <WaitingPage title="游戏" />
       </Layout>
     )
   }

@@ -1,6 +1,43 @@
-import { View, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import { useState, useEffect } from 'react'
+import { View, Text, Image } from '@tarojs/components'
+import frame1 from '@/assets/images/frame1.png'
+import frame2 from '@/assets/images/frame2.png'
+import frame3 from '@/assets/images/frame3.png'
+import frame4 from '@/assets/images/frame4.png'
 import { useTaskStore } from '@/store/taskStore'
+
+const frames = [frame1, frame2, frame3, frame4]
+
+function FrameAnimation() {
+  const [frameIndex, setFrameIndex] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFrameIndex((prev) => (prev + 1) % frames.length)
+    }, 2000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <View className="relative" style={{ width: '200px', height: '200px' }}>
+      {frames.map((src, index) => (
+        <Image
+          key={index}
+          src={src}
+          mode="aspectFit"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '200px',
+            height: '200px',
+            opacity: index === frameIndex ? 1 : 0,
+          }}
+        />
+      ))}
+    </View>
+  )
+}
 
 interface WaitingPageProps {
   title?: string
@@ -8,14 +45,6 @@ interface WaitingPageProps {
 
 export default function WaitingPage({ title = '游戏' }: WaitingPageProps) {
   const { status, statusText, error } = useTaskStore()
-
-  const handleGoChat = () => {
-    Taro.switchTab({ url: '/pages/chat/index' })
-  }
-
-  const handleGoProfile = () => {
-    Taro.switchTab({ url: '/pages/profile/index' })
-  }
 
   if (status === 'failed') {
     return (
@@ -35,11 +64,9 @@ export default function WaitingPage({ title = '游戏' }: WaitingPageProps) {
 
   return (
     <View className="flex flex-col items-center justify-center h-full px-8">
-      {/* 动画区域 */}
+      {/* 帧动画区域 */}
       <View className="mb-8">
-        <View className="w-24 h-24 rounded-full bg-orange-100 flex items-center justify-center animate-pulse">
-          <Text className="text-4xl">✨</Text>
-        </View>
+        <FrameAnimation />
       </View>
 
       {/* 状态文案 */}
@@ -49,20 +76,7 @@ export default function WaitingPage({ title = '游戏' }: WaitingPageProps) {
       {/* 加载动画 */}
       <View className="w-8 h-8 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin mb-8" />
 
-      {/* 提示文案 */}
-      <Text className="text-xs text-gray-400 mb-8 text-center">
-        预计需要30秒左右，你可以先去其他页面看看
-      </Text>
-
-      {/* 快捷跳转 */}
-      <View className="flex gap-4">
-        <View className="px-5 py-2 bg-gray-100 rounded-full" onClick={handleGoChat}>
-          <Text className="text-sm text-gray-700">去问答</Text>
-        </View>
-        <View className="px-5 py-2 bg-gray-100 rounded-full" onClick={handleGoProfile}>
-          <Text className="text-sm text-gray-700">个人中心</Text>
-        </View>
-      </View>
+      <Text className="text-xs text-gray-400">预计需要3-4分钟</Text>
     </View>
   )
 }
