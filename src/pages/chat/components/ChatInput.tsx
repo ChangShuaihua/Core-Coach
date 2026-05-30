@@ -54,6 +54,7 @@ const ChatInput = ({
             onInput={(e) => setValue(e.detail.value)}
             placeholder={disabled ? '该会话正在其他设备使用中' : '发送消息...'}
             placeholderClass="text-gray-400"
+            disabled={disabled}
             adjustPosition={false}
             showConfirmBar={false}
             autoHeight
