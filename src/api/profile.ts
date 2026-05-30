@@ -18,8 +18,8 @@ export async function updatePassword(params: UpdatePasswordParams): Promise<Upda
   return res.data
 }
 
-export async function getEncryptedPassword(): Promise<string> {
-  const res = await get<{ cipherText: string }>('/app/user/info')
+export async function getEncryptedPassword(publicKeyPem: string): Promise<string> {
+  const res = await post<{ cipherText: string }>('/app/user/info', { publicKey: publicKeyPem })
   return res.data.cipherText
 }
 

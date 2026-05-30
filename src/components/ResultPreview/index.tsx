@@ -113,7 +113,7 @@ export default function ResultPreview({
       >
         <GameHeroCard
           name={game.name}
-          tag={game.tag}
+          tag={realResult.game_type || value.gameType}
           age={realResult.age || value.age}
           playerCount={value.playerCount}
           gameType={realResult.game_type || value.gameType}
