@@ -57,12 +57,13 @@ export default function ChatPage() {
     loadWorkflows()
   }, [loadConversations, ensurePendingConversation, loadWorkflows])
 
-  // 切换会话时拉取消息（发送期间跳过，防止覆盖乐观更新的消息）
+  // 切换会话时拉取消息 + 刷新会话列表
   useEffect(() => {
     if (currentConversationId && !sendingRef.current) {
       loadMessages(currentConversationId)
+      loadConversations()
     }
-  }, [currentConversationId, loadMessages])
+  }, [currentConversationId, loadMessages, loadConversations])
 
   // 监听键盘高度变化
   useEffect(() => {
@@ -111,7 +112,12 @@ export default function ChatPage() {
     <Layout
       title="核心力量·助手"
       renderLeft={
-        <View onClick={() => setShowLeft(true)}>
+        <View
+          onClick={() => {
+            setShowLeft(true)
+            loadConversations()
+          }}
+        >
           <Clock />
         </View>
       }
