@@ -164,7 +164,16 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   ensurePendingConversation: () => {
-    const { conversations } = get()
+    const { conversations, currentConversationId } = get()
+
+    // 离开旧会话（pending 不用通知服务端）
+    if (currentConversationId && !currentConversationId.startsWith('pending-')) {
+      ws.send('session_leave', {
+        session_id: currentConversationId,
+        create_time: Math.floor(Date.now() / 1000),
+      })
+    }
+
     const pending = Object.values(conversations).find((c) => c.id.startsWith('pending-'))
 
     if (pending) {
