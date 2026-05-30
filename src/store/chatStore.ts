@@ -138,11 +138,18 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   loadConversations: async () => {
     const result = await chatApi.getConversations()
-    const { conversations } = get()
+    const { conversations, sessionRuntimes } = get()
+
+    // 有 pending 会话正在等待 server 响应时，跳过添加新会话
+    // 避免 server 返回的真实 session 与本地 pending 会话并存（产生重复）
+    const hasPendingWithRuntime = Object.keys(conversations).some(
+      (id) => id.startsWith('pending-') && sessionRuntimes[id]
+    )
 
     const merged: Record<string, Conversation> = { ...conversations }
     result.conversations.forEach((conv) => {
       if (!merged[conv.id]) {
+        if (hasPendingWithRuntime) return // 跳过添加新会话
         merged[conv.id] = conv
       } else {
         merged[conv.id] = {
