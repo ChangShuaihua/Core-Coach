@@ -164,12 +164,17 @@ export interface WsAbortResultData {
   create_time: number
 }
 
-export interface WsReconnectResultData {
+export interface WsMissedMessage {
+  event_type: WsEventType
   request_id: string
+  data: any
+}
+
+export interface WsReconnectResultData {
   session_id: string
   success: boolean
   has_active_stream: boolean
-  missed_messages: WsMessage[]
+  missed_messages: WsMissedMessage[]
   create_time: number
 }
 

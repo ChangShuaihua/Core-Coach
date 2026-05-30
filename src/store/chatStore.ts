@@ -3,7 +3,6 @@ import { create } from 'zustand'
 import * as chatApi from '@/api/chat'
 import { ws } from '@/services/ws'
 import { Conversation, Message, MessageStatus, Skill, SessionRuntime } from '@/types/chat'
-import type { WsAbortResultData } from '@/types/ws'
 
 // 技能持久化 key
 const SKILL_STORAGE_KEY = 'chat_selected_skill'
@@ -39,6 +38,11 @@ function persistSkill(skill: Skill | null) {
   } catch {}
 }
 
+/** 清除持久化的技能选择（退出登录时调用） */
+export function clearSkillStorage() {
+  persistSkill(null)
+}
+
 interface ChatStore {
   // ====== State ======
 
@@ -57,7 +61,6 @@ interface ChatStore {
   sessionRoles: Record<string, 'chatter' | 'viewer'>
   sessionRuntimes: Record<string, SessionRuntime>
   lastStreamIds: Record<string, string>
-  pendingAborts: Map<string, (data: WsAbortResultData) => void>
 
   // ====== Actions ======
 
@@ -105,7 +108,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   sessionRoles: {},
   sessionRuntimes: {},
   lastStreamIds: {},
-  pendingAborts: new Map(),
 
   // ====== 会话 Actions ======
 
@@ -420,49 +422,32 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       return
     }
 
-    // 注册 pendingAbort resolver
+    // 发送 abort，清理由 chatWsHandlers 的 abort_result 统一处理
     const requestId = runtime.requestId
-    new Promise<WsAbortResultData>((resolve) => {
-      set((state) => {
-        const newMap = new Map(state.pendingAborts)
-        newMap.set(requestId, resolve)
-        return { pendingAborts: newMap }
-      })
-
-      ws.send('abort', {
-        request_id: requestId,
-        session_id: currentConversationId,
-        reason: 'user_cancelled',
-        create_time: Math.floor(Date.now() / 1000),
-      })
-
-      setTimeout(() => {
-        const { pendingAborts } = get()
-        if (pendingAborts.has(requestId)) {
-          pendingAborts.delete(requestId)
-          resolve({
-            request_id: requestId,
-            session_id: currentConversationId,
-            success: true,
-            stopped_at_chunk: 0,
-            message: '中断超时',
-            create_time: Math.floor(Date.now() / 1000),
-          })
-        }
-      }, 5000)
-    }).then(() => {
-      // abort 确认后清理（chatWsHandlers 中 abort_result 也会处理）
-      const messages = get().messagesBySession[currentConversationId] || []
-      messages.forEach((m) => {
-        if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
-          get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
-        }
-      })
-      set((state) => {
-        const { [currentConversationId]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
-      })
+    const isNewConversation = currentConversationId.startsWith('pending-')
+    ws.send('abort', {
+      request_id: requestId,
+      session_id: isNewConversation ? '' : currentConversationId,
+      reason: 'user_cancelled',
+      create_time: Math.floor(Date.now() / 1000),
     })
+
+    // 超时兜底：5 秒内服务端没有返回 abort_result，直接清理
+    setTimeout(() => {
+      const currentRuntime = get().sessionRuntimes[currentConversationId]
+      if (currentRuntime && currentRuntime.requestId === requestId) {
+        const messages = get().messagesBySession[currentConversationId] || []
+        messages.forEach((m) => {
+          if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
+            get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
+          }
+        })
+        set((state) => {
+          const { [currentConversationId]: _, ...rest } = state.sessionRuntimes
+          return { sessionRuntimes: rest }
+        })
+      }
+    }, 5000)
   },
 
   // ====== 技能 ======
@@ -471,7 +456,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const all = await chatApi.getWorkflows()
     const basic = all.find((w) => w.type === 1) || null
     const skills = all.filter((w) => w.type === 2)
-    set({ defaultWorkflow: basic, skills })
+
+    // 校验持久化的 selectedSkill 是否还在当前工作流列表中
+    const { selectedSkill } = get()
+    if (selectedSkill && !all.some((w) => w.id === selectedSkill.id)) {
+      persistSkill(null)
+      set({ defaultWorkflow: basic, skills, selectedSkill: null })
+    } else {
+      set({ defaultWorkflow: basic, skills })
+    }
   },
 
   toggleSkill: (skill: Skill) => {

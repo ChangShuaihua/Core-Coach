@@ -153,7 +153,7 @@ export function initWsHandlers() {
     }
   })
 
-  // ---- 错误处理（优先 session_id，兜底 request_id） ----
+  // ---- 错误处理（优先 session_id，兜底 request_id，含 pending 迁移） ----
   ws.on('error', (data: WsErrorData) => {
     if (data.code === WS_ERROR_CODES.SESSION_OCCUPIED && data.session_id) {
       get().setSessionRole(data.session_id, 'viewer')
@@ -161,7 +161,7 @@ export function initWsHandlers() {
       return
     }
 
-    const { sessionRuntimes } = get()
+    const { sessionRuntimes, currentConversationId } = get()
     const targetSessionId =
       (data.session_id && sessionRuntimes[data.session_id] ? data.session_id : null) ||
       (data.request_id ? findSessionByRequestId(sessionRuntimes, data.request_id) : undefined)
@@ -177,43 +177,82 @@ export function initWsHandlers() {
           'error',
           data.message || '发送失败'
         )
-        useChatStore.setState((state) => {
-          const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
-          return { sessionRuntimes: rest }
-        })
+
+        // 新会话：pending -> real session 迁移（与 stream_done/reply 一致）
+        if (currentConversationId?.startsWith('pending-') && data.session_id) {
+          useChatStore.setState((state) => {
+            const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
+            const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
+
+            const newConv: Conversation = {
+              ...(pendingConv as Conversation),
+              id: data.session_id!,
+              title: data.message?.slice(0, 10) || '新对话',
+            }
+
+            const { [targetSessionId]: _, ...restRuntimes } = state.sessionRuntimes
+
+            return {
+              currentConversationId: data.session_id!,
+              conversations: { [data.session_id!]: newConv, ...restConvs },
+              messagesBySession: { [data.session_id!]: pendingMsgs || [], ...restMsgs },
+              sessionRuntimes: restRuntimes,
+            }
+          })
+        } else {
+          useChatStore.setState((state) => {
+            const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
+            return { sessionRuntimes: rest }
+          })
+        }
       }
     }
 
     Taro.showToast({ title: data.message || '请求失败', icon: 'none' })
   })
 
-  // ---- 中断确认（解析 pendingAbort + 清理 runtime） ----
+  // ---- 中断确认（清理 runtime + pending 迁移） ----
   ws.on('abort_result', (data: WsAbortResultData) => {
-    // 解析 pendingAbort（由 stopResponding 注册）
-    const { pendingAborts } = get()
-    const resolver = pendingAborts.get(data.request_id)
-    if (resolver) {
-      resolver(data)
-      const newMap = new Map(pendingAborts)
-      newMap.delete(data.request_id)
-      useChatStore.setState({ pendingAborts: newMap })
-    }
-
-    // 找 runtime 并清理
-    const { sessionRuntimes } = get()
+    const { sessionRuntimes, currentConversationId } = get()
     const runtimeKey =
       (data.session_id && sessionRuntimes[data.session_id] ? data.session_id : null) ||
       findSessionByRequestId(sessionRuntimes, data.request_id)
 
-    if (runtimeKey) {
-      clearSendTimeout(runtimeKey)
-      processedChunkIndex.delete(runtimeKey)
-      const messages = get().messagesBySession[runtimeKey] || []
-      messages.forEach((m) => {
-        if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
-          get().updateMessageStatus(runtimeKey, m.id, 'error', '已停止生成')
+    if (!runtimeKey) return
+
+    clearSendTimeout(runtimeKey)
+    processedChunkIndex.delete(runtimeKey)
+
+    // 用服务端返回的消息标记 error
+    const messages = get().messagesBySession[runtimeKey] || []
+    messages.forEach((m) => {
+      if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
+        get().updateMessageStatus(runtimeKey, m.id, 'error', data.message || '已停止生成')
+      }
+    })
+
+    // 新会话：pending -> real session 迁移（与 stream_done/reply/error 一致）
+    if (currentConversationId?.startsWith('pending-') && data.session_id) {
+      useChatStore.setState((state) => {
+        const { [currentConversationId]: pendingConv, ...restConvs } = state.conversations
+        const { [currentConversationId]: pendingMsgs, ...restMsgs } = state.messagesBySession
+
+        const newConv: Conversation = {
+          ...(pendingConv as Conversation),
+          id: data.session_id,
+          title: data.message?.slice(0, 10) || '新对话',
+        }
+
+        const { [runtimeKey]: _, ...restRuntimes } = state.sessionRuntimes
+
+        return {
+          currentConversationId: data.session_id,
+          conversations: { [data.session_id]: newConv, ...restConvs },
+          messagesBySession: { [data.session_id]: pendingMsgs || [], ...restMsgs },
+          sessionRuntimes: restRuntimes,
         }
       })
+    } else {
       useChatStore.setState((state) => {
         const { [runtimeKey]: _, ...rest } = state.sessionRuntimes
         return { sessionRuntimes: rest }
@@ -221,7 +260,7 @@ export function initWsHandlers() {
     }
   })
 
-  // ---- 重连结果（按 session_id 路由，处理 missed_messages） ----
+  // ---- 重连结果（按 session_id 路由，missed_messages 复用已有 handler） ----
   ws.on('reconnect_result', (data: WsReconnectResultData) => {
     if (!data.success) return
 
@@ -229,32 +268,18 @@ export function initWsHandlers() {
     const sessionId = data.session_id
     const runtime = sessionRuntimes[sessionId]
 
-    // 更新 lastStreamId
-    if (data.has_active_stream && runtime) {
-      get().setLastStreamId(sessionId, data.request_id)
+    // 将 missed_messages 重新注入事件系统
+    if (data.missed_messages?.length) {
+      ws.reemit(
+        data.missed_messages.map((m) => ({
+          event_type: m.event_type,
+          data: { ...m.data, request_id: m.request_id, session_id: sessionId },
+        }))
+      )
     }
 
-    // 处理错过的消息
-    if (data.missed_messages?.length && runtime) {
-      for (const msg of data.missed_messages) {
-        const msgData = msg.data
-        if (msg.event_type === 'stream_chunk' && msgData) {
-          const messages = get().messagesBySession[sessionId] || []
-          const targetMsg = messages.find((m) => m.id === runtime.assistantMsgId)
-          if (targetMsg) {
-            const newContent = targetMsg.content + msgData.content
-            get().updateMessageStatus(sessionId, runtime.assistantMsgId, 'streaming', newContent)
-          }
-        } else if ((msg.event_type === 'stream_done' || msg.event_type === 'reply') && msgData) {
-          get().updateMessageStatus(sessionId, runtime.assistantMsgId, 'success', msgData.content)
-          useChatStore.setState((state) => {
-            const { [sessionId]: _, ...rest } = state.sessionRuntimes
-            return { sessionRuntimes: rest }
-          })
-        }
-      }
-    } else if (!data.has_active_stream && runtime) {
-      // 服务端没有活跃流，清理 runtime
+    // 服务端没有活跃流且本地还有 runtime，清理
+    if (!data.has_active_stream && runtime) {
       useChatStore.setState((state) => {
         const { [sessionId]: _, ...rest } = state.sessionRuntimes
         return { sessionRuntimes: rest }
