@@ -89,6 +89,13 @@ class WsManager {
     })
   }
 
+  /** 将错过的消息重新注入事件系统，复用已有 handler */
+  reemit(messages: Array<{ event_type: WsEventType; data: any }>): void {
+    for (const msg of messages) {
+      this.emit(msg.event_type, msg.data)
+    }
+  }
+
   // ============ 连接 ============
 
   connect(token: string, userId: string): void {
