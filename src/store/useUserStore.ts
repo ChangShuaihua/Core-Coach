@@ -1,6 +1,7 @@
 import Taro from '@tarojs/taro'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { ws } from '@/services/ws'
 import type { UserInfo } from '@/types/profile'
 import { clearSkillStorage } from './chatStore'
 
@@ -62,6 +63,7 @@ export const useUserStore = create<UserState>()(
         set({ refreshExpireTime: Date.now() + refreshExpire * 1000 }),
       setUserInfo: (userInfo) => set({ userInfo }),
       clearAuth: () => {
+        ws.disconnect()
         clearSkillStorage()
         set({
           accessToken: '',
