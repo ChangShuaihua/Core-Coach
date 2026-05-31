@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft, ArrowRight, Star } from '@nutui/icons-react-taro'
+import { Checkbox } from '@nutui/nutui-react-taro'
 import {
   getFavoriteGames,
   getGameDetail,
   removeFavoriteGame,
+  batchRemoveFavoriteGames,
   type FavoriteGamesResult,
 } from '@/api/profile'
 import ActionBar from '@/components/ActionBar'
@@ -36,6 +38,8 @@ export default function FavoriteGamesPage() {
   })
   const [loading, setLoading] = useState(false)
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null)
+  const [isManageMode, setIsManageMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const favGenResult = detailData.generatedResults?.[0]
   useShare(
@@ -77,6 +81,54 @@ export default function FavoriteGamesPage() {
 
   const handlePageSizeChange = (size: number) => {
     loadGames(1, size)
+  }
+
+  const toggleManageMode = () => {
+    setIsManageMode(!isManageMode)
+    setSelectedIds(new Set())
+  }
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === games.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(games.map((g) => g.id)))
+    }
+  }
+
+  const handleBatchRemove = () => {
+    if (selectedIds.size === 0) return
+    Taro.showModal({
+      title: '提示',
+      content: `确定取消收藏选中的 ${selectedIds.size} 个游戏？`,
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await batchRemoveFavoriteGames(Array.from(selectedIds))
+            setGames(games.filter((g) => !selectedIds.has(g.id)))
+            setSelectedIds(new Set())
+            setIsManageMode(false)
+            Taro.showToast({ title: result.message || '取消收藏成功', icon: 'success' })
+            loadGames(pagination.page, pagination.page_size)
+          } catch (error) {
+            console.error('批量取消收藏失败:', error)
+            Taro.showToast({ title: '操作失败', icon: 'none' })
+          }
+        }
+      },
+    })
   }
 
   const handleRemove = (id: number) => {
@@ -211,30 +263,55 @@ export default function FavoriteGamesPage() {
           </View>
         ) : games.length > 0 ? (
           <View className="p-4">
-            <Text className="text-sm text-gray-6 mb-4">共 {pagination.total} 个收藏</Text>
+            <View className="flex items-center justify-between mb-4">
+              <Text className="text-sm text-gray-6">共 {pagination.total} 个收藏</Text>
+              <View className="px-3 py-1 rounded-full bg-orange-1" onClick={toggleManageMode}>
+                <Text className="text-sm text-orange-6 font-medium">
+                  {isManageMode ? '取消' : '管理'}
+                </Text>
+              </View>
+            </View>
             {games.map((game) => (
-              <Card key={game.id} className="mb-3" onClick={() => handleGameClick(game)}>
-                <View className="px-4 py-3">
-                  <View className="flex items-center justify-between mb-2">
-                    <Text className="text-base font-semibold text-gray-10">{game.game_name}</Text>
-                    <Text
-                      className="text-sm text-red"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemove(game.id)
+              <View key={game.id} className="flex items-start gap-2 mb-3">
+                {isManageMode && (
+                  <View className="flex items-center pt-4 pl-2">
+                    <Checkbox
+                      checked={selectedIds.has(game.id)}
+                      onChange={(val) => {
+                        toggleSelect(game.id)
                       }}
-                    >
-                      删除
-                    </Text>
+                    />
                   </View>
-                  <View className="flex gap-4">
-                    <Text className="text-xs text-gray-7">{game.age}岁</Text>
-                    <View className="px-2 py-1 bg-orange-1 rounded-full">
-                      <Text className="text-xs text-orange-6">{game.game_type}</Text>
+                )}
+                <View className="flex-1 min-w-0">
+                  <Card onClick={isManageMode ? undefined : () => handleGameClick(game)}>
+                    <View className="px-4 py-3">
+                      <View className="flex items-center justify-between mb-2">
+                        <Text className="text-base font-semibold text-gray-10 truncate">
+                          {game.game_name}
+                        </Text>
+                        {!isManageMode && (
+                          <Text
+                            className="text-sm text-red flex-shrink-0 ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRemove(game.id)
+                            }}
+                          >
+                            删除
+                          </Text>
+                        )}
+                      </View>
+                      <View className="flex gap-4">
+                        <Text className="text-xs text-gray-7">{game.age}岁</Text>
+                        <View className="px-2 py-1 bg-orange-1 rounded-full">
+                          <Text className="text-xs text-orange-6">{game.game_type}</Text>
+                        </View>
+                      </View>
                     </View>
-                  </View>
+                  </Card>
                 </View>
-              </Card>
+              </View>
             ))}
           </View>
         ) : (
@@ -247,55 +324,83 @@ export default function FavoriteGamesPage() {
 
       <View className="fixed bottom-0 left-0 right-0 z-50">
         <View className="bg-white border-t border-gray-2 py-4 px-6">
-          <View className="flex flex-col items-center justify-center gap-3">
-            <View className="flex items-center gap-2">
+          {isManageMode ? (
+            <View className="flex items-center justify-between">
+              <View className="flex items-center gap-2">
+                <Checkbox
+                  checked={selectedIds.size === games.length && games.length > 0}
+                  onChange={toggleSelectAll}
+                />
+                <Text className="text-sm text-gray-8">全选</Text>
+              </View>
               <View
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50"
-                onClick={handlePrev}
-                style={{ opacity: pagination.page === 1 ? 0.4 : 1 }}
+                className="px-6 py-2 rounded-full"
+                style={{
+                  backgroundColor: selectedIds.size > 0 ? '#ff9500' : '#e5e5e5',
+                }}
+                onClick={handleBatchRemove}
               >
-                <ArrowLeft className="w-4 h-4 text-gray-7" />
+                <Text
+                  className="text-sm font-medium"
+                  style={{
+                    color: selectedIds.size > 0 ? '#ffffff' : '#999999',
+                  }}
+                >
+                  取消收藏({selectedIds.size})
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View className="flex flex-col items-center justify-center gap-3">
+              <View className="flex items-center gap-2">
+                <View
+                  className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50"
+                  onClick={handlePrev}
+                  style={{ opacity: pagination.page === 1 ? 0.4 : 1 }}
+                >
+                  <ArrowLeft className="w-4 h-4 text-gray-7" />
+                </View>
+
+                <View className="flex items-center gap-1">
+                  <Text className="text-base font-semibold text-gray-9">{pagination.page}</Text>
+                  <Text className="text-xs text-gray-4">/</Text>
+                  <Text className="text-sm text-gray-5">{totalPages}</Text>
+                </View>
+
+                <View
+                  className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50"
+                  onClick={handleNext}
+                  style={{ opacity: pagination.page === totalPages ? 0.4 : 1 }}
+                >
+                  <ArrowRight className="w-4 h-4 text-gray-7" />
+                </View>
               </View>
 
               <View className="flex items-center gap-1">
-                <Text className="text-base font-semibold text-gray-9">{pagination.page}</Text>
-                <Text className="text-xs text-gray-4">/</Text>
-                <Text className="text-sm text-gray-5">{totalPages}</Text>
-              </View>
-
-              <View
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50"
-                onClick={handleNext}
-                style={{ opacity: pagination.page === totalPages ? 0.4 : 1 }}
-              >
-                <ArrowRight className="w-4 h-4 text-gray-7" />
-              </View>
-            </View>
-
-            <View className="flex items-center gap-1">
-              <Text className="text-xs text-gray-6">每页</Text>
-              {PAGE_SIZES.map((size) => (
-                <View
-                  key={size}
-                  className="px-3 py-1 rounded-md"
-                  style={{
-                    backgroundColor: pagination.page_size === size ? '#ff9500' : '#f5f5f5',
-                  }}
-                  onClick={() => handlePageSizeChange(size)}
-                >
-                  <Text
-                    className="text-xs font-medium"
+                <Text className="text-xs text-gray-6">每页</Text>
+                {PAGE_SIZES.map((size) => (
+                  <View
+                    key={size}
+                    className="px-3 py-1 rounded-md"
                     style={{
-                      color: pagination.page_size === size ? '#ffffff' : '#666666',
+                      backgroundColor: pagination.page_size === size ? '#ff9500' : '#f5f5f5',
                     }}
+                    onClick={() => handlePageSizeChange(size)}
                   >
-                    {size}
-                  </Text>
-                </View>
-              ))}
-              <Text className="text-xs text-gray-4 ml-1">共{pagination.total}条</Text>
+                    <Text
+                      className="text-xs font-medium"
+                      style={{
+                        color: pagination.page_size === size ? '#ffffff' : '#666666',
+                      }}
+                    >
+                      {size}
+                    </Text>
+                  </View>
+                ))}
+                <Text className="text-xs text-gray-4 ml-1">共{pagination.total}条</Text>
+              </View>
             </View>
-          </View>
+          )}
         </View>
       </View>
     </Layout>
