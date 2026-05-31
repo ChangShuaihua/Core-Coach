@@ -1,5 +1,6 @@
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { Close } from '@nutui/icons-react-taro'
 import { clsx } from 'clsx'
 import { useChatStore } from '@/store/chatStore'
 import { Conversation } from '@/types/chat'
@@ -28,8 +29,8 @@ function ConversationItem({
           try {
             await onDelete()
             Taro.showToast({ title: '已删除', icon: 'success' })
-          } catch (error) {
-            Taro.showToast({ title: '删除失败', icon: 'none' })
+          } catch (error: any) {
+            Taro.showToast({ title: error?.message || '删除失败', icon: 'none' })
           }
         }
       },
@@ -53,12 +54,8 @@ function ConversationItem({
         {conversation.title}
       </Text>
       {!isPending && (
-        <View
-          className="ml-2 px-1"
-          style={{ fontSize: '16px', color: '#999', lineHeight: '1' }}
-          onClick={handleDelete}
-        >
-          ···
+        <View className="ml-2 px-1" onClick={handleDelete}>
+          <Close size={14} color="red" />
         </View>
       )}
     </View>
