@@ -1,4 +1,4 @@
-import { View, Text } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import { Refresh, Photograph, StarFill, ArrowLeft } from '@nutui/icons-react-taro'
 
 export interface ActionConfig {
@@ -7,7 +7,8 @@ export interface ActionConfig {
   icon?: 'refresh' | 'photo' | 'star' | 'arrow-left'
   color?: string
   bgColor?: string
-  onClick: () => void
+  type?: 'share'
+  onClick?: () => void
 }
 
 const iconMap = {
@@ -31,6 +32,30 @@ export default function ActionBar({ actions }: ActionBarProps) {
           const IconComp = action.icon ? iconMap[action.icon] : null
           const color = action.color || '#FF7A2F'
           const bgColor = action.bgColor || '#FFF7F2'
+          const btnStyle = {
+            backgroundColor: bgColor,
+            border: 'none',
+            borderRadius: '9999px',
+            padding: '8px',
+            display: 'flex',
+            flexDirection: 'row' as const,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+            gap: '4px',
+            lineHeight: 1,
+            flex: 1,
+          }
+
+          if (action.type === 'share') {
+            return (
+              <Button key={action.key} open-type="share" style={btnStyle}>
+                {IconComp && <IconComp color={color} size={14} />}
+                <Text className="text-sm font-medium" style={{ color }}>
+                  {action.label}
+                </Text>
+              </Button>
+            )
+          }
 
           return (
             <View
