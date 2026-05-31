@@ -10,6 +10,7 @@ import { useCreationStore } from '@/store'
 import { onGameGenerateStatus, mapWsStatus } from '@/store/taskWsHandler'
 import type { Skill } from '@/types/creation'
 import type { RecentCreation } from '@/types/creation-list'
+import { formatTime } from '@/utils/date'
 import { getStatusText, getModeBySkillId } from './constants/skills'
 
 const typeIconMap: Record<string, string> = {
@@ -22,21 +23,6 @@ const statusConfig: Record<number, { text: string; color: string; icon: string }
   1: { text: '', color: '', icon: '' },
   2: { text: '排队中', color: 'text-orange-500', icon: '⏳' },
   3: { text: '生成中', color: 'text-orange-500', icon: '✨' },
-}
-
-const formatTime = (dateStr: string): string => {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-  if (diffMin < 1) return '刚刚'
-  if (diffMin < 60) return `${diffMin}分钟前`
-  const diffHour = Math.floor(diffMin / 60)
-  if (diffHour < 24) return `${diffHour}小时前`
-  const diffDay = Math.floor(diffHour / 24)
-  if (diffDay === 1) return '昨天'
-  if (diffDay < 30) return `${diffDay}天前`
-  return `${date.getMonth() + 1}月${date.getDate()}日`
 }
 
 export default function CreationPage() {
