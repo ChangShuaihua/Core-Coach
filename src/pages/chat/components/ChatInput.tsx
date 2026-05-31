@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { View, Textarea, Text } from '@tarojs/components'
-import { MaskClose } from '@nutui/icons-react-taro'
+import { Close } from '@nutui/icons-react-taro'
 import SkillButton from './SkillButton'
 
 interface ChatInputProps {
@@ -68,12 +68,18 @@ const ChatInput = ({
           onClick={handleAction}
           className="shadow w-7 rounded-xl flex items-center justify-center"
           style={{
-            backgroundColor: disabled ? '#e5e7eb' : value.trim() ? '#f97316' : '#d1d5db',
+            backgroundColor: disabled
+              ? '#e5e7eb'
+              : isResponding
+                ? '#ef4444'
+                : value.trim()
+                  ? '#f97316'
+                  : '#d1d5db',
             minHeight: '70px',
           }}
         >
-          <Text style={{ color: '#ffffff', fontSize: '14px', fontWeight: 'bold' }}>
-            {isResponding ? <MaskClose size={14} color="#fff" /> : '↑'}
+          <Text style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>
+            {isResponding ? <Close size={18} color="#fff" /> : '↑'}
           </Text>
         </View>
       </View>

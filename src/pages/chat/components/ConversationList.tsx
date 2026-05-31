@@ -1,4 +1,6 @@
 import { View, Text, ScrollView } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import { Close } from '@nutui/icons-react-taro'
 import { clsx } from 'clsx'
 import { useChatStore } from '@/store/chatStore'
 import { Conversation } from '@/types/chat'
@@ -8,27 +10,54 @@ function ConversationItem({
   conversation,
   isActive,
   onClick,
+  onDelete,
 }: {
   conversation: Conversation
   isActive: boolean
   onClick: () => void
+  onDelete: () => void
 }) {
+  const isPending = conversation.id.startsWith('pending-')
+
+  const handleDelete = (e) => {
+    e.stopPropagation()
+    Taro.showModal({
+      title: '提示',
+      content: '确定删除该对话？删除后不可恢复',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await onDelete()
+            Taro.showToast({ title: '已删除', icon: 'success' })
+          } catch (error: any) {
+            Taro.showToast({ title: error?.message || '删除失败', icon: 'none' })
+          }
+        }
+      },
+    })
+  }
+
   return (
     <View
       className={clsx(
-        'px-4 py-3 mx-2 mb-1 rounded-lg',
+        'px-4 py-3 mx-2 mb-1 rounded-lg flex items-center justify-between',
         isActive ? 'bg-orange-1' : 'bg-transparent'
       )}
       onClick={onClick}
     >
       <Text
         className={clsx(
-          'text-sm block truncate',
+          'text-sm block truncate flex-1',
           isActive ? 'text-orange-500 font-medium' : 'text-gray-800'
         )}
       >
         {conversation.title}
       </Text>
+      {!isPending && (
+        <View className="ml-2 px-1" onClick={handleDelete}>
+          <Close size={14} color="red" />
+        </View>
+      )}
     </View>
   )
 }
@@ -37,6 +66,7 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
   const conversationsMap = useChatStore((s) => s.conversations)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const switchConversation = useChatStore((s) => s.switchConversation)
+  const deleteConversation = useChatStore((s) => s.deleteConversation)
   const loadMoreConversations = useChatStore((s) => s.loadMoreConversations)
 
   // 从 Record 转为数组，pending 会话置顶，其余按更新时间倒序
@@ -67,6 +97,7 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
               conversation={conv}
               isActive={conv.id === currentConversationId}
               onClick={() => handleClick(conv.id)}
+              onDelete={() => deleteConversation(conv.id)}
             />
           ))}
           <View className="h-4"></View>

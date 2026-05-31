@@ -95,7 +95,7 @@ export interface ChatStore {
   loadMoreConversations: () => Promise<void>
   ensurePendingConversation: () => void
   switchConversation: (id: string) => Promise<void>
-  deleteConversation: (id: string) => void
+  deleteConversation: (id: string) => Promise<void>
   addConversation: (conv: Conversation) => void
   updateConversation: (id: string, updates: Partial<Conversation>) => void
 
