@@ -2,126 +2,25 @@ import Taro from '@tarojs/taro'
 import { create } from 'zustand'
 import * as chatApi from '@/api/chat'
 import { ws } from '@/services/ws'
-import { Conversation, Message, MessageStatus, Skill, SessionRuntime } from '@/types/chat'
+import type { ChatStore } from '@/types/chat'
+import {
+  clearSendTimeout,
+  setSendTimeout,
+  deleteSendTimeout,
+  SEND_TIMEOUT_MS,
+  clearRuntime,
+  setAbortFallbackTimer,
+  deleteAbortFallbackTimer,
+  loadPersistedSkill,
+  persistSkill,
+} from './chatHelpers'
 
-// 技能持久化 key
-const SKILL_STORAGE_KEY = 'chat_selected_skill'
-
-// 发送超时（120 秒无响应标记为失败）
-const SEND_TIMEOUT_MS = 120_000
-const sendTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
-
-// abort 兜底定时器（按 requestId 管理，abort_result 返回时取消）
-const abortFallbackTimers = new Map<string, ReturnType<typeof setTimeout>>()
-
-export function clearSendTimeout(sessionId: string) {
-  const timer = sendTimeouts.get(sessionId)
-  if (timer) {
-    clearTimeout(timer)
-    sendTimeouts.delete(sessionId)
-  }
-}
-
-/** 清理 session 的 runtime 及其 requestToSession 映射 */
-export function clearRuntime(sessionId: string) {
-  useChatStore.setState((state) => {
-    const runtime = state.sessionRuntimes[sessionId]
-    const { [sessionId]: _, ...restRuntimes } = state.sessionRuntimes
-    if (!runtime) return { sessionRuntimes: restRuntimes }
-    const { [runtime.requestId]: __, ...restMapping } = state.requestToSession
-    return { sessionRuntimes: restRuntimes, requestToSession: restMapping }
-  })
-}
-
-/** 取消 abort 兜底定时器（abort_result 返回时调用） */
-export function clearAbortFallbackTimer(requestId: string) {
-  const timer = abortFallbackTimers.get(requestId)
-  if (timer) {
-    clearTimeout(timer)
-    abortFallbackTimers.delete(requestId)
-  }
-}
-
-function loadPersistedSkill(): Skill | null {
-  try {
-    const raw = Taro.getStorageSync(SKILL_STORAGE_KEY)
-    return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null
-  } catch {
-    return null
-  }
-}
-
-function persistSkill(skill: Skill | null) {
-  try {
-    if (skill) {
-      Taro.setStorageSync(SKILL_STORAGE_KEY, JSON.stringify(skill))
-    } else {
-      Taro.removeStorageSync(SKILL_STORAGE_KEY)
-    }
-  } catch {}
-}
-
-/** 清除持久化的技能选择（退出登录时调用） */
-export function clearSkillStorage() {
-  persistSkill(null)
-}
-
-interface ChatStore {
-  // ====== State ======
-
-  conversations: Record<string, Conversation>
-  messagesBySession: Record<string, Message[]>
-  currentConversationId: string | null
-  skills: Skill[]
-  defaultWorkflow: Skill | null
-  selectedSkill: Skill | null
-  messageCursor: string | null
-  hasMoreMessages: boolean
-  isLoadingMore: boolean
-
-  // 会话列表分页
-  conversationCursor: string | null
-  hasMoreConversations: boolean
-  isLoadingMoreConversations: boolean
-
-  // WebSocket 相关
-  wsConnected: boolean
-  sessionRoles: Record<string, 'chatter' | 'viewer'>
-  sessionRuntimes: Record<string, SessionRuntime>
-  requestToSession: Record<string, string> // requestId -> sessionId 辅助索引
-  lastStreamIds: Record<string, string>
-
-  // ====== Actions ======
-
-  loadConversations: () => Promise<void>
-  loadMoreConversations: () => Promise<void>
-  ensurePendingConversation: () => void
-  switchConversation: (id: string) => Promise<void>
-  deleteConversation: (id: string) => void
-  addConversation: (conv: Conversation) => void
-  updateConversation: (id: string, updates: Partial<Conversation>) => void
-
-  loadMessages: (sessionId: string) => Promise<void>
-  loadMoreMessages: () => Promise<void>
-  appendMessage: (sessionId: string, message: Message) => void
-  updateMessageStatus: (
-    sessionId: string,
-    msgId: string,
-    status: MessageStatus,
-    content?: string
-  ) => void
-
-  sendMessage: (content: string) => Promise<string | undefined>
-  stopResponding: () => void
-
-  loadWorkflows: () => Promise<void>
-  toggleSkill: (skill: Skill) => void
-  getCurrentWorkflowId: () => string
-
-  setWsConnected: (connected: boolean) => void
-  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => void
-  setLastStreamId: (sessionId: string, streamId: string) => void
-}
+export {
+  clearSendTimeout,
+  clearRuntime,
+  clearAbortFallbackTimer,
+  clearSkillStorage,
+} from './chatHelpers'
 
 export const useChatStore = create<ChatStore>()((set, get) => ({
   // ====== State ======
@@ -155,7 +54,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       (id) => id.startsWith('pending-') && sessionRuntimes[id]
     )
 
-    const merged: Record<string, Conversation> = { ...conversations }
+    const merged: Record<string, import('@/types/chat').Conversation> = { ...conversations }
     result.conversations.forEach((conv) => {
       if (!merged[conv.id]) {
         if (hasPendingWithRuntime) return // 跳过添加新会话
@@ -185,7 +84,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       const result = await chatApi.getConversations(conversationCursor)
       const { conversations } = get()
 
-      const merged: Record<string, Conversation> = { ...conversations }
+      const merged: Record<string, import('@/types/chat').Conversation> = { ...conversations }
       result.conversations.forEach((conv) => {
         if (!merged[conv.id]) {
           merged[conv.id] = conv
@@ -225,7 +124,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       set({ currentConversationId: pending.id })
     } else {
       const tempId = 'pending-' + Date.now()
-      const tempConv: Conversation = {
+      const tempConv: import('@/types/chat').Conversation = {
         id: tempId,
         title: '新对话',
         updatedAt: Date.now(),
@@ -298,13 +197,13 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
   },
 
-  addConversation: (conv: Conversation) => {
+  addConversation: (conv) => {
     set((state) => ({
       conversations: { ...state.conversations, [conv.id]: conv },
     }))
   },
 
-  updateConversation: (id: string, updates: Partial<Conversation>) => {
+  updateConversation: (id, updates) => {
     set((state) => {
       const conv = state.conversations[id]
       if (!conv) return state
@@ -356,7 +255,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }
   },
 
-  appendMessage: (sessionId: string, message: Message) => {
+  appendMessage: (sessionId, message) => {
     set((state) => {
       const messages = state.messagesBySession[sessionId] || []
       const updatedMessages = [...messages, message]
@@ -388,12 +287,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
   },
 
-  updateMessageStatus: (
-    sessionId: string,
-    msgId: string,
-    status: MessageStatus,
-    content?: string
-  ) => {
+  updateMessageStatus: (sessionId, msgId, status, content) => {
     set((state) => {
       const messages = state.messagesBySession[sessionId] || []
       const updated = messages.map((m) =>
@@ -416,7 +310,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       return
     }
 
-    const userMsg: Message = {
+    const userMsg: import('@/types/chat').Message = {
       id: 'u-' + Date.now(),
       role: 'user',
       content,
@@ -424,7 +318,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       status: 'success',
     }
     const aiMsgId = 'a-' + Date.now()
-    const aiMsg: Message = {
+    const aiMsg: import('@/types/chat').Message = {
       id: aiMsgId,
       role: 'assistant',
       content: '',
@@ -468,14 +362,14 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
     // 启动发送超时定时器
     const timer = setTimeout(() => {
-      sendTimeouts.delete(targetSessionId)
+      deleteSendTimeout(targetSessionId)
       const runtime = get().sessionRuntimes[targetSessionId]
       if (runtime && runtime.assistantMsgId === aiMsgId) {
         get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '请求超时，请重试')
         clearRuntime(targetSessionId)
       }
     }, SEND_TIMEOUT_MS)
-    sendTimeouts.set(targetSessionId, timer)
+    setSendTimeout(targetSessionId, timer)
 
     return targetSessionId
   },
@@ -515,7 +409,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
     // 超时兜底：5 秒内服务端没有返回 abort_result，直接清理
     const timer = setTimeout(() => {
-      abortFallbackTimers.delete(requestId)
+      deleteAbortFallbackTimer(requestId)
       const currentRuntime = get().sessionRuntimes[currentConversationId]
       if (currentRuntime && currentRuntime.requestId === requestId) {
         const messages = get().messagesBySession[currentConversationId] || []
@@ -527,7 +421,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         clearRuntime(currentConversationId)
       }
     }, 5000)
-    abortFallbackTimers.set(requestId, timer)
+    setAbortFallbackTimer(requestId, timer)
   },
 
   // ====== 技能 ======
@@ -547,7 +441,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }
   },
 
-  toggleSkill: (skill: Skill) => {
+  toggleSkill: (skill) => {
     const { selectedSkill } = get()
     const next = selectedSkill?.id === skill.id ? null : skill
     persistSkill(next)
@@ -561,15 +455,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   // ====== WebSocket 状态 ======
 
-  setWsConnected: (connected: boolean) => set({ wsConnected: connected }),
+  setWsConnected: (connected) => set({ wsConnected: connected }),
 
-  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => {
+  setSessionRole: (sessionId, role) => {
     set((state) => ({
       sessionRoles: { ...state.sessionRoles, [sessionId]: role },
     }))
   },
 
-  setLastStreamId: (sessionId: string, streamId: string) => {
+  setLastStreamId: (sessionId, streamId) => {
     set((state) => ({
       lastStreamIds: { ...state.lastStreamIds, [sessionId]: streamId },
     }))

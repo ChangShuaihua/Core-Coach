@@ -61,3 +61,62 @@ export interface MessagePageData {
   next_cursor: string | null
   has_more: boolean
 }
+
+// ============ ChatStore 接口 ============
+
+export interface ChatStore {
+  // ====== State ======
+
+  conversations: Record<string, Conversation>
+  messagesBySession: Record<string, Message[]>
+  currentConversationId: string | null
+  skills: Skill[]
+  defaultWorkflow: Skill | null
+  selectedSkill: Skill | null
+  messageCursor: string | null
+  hasMoreMessages: boolean
+  isLoadingMore: boolean
+
+  // 会话列表分页
+  conversationCursor: string | null
+  hasMoreConversations: boolean
+  isLoadingMoreConversations: boolean
+
+  // WebSocket 相关
+  wsConnected: boolean
+  sessionRoles: Record<string, 'chatter' | 'viewer'>
+  sessionRuntimes: Record<string, SessionRuntime>
+  requestToSession: Record<string, string> // requestId -> sessionId 辅助索引
+  lastStreamIds: Record<string, string>
+
+  // ====== Actions ======
+
+  loadConversations: () => Promise<void>
+  loadMoreConversations: () => Promise<void>
+  ensurePendingConversation: () => void
+  switchConversation: (id: string) => Promise<void>
+  deleteConversation: (id: string) => void
+  addConversation: (conv: Conversation) => void
+  updateConversation: (id: string, updates: Partial<Conversation>) => void
+
+  loadMessages: (sessionId: string) => Promise<void>
+  loadMoreMessages: () => Promise<void>
+  appendMessage: (sessionId: string, message: Message) => void
+  updateMessageStatus: (
+    sessionId: string,
+    msgId: string,
+    status: MessageStatus,
+    content?: string
+  ) => void
+
+  sendMessage: (content: string) => Promise<string | undefined>
+  stopResponding: () => void
+
+  loadWorkflows: () => Promise<void>
+  toggleSkill: (skill: Skill) => void
+  getCurrentWorkflowId: () => string
+
+  setWsConnected: (connected: boolean) => void
+  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => void
+  setLastStreamId: (sessionId: string, streamId: string) => void
+}
