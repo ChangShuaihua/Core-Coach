@@ -57,8 +57,9 @@ export default function ChatPage() {
     loadWorkflows()
   }, [loadConversations, ensurePendingConversation, loadWorkflows])
 
-  // 切换会话时拉取消息 + 刷新会话列表
+  // 切换会话时拉取消息 + 刷新会话列表 + 重置滚动按钮状态
   useEffect(() => {
+    setShowScrollToBottom(false)
     if (currentConversationId && !sendingRef.current) {
       loadMessages(currentConversationId)
       loadConversations()
