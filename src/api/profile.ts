@@ -61,3 +61,13 @@ export async function collectGame(recordId: number): Promise<CollectResult> {
 export async function removeFavoriteGame(id: number): Promise<void> {
   await del(`/game/favorite?id=${id}`)
 }
+
+export interface BatchRemoveResult {
+  success_count: number
+  message: string
+}
+
+export async function batchRemoveFavoriteGames(ids: number[]): Promise<BatchRemoveResult> {
+  const res = await post<BatchRemoveResult>('/game/favorite/batch-delete', { ids })
+  return res.data
+}
