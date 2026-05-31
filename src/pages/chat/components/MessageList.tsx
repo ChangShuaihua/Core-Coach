@@ -55,12 +55,12 @@ const MessageList = ({
     }
   }, [scrollToBottomRef, scrollToBottom])
 
-  // 监听消息变化，自动滚动到底部（仅新消息时）
+  // 监听消息变化，自动滚动到底部（流式输出时也会触发）
   useEffect(() => {
     if (messages.length > 0 && isAutoScrollRef.current) {
       scrollToBottom()
     }
-  }, [messages.length, isResponding, scrollToBottom])
+  }, [messages, isResponding, scrollToBottom])
 
   // 监听外部触发的滚动到底部
   useEffect(() => {
