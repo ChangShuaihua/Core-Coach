@@ -157,9 +157,11 @@ export default function ChatPage() {
           </View>
           {showScrollToBottom && (
             <View
-              className="absolute right-5"
+              className="absolute"
               style={{
                 bottom: '100px',
+                left: '50%',
+                transform: 'translateX(-50%)',
                 width: '36px',
                 height: '36px',
                 borderRadius: '50%',
