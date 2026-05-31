@@ -159,7 +159,7 @@ export default function ChatPage() {
             <View
               className="absolute right-5"
               style={{
-                bottom: '140px',
+                bottom: '100px',
                 width: '36px',
                 height: '36px',
                 borderRadius: '50%',
