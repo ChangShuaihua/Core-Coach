@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Canvas } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft, ArrowRight, Star } from '@nutui/icons-react-taro'
 import {
@@ -15,7 +15,7 @@ import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
 import type { Game } from '@/types/game'
-import { generateAndSaveImage } from '@/utils/shareImage'
+import { useShare } from '@/utils/share'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
   step: 1,
@@ -35,6 +35,14 @@ export default function FavoriteGamesPage() {
     list: [],
   })
   const [loading, setLoading] = useState(false)
+
+  const favGenResult = detailData.generatedResults?.[0]
+  useShare(
+    favGenResult?.game_name || '我收藏了一个游戏，快来看看',
+    selectedGame && favGenResult?.record_id
+      ? `/pages/detail/index?id=${favGenResult.record_id}&type=game&is_like=1`
+      : '/pages/creation/index'
+  )
 
   useEffect(() => {
     loadGames(1, 10)
@@ -129,31 +137,14 @@ export default function FavoriteGamesPage() {
   const totalPages = Math.ceil(pagination.total / pagination.page_size)
 
   if (selectedGame) {
-    const genResult = detailData.generatedResults?.[0]
-
-    const handleShare = async () => {
-      if (!genResult) return
-      const success = await generateAndSaveImage({
-        gameName: genResult.game_name || '游戏',
-        gameType: genResult.game_type || detailData.gameType || '团队游戏',
-        age: genResult.age || detailData.age || 6,
-        content: genResult.generated_content || '',
-      })
-      if (success) {
-        Taro.showToast({ title: '已保存到相册', icon: 'success' })
-      } else {
-        Taro.showToast({ title: '保存失败', icon: 'none' })
-      }
-    }
-
     const actions: ActionConfig[] = [
       {
         key: 'share',
-        label: '分享图片',
+        label: '分享',
         icon: 'photo',
         color: '#FFFFFF',
         bgColor: '#FF7A2F',
-        onClick: handleShare,
+        type: 'share',
       },
     ]
 
@@ -167,17 +158,6 @@ export default function FavoriteGamesPage() {
           </View>
         }
       >
-        <Canvas
-          type="2d"
-          id="shareCanvas"
-          style={{
-            position: 'fixed',
-            left: '-9999px',
-            top: '-9999px',
-            width: '300px',
-            height: '420px',
-          }}
-        />
         <ResultPreview
           config={RESULT_CONFIG}
           value={detailData}

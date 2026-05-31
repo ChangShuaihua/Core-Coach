@@ -12,11 +12,22 @@ interface ShareImageData {
  */
 export async function generateAndSaveImage(data: ShareImageData): Promise<boolean> {
   try {
-    // 获取设备信息，用于计算尺寸
     const systemInfo = Taro.getSystemInfoSync()
     const screenWidth = systemInfo.screenWidth
     const canvasWidth = screenWidth * 0.9
-    const canvasHeight = canvasWidth * 1.4
+    const dpr = systemInfo.pixelRatio
+
+    // 先计算内容行数
+    const maxWidth = canvasWidth - 60
+    const lineHeight = 22
+    const content = data.content || '暂无详细内容'
+    const lines = wrapText(content, maxWidth, 14)
+
+    // 根据内容计算 canvas 高度（标题高度动态）
+    const titleLineCount = Math.ceil(((data.gameName || '新生成游戏').length * 20) / maxWidth) || 1
+    const headerHeight = 50 + titleLineCount * 28 + 50 + 30
+    const contentHeight = headerHeight + lines.length * lineHeight + 60
+    const canvasHeight = Math.max(canvasWidth * 1.4, contentHeight)
 
     // 创建离屏 Canvas
     const query = Taro.createSelectorQuery()
@@ -36,7 +47,6 @@ export async function generateAndSaveImage(data: ShareImageData): Promise<boolea
     const ctx = canvas.getContext('2d')
 
     // 设置 Canvas 尺寸
-    const dpr = systemInfo.pixelRatio
     canvas.width = canvasWidth * dpr
     canvas.height = canvasHeight * dpr
     ctx.scale(dpr, dpr)
@@ -49,48 +59,48 @@ export async function generateAndSaveImage(data: ShareImageData): Promise<boolea
     ctx.fillStyle = '#FF7A2F'
     ctx.fillRect(0, 0, canvasWidth, 8)
 
-    // 绘制标题
+    // 绘制标题（自动换行）
     ctx.fillStyle = '#111827'
     ctx.font = 'bold 20px sans-serif'
-    ctx.fillText(data.gameName || '新生成游戏', 20, 50)
+    const titleLines = wrapText(data.gameName || '新生成游戏', maxWidth, 20)
+    let titleY = 50
+    titleLines.forEach((line) => {
+      ctx.fillText(line, 30, titleY)
+      titleY += 28
+    })
 
     // 绘制标签
     ctx.fillStyle = '#FF7A2F'
     ctx.font = '12px sans-serif'
-    ctx.fillText(data.gameType || '团队游戏', 20, 75)
+    ctx.fillText(data.gameType || '团队游戏', 30, titleY + 5)
 
     // 绘制基本信息
     ctx.fillStyle = '#6B7280'
     ctx.font = '14px sans-serif'
-    ctx.fillText(`适合年龄：${data.age}岁`, 20, 110)
+    ctx.fillText(`适合年龄：${data.age}岁`, 30, titleY + 30)
 
     // 绘制分隔线
+    const separatorY = titleY + 50
     ctx.strokeStyle = '#E5E7EB'
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(20, 130)
-    ctx.lineTo(canvasWidth - 20, 130)
+    ctx.moveTo(30, separatorY)
+    ctx.lineTo(canvasWidth - 30, separatorY)
     ctx.stroke()
 
-    // 绘制内容（自动换行）
+    // 绘制完整内容
     ctx.fillStyle = '#374151'
     ctx.font = '14px sans-serif'
-    const maxWidth = canvasWidth - 40
-    const lineHeight = 22
-    let y = 160
-
-    // 简单的内容截取和换行
-    const content = data.content || '暂无详细内容'
-    const lines = wrapText(ctx, content, maxWidth, 6) // 最多显示6行
+    let y = separatorY + 30
     lines.forEach((line) => {
-      ctx.fillText(line, 20, y)
+      ctx.fillText(line, 30, y)
       y += lineHeight
     })
 
     // 绘制底部水印
     ctx.fillStyle = '#9CA3AF'
     ctx.font = '12px sans-serif'
-    ctx.fillText('来自「核心力量助手」', 20, canvasHeight - 20)
+    ctx.fillText('来自「核心力量助手」', 30, canvasHeight - 20)
 
     // 转为图片
     const tempFilePath = await new Promise<string>((resolve, reject) => {
@@ -114,33 +124,58 @@ export async function generateAndSaveImage(data: ShareImageData): Promise<boolea
 }
 
 /**
- * 文字自动换行
+ * 文字自动换行（纯文本计算，不依赖 ctx）
  */
-function wrapText(ctx: any, text: string, maxWidth: number, maxLines: number): string[] {
+function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
   const lines: string[] = []
-  let currentLine = ''
+  const paragraphs = text.split('\n')
 
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]
-    const testLine = currentLine + char
-    const metrics = ctx.measureText(testLine)
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === '') {
+      lines.push('')
+      continue
+    }
 
-    if (metrics.width > maxWidth && currentLine.length > 0) {
-      lines.push(currentLine)
-      currentLine = char
+    let currentLine = ''
+    for (let i = 0; i < paragraph.length; i++) {
+      const char = paragraph[i]
+      const lineWidth = estimateWidth(currentLine, fontSize)
+      const charW = estimateWidth(char, fontSize)
 
-      if (lines.length >= maxLines) {
-        lines[lines.length - 1] += '...'
-        return lines
+      if (lineWidth + charW > maxWidth && currentLine.length > 0) {
+        lines.push(currentLine)
+        currentLine = char
+      } else {
+        currentLine += char
       }
-    } else {
-      currentLine = testLine
+    }
+    if (currentLine.length > 0) {
+      lines.push(currentLine)
     }
   }
 
-  if (currentLine.length > 0 && lines.length < maxLines) {
-    lines.push(currentLine)
-  }
-
   return lines
+}
+
+function estimateWidth(text: string, fontSize: number): number {
+  let width = 0
+  for (const char of text) {
+    const code = char.codePointAt(0) || 0
+    if (
+      (code >= 0x4e00 && code <= 0x9fa5) || // CJK 中文
+      (code >= 0x3000 && code <= 0x303f) || // CJK 标点
+      (code >= 0xff00 && code <= 0xffef) || // 全角符号
+      (code >= 0x2460 && code <= 0x24ff) || // 带圈数字 ①②③
+      (code >= 0x2500 && code <= 0x257f) || // 制表符
+      (code >= 0x25a0 && code <= 0x25ff) || // 几何符号 ◀▶
+      (code >= 0x2600 && code <= 0x26ff) || // 杂项符号
+      (code >= 0x2700 && code <= 0x27bf) || // 装饰符号
+      (code >= 0x1f300 && code <= 0x1f9ff) // emoji
+    ) {
+      width += fontSize
+    } else {
+      width += fontSize * 0.55
+    }
+  }
+  return width
 }

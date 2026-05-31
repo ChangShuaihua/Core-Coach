@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, Canvas } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { getTaskStatus, startGenerateTask } from '@/api/creation'
 import { collectGame } from '@/api/profile'
@@ -9,8 +9,9 @@ import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
 import WaitingPage from '@/components/WaitingPage'
+import { useCreationStore } from '@/store'
 import type { TaskStatusCode } from '@/types/creation'
-import { generateAndSaveImage } from '@/utils/shareImage'
+import { useShare } from '@/utils/share'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
@@ -25,8 +26,17 @@ export default function ResultPage() {
   const [data, setData] = useState<Record<string, any>>({})
   const [status, setStatus] = useState<TaskStatusCode | null>(null)
   const [createdAt, setCreatedAt] = useState('')
+  const [liked, setLiked] = useState(false)
+
+  const { setMode } = useCreationStore()
 
   const recordId = router.params.recordId
+
+  const genResult = data.generatedResults?.[0]
+  useShare(
+    genResult?.game_name || '我生成了一个游戏，快来看看',
+    `/pages/result/index?recordId=${recordId}`
+  )
 
   useEffect(() => {
     if (!recordId) {
@@ -97,37 +107,19 @@ export default function ResultPage() {
 
   const handleRegenerate = async () => {
     requestTaskCompleteSubscribe()
+    const retryParams = genResult?.retry_params
+    if (!retryParams) {
+      Taro.showToast({ title: '缺少生成参数', icon: 'none' })
+      return
+    }
     try {
-      const res = await startGenerateTask({
-        age: parseInt(data.age) || 3,
-        game_type: data.gameType || '循环式',
-      })
+      const res = await startGenerateTask(retryParams)
       Taro.showToast({ title: '任务已提交', icon: 'success' })
       setTimeout(() => {
         Taro.redirectTo({ url: `/pages/result/index?recordId=${res.record_id}` })
       }, 1500)
     } catch {
       Taro.showToast({ title: '重新生成失败', icon: 'none' })
-    }
-  }
-
-  const handleShare = async () => {
-    const generatedResults = data.generatedResults || []
-    if (generatedResults.length === 0) {
-      Taro.showToast({ title: '暂无生成结果', icon: 'none' })
-      return
-    }
-    const genResult = generatedResults[0]
-    const success = await generateAndSaveImage({
-      gameName: genResult.game_name || '新生成游戏',
-      gameType: genResult.game_type || data.gameType || '团队游戏',
-      age: genResult.age || data.age || 6,
-      content: genResult.generated_content || '',
-    })
-    if (success) {
-      Taro.showToast({ title: '已保存到相册', icon: 'success' })
-    } else {
-      Taro.showToast({ title: '保存失败', icon: 'none' })
     }
   }
 
@@ -139,11 +131,22 @@ export default function ResultPage() {
       return
     }
     try {
-      await collectGame(Number(rid))
-      Taro.showToast({ title: '收藏成功', icon: 'success' })
-    } catch {
-      Taro.showToast({ title: '收藏失败', icon: 'none' })
+      const res = await collectGame(Number(rid))
+      setLiked(res.is_like === 1)
+      Taro.showToast({ title: res.is_like === 1 ? '收藏成功' : '已取消收藏', icon: 'success' })
+    } catch (err: any) {
+      if (err?.code === 3002) {
+        setLiked(true)
+        Taro.showToast({ title: '已收藏', icon: 'success' })
+      } else {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
     }
+  }
+
+  const handlePrev = () => {
+    setMode('game')
+    Taro.redirectTo({ url: '/pages/wizard/index' })
   }
 
   const actions: ActionConfig[] = [
@@ -153,7 +156,7 @@ export default function ResultPage() {
       icon: 'arrow-left',
       color: '#4B5563',
       bgColor: '#F3F4F6',
-      onClick: () => Taro.navigateBack(),
+      onClick: handlePrev,
     },
     {
       key: 'regenerate',
@@ -165,35 +168,24 @@ export default function ResultPage() {
     },
     {
       key: 'share',
-      label: '分享图片',
+      label: '分享',
       icon: 'photo',
       color: '#7C5CFC',
       bgColor: '#F3F0FF',
-      onClick: handleShare,
+      type: 'share',
     },
     {
       key: 'collect',
-      label: '收藏',
+      label: liked ? '已收藏' : '收藏',
       icon: 'star',
-      color: '#FFFFFF',
-      bgColor: '#FF7A2F',
+      color: liked ? '#FF7A2F' : '#FFFFFF',
+      bgColor: liked ? '#FFF7F2' : '#FF7A2F',
       onClick: handleCollect,
     },
   ]
 
   return (
     <Layout title="生成结果" showTabBar>
-      <Canvas
-        type="2d"
-        id="shareCanvas"
-        style={{
-          position: 'fixed',
-          left: '-9999px',
-          top: '-9999px',
-          width: '300px',
-          height: '420px',
-        }}
-      />
       {createdAt && (
         <View className="px-4 py-2 bg-gray-50">
           <Text className="text-xs text-gray-400">创建时间：{formatTime(createdAt)}</Text>

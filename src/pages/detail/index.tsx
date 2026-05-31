@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
-import { View, Text, Canvas } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
-import { getGameDetailById } from '@/api/more'
+import { getTaskStatus, startGenerateTask } from '@/api/creation'
 import { collectGame } from '@/api/profile'
 import ActionBar from '@/components/ActionBar'
 import type { ActionConfig } from '@/components/ActionBar'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
-import { generateAndSaveImage } from '@/utils/shareImage'
+import { useShare } from '@/utils/share'
+import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
   step: 1,
@@ -20,35 +21,36 @@ export default function DetailPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<Record<string, any>>({})
+  const [liked, setLiked] = useState(false)
+
+  const detailGenResult = data.generatedResults?.[0]
+  const detailParams = router.params || {}
+  useShare(
+    detailGenResult?.game_name || '我生成了一个游戏，快来看看',
+    `/pages/detail/index?id=${detailParams.id}&type=${detailParams.type || 'game'}`
+  )
+
+  const detailId = router.params?.id
+  const isLikeParam = router.params?.is_like
 
   useEffect(() => {
-    const params = router.params || {}
-    const id = params.id
-    const type = params.type || 'game'
-
-    if (id) {
-      fetchGameDetail(id, type)
+    if (isLikeParam === '1') {
+      setLiked(true)
     }
-  }, [])
 
-  const fetchGameDetail = async (id: string, type: string) => {
+    if (detailId) {
+      fetchGameDetail(detailId)
+    }
+  }, [detailId, isLikeParam])
+
+  const fetchGameDetail = async (id: string) => {
     try {
       setLoading(true)
-      const game = await getGameDetailById({ id, type })
+      const game = await getTaskStatus(Number(id))
       setData({
         age: game.age,
         gameType: game.game_type,
-        generatedResults: [
-          {
-            record_id: game.id,
-            age: game.age,
-            game_type: game.game_type,
-            game_name: game.title,
-            generated_content: game.content,
-            music: game.music,
-            created_at: game.created_at,
-          },
-        ],
+        generatedResults: [game],
       })
     } catch (error) {
       console.error('加载详情失败:', error)
@@ -80,22 +82,21 @@ export default function DetailPage() {
 
   const genResult = data.generatedResults?.[0]
 
-  const handleRegenerate = () => {
-    Taro.navigateTo({ url: `/pages/wizard/index?type=${genResult?.game_type || 'game'}` })
-  }
-
-  const handleShare = async () => {
-    if (!genResult) return
-    const success = await generateAndSaveImage({
-      gameName: genResult.game_name || '游戏',
-      gameType: genResult.game_type || data.gameType || '团队游戏',
-      age: genResult.age || data.age || 6,
-      content: genResult.generated_content || '',
-    })
-    if (success) {
-      Taro.showToast({ title: '已保存到相册', icon: 'success' })
-    } else {
-      Taro.showToast({ title: '保存失败', icon: 'none' })
+  const handleRegenerate = async () => {
+    requestTaskCompleteSubscribe()
+    const retryParams = genResult?.retry_params
+    if (!retryParams) {
+      Taro.showToast({ title: '缺少生成参数', icon: 'none' })
+      return
+    }
+    try {
+      const res = await startGenerateTask(retryParams)
+      Taro.showToast({ title: '任务已提交', icon: 'success' })
+      setTimeout(() => {
+        Taro.redirectTo({ url: `/pages/result/index?recordId=${res.record_id}` })
+      }, 1500)
+    } catch {
+      Taro.showToast({ title: '重新生成失败', icon: 'none' })
     }
   }
 
@@ -105,10 +106,16 @@ export default function DetailPage() {
       return
     }
     try {
-      await collectGame(genResult.record_id)
-      Taro.showToast({ title: '收藏成功', icon: 'success' })
-    } catch {
-      Taro.showToast({ title: '收藏失败', icon: 'none' })
+      const res = await collectGame(genResult.record_id)
+      setLiked(res.is_like === 1)
+      Taro.showToast({ title: res.is_like === 1 ? '收藏成功' : '已取消收藏', icon: 'success' })
+    } catch (err: any) {
+      if (err?.code === 3002) {
+        setLiked(true)
+        Taro.showToast({ title: '已收藏', icon: 'success' })
+      } else {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
     }
   }
 
@@ -123,18 +130,18 @@ export default function DetailPage() {
     },
     {
       key: 'share',
-      label: '分享图片',
+      label: '分享',
       icon: 'photo',
       color: '#7C5CFC',
       bgColor: '#F3F0FF',
-      onClick: handleShare,
+      type: 'share',
     },
     {
       key: 'collect',
-      label: '收藏',
+      label: liked ? '已收藏' : '收藏',
       icon: 'star',
-      color: '#FFFFFF',
-      bgColor: '#FF7A2F',
+      color: liked ? '#FF7A2F' : '#FFFFFF',
+      bgColor: liked ? '#FFF7F2' : '#FF7A2F',
       onClick: handleCollect,
     },
   ]
@@ -149,17 +156,6 @@ export default function DetailPage() {
         </View>
       }
     >
-      <Canvas
-        type="2d"
-        id="shareCanvas"
-        style={{
-          position: 'fixed',
-          left: '-9999px',
-          top: '-9999px',
-          width: '300px',
-          height: '420px',
-        }}
-      />
       <ResultPreview
         config={RESULT_CONFIG}
         value={data}
