@@ -21,11 +21,39 @@ function findSessionByRequestId(requestId: string): string | undefined {
   return useChatStore.getState().requestToSession[requestId]
 }
 
-/** 执行 pending -> real session 迁移 */
+/** 通过 requestId 查找发起请求的 pending session */
+function findSourcePending(requestId: string): string | undefined {
+  const sessionId = useChatStore.getState().requestToSession[requestId]
+  if (sessionId?.startsWith('pending-')) return sessionId
+  return undefined
+}
+
+/**
+ * 执行 pending -> real session 迁移
+ * - 仅在用户正在查看该 pending 时切换 currentConversationId
+ * - 若 realSession 已存在于 conversations（并发场景），合并而非覆盖
+ */
 function migratePendingSession(pendingId: string, realSessionId: string, title?: string) {
   useChatStore.setState((state) => {
     const { [pendingId]: pendingConv, ...restConvs } = state.conversations
     const { [pendingId]: pendingMsgs, ...restMsgs } = state.messagesBySession
+
+    const isViewing = state.currentConversationId === pendingId
+
+    // realSession 已存在（并发场景：多个 pending 迁移到同一 session）
+    if (state.conversations[realSessionId]) {
+      const existingConv = state.conversations[realSessionId]
+      const existingMsgs = state.messagesBySession[realSessionId] || []
+      const mergedMsgs = [...existingMsgs, ...(pendingMsgs || [])]
+      return {
+        conversations: {
+          ...restConvs,
+          [realSessionId]: { ...existingConv, messageCount: mergedMsgs.length },
+        },
+        messagesBySession: { ...restMsgs, [realSessionId]: mergedMsgs },
+        ...(isViewing ? { currentConversationId: realSessionId } : {}),
+      }
+    }
 
     const newConv: Conversation = {
       ...(pendingConv as Conversation),
@@ -34,9 +62,9 @@ function migratePendingSession(pendingId: string, realSessionId: string, title?:
     }
 
     return {
-      currentConversationId: realSessionId,
       conversations: { [realSessionId]: newConv, ...restConvs },
       messagesBySession: { [realSessionId]: pendingMsgs || [], ...restMsgs },
+      ...(isViewing ? { currentConversationId: realSessionId } : {}),
     }
   })
 }
@@ -56,17 +84,20 @@ export function initWsHandlers() {
       get().setLastStreamId(data.session_id, data.stream_id)
     }
 
-    const { sessionRuntimes, currentConversationId } = get()
+    const { sessionRuntimes } = get()
 
     // 按 session_id 或 request_id 定位 runtime
     let runtimeKey =
       (sessionRuntimes[data.session_id] ? data.session_id : null) ||
       findSessionByRequestId(data.request_id)
 
-    // 首次收到真实 session_id 时立即做 pending -> real 迁移（P0 #3）
-    if (!runtimeKey && currentConversationId?.startsWith('pending-') && data.session_id) {
-      runtimeKey = currentConversationId
-      migratePendingSession(currentConversationId, data.session_id)
+    // 通过 requestId 找到发起请求的 pending session，首次 chunk 时迁移
+    if (!runtimeKey && data.session_id) {
+      const sourcePending = findSourcePending(data.request_id)
+      if (sourcePending) {
+        runtimeKey = sourcePending
+        migratePendingSession(sourcePending, data.session_id)
+      }
     }
 
     if (!runtimeKey) return
@@ -98,9 +129,9 @@ export function initWsHandlers() {
     }))
   })
 
-  // ---- 流式结束（优先 session_id，兜底 request_id，含 pending 迁移） ----
+  // ---- 流式结束（优先 session_id，兜底 request_id，含 pending 迁移兜底） ----
   ws.on('stream_done', (data: WsStreamDoneData) => {
-    const { sessionRuntimes, currentConversationId } = get()
+    const { sessionRuntimes } = get()
     const runtimeKey =
       (sessionRuntimes[data.session_id] ? data.session_id : null) ||
       findSessionByRequestId(data.request_id)
@@ -112,13 +143,10 @@ export function initWsHandlers() {
     const runtime = sessionRuntimes[runtimeKey]
     get().updateMessageStatus(runtimeKey, runtime.assistantMsgId, 'success', data.content)
 
-    // 新会话：pending -> real session 迁移
-    if (currentConversationId?.startsWith('pending-')) {
-      migratePendingSession(
-        currentConversationId,
-        data.session_id,
-        data.content.slice(0, 10) || '新对话'
-      )
+    // 兜底迁移：stream_chunk 未触发迁移时（如 chunk 阶段 session_id 为空），由 stream_done 兜住
+    const sourcePending = findSourcePending(data.request_id)
+    if (sourcePending) {
+      migratePendingSession(sourcePending, data.session_id, data.content.slice(0, 10) || '新对话')
     }
 
     clearRuntime(runtimeKey)
@@ -131,7 +159,7 @@ export function initWsHandlers() {
 
   // ---- 非流式回复（优先 session_id，兜底 request_id，含 pending 迁移） ----
   ws.on('reply', (data: WsReplyData) => {
-    const { sessionRuntimes, currentConversationId } = get()
+    const { sessionRuntimes } = get()
     const runtimeKey =
       (sessionRuntimes[data.session_id] ? data.session_id : null) ||
       findSessionByRequestId(data.request_id)
@@ -143,12 +171,10 @@ export function initWsHandlers() {
     const runtime = sessionRuntimes[runtimeKey]
     get().updateMessageStatus(runtimeKey, runtime.assistantMsgId, 'success', data.content)
 
-    if (currentConversationId?.startsWith('pending-')) {
-      migratePendingSession(
-        currentConversationId,
-        data.session_id,
-        data.content.slice(0, 10) || '新对话'
-      )
+    // 通过 requestId 找到发起请求的 pending session 迁移
+    const sourcePending = findSourcePending(data.request_id)
+    if (sourcePending) {
+      migratePendingSession(sourcePending, data.session_id, data.content.slice(0, 10) || '新对话')
     }
 
     clearRuntime(runtimeKey)
@@ -193,13 +219,16 @@ export function initWsHandlers() {
           data.message || '发送失败'
         )
 
-        // 新会话：pending -> real session 迁移
-        if (currentConversationId?.startsWith('pending-') && data.session_id) {
-          migratePendingSession(
-            currentConversationId,
-            data.session_id,
-            data.message?.slice(0, 10) || '新对话'
-          )
+        // 通过 requestId 找到发起请求的 pending session 迁移
+        if (data.request_id && data.session_id) {
+          const sourcePending = findSourcePending(data.request_id)
+          if (sourcePending) {
+            migratePendingSession(
+              sourcePending,
+              data.session_id,
+              data.message?.slice(0, 10) || '新对话'
+            )
+          }
         }
 
         clearRuntime(targetSessionId)
@@ -218,7 +247,7 @@ export function initWsHandlers() {
 
   // ---- 中断确认（清理 runtime + pending 迁移） ----
   ws.on('abort_result', (data: WsAbortResultData) => {
-    const { sessionRuntimes, currentConversationId } = get()
+    const { sessionRuntimes } = get()
     const runtimeKey =
       (data.session_id && sessionRuntimes[data.session_id] ? data.session_id : null) ||
       findSessionByRequestId(data.request_id)
@@ -238,13 +267,16 @@ export function initWsHandlers() {
       }
     })
 
-    // 新会话：pending -> real session 迁移
-    if (currentConversationId?.startsWith('pending-') && data.session_id) {
-      migratePendingSession(
-        currentConversationId,
-        data.session_id,
-        data.message?.slice(0, 10) || '新对话'
-      )
+    // 通过 requestId 找到发起请求的 pending session 迁移
+    if (data.session_id) {
+      const sourcePending = findSourcePending(data.request_id)
+      if (sourcePending) {
+        migratePendingSession(
+          sourcePending,
+          data.session_id,
+          data.message?.slice(0, 10) || '新对话'
+        )
+      }
     }
 
     clearRuntime(runtimeKey)
