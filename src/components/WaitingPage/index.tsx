@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import frame1 from '@/assets/images/frame1.png'
-import frame2 from '@/assets/images/frame2.png'
-import frame3 from '@/assets/images/frame3.png'
-import frame4 from '@/assets/images/frame4.png'
+import frame1 from '@/assets/images/frame1.jpg'
+import frame2 from '@/assets/images/frame2.jpg'
+import frame3 from '@/assets/images/frame3.jpg'
+import frame4 from '@/assets/images/frame4.jpg'
 import { useTaskStore } from '@/store/taskStore'
 
 const frames = [frame1, frame2, frame3, frame4]
