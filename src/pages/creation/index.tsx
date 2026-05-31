@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { getSkillList } from '@/api/creation'
@@ -7,8 +7,10 @@ import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
 import { useCreationStore } from '@/store'
+import { onGameGenerateStatus, mapWsStatus } from '@/store/taskWsHandler'
 import type { Skill } from '@/types/creation'
 import type { RecentCreation } from '@/types/creation-list'
+import { formatTime } from '@/utils/date'
 import { getStatusText, getModeBySkillId } from './constants/skills'
 
 const typeIconMap: Record<string, string> = {
@@ -23,21 +25,6 @@ const statusConfig: Record<number, { text: string; color: string; icon: string }
   3: { text: '生成中', color: 'text-orange-500', icon: '✨' },
 }
 
-const formatTime = (dateStr: string): string => {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-  if (diffMin < 1) return '刚刚'
-  if (diffMin < 60) return `${diffMin}分钟前`
-  const diffHour = Math.floor(diffMin / 60)
-  if (diffHour < 24) return `${diffHour}小时前`
-  const diffDay = Math.floor(diffHour / 24)
-  if (diffDay === 1) return '昨天'
-  if (diffDay < 30) return `${diffDay}天前`
-  return `${date.getMonth() + 1}月${date.getDate()}日`
-}
-
 export default function CreationPage() {
   useAuthCheck()
   const setMode = useCreationStore((state) => state.setMode)
@@ -45,7 +32,6 @@ export default function CreationPage() {
   const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
   const setSkillList = useCreationStore((state) => state.setSkillList)
   const [recentList, setRecentList] = useState<RecentCreation[]>([])
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchSkills = async () => {
     console.log('开始获取技能列表...')
@@ -70,30 +56,9 @@ export default function CreationPage() {
     }
   }, [])
 
-  // 有处理中任务时启动轮询，全部完成时停止
-  const startPollIfNeeded = useCallback(
-    (list: RecentCreation[]) => {
-      const hasProcessing = list.some((item) => item.status === 2 || item.status === 3)
-      if (hasProcessing && !pollTimerRef.current) {
-        pollTimerRef.current = setInterval(async () => {
-          const fresh = await fetchRecent()
-          if (fresh && !fresh.some((item) => item.status === 2 || item.status === 3)) {
-            if (pollTimerRef.current) {
-              clearInterval(pollTimerRef.current)
-              pollTimerRef.current = null
-            }
-          }
-        }, 3000)
-      }
-    },
-    [fetchRecent]
-  )
-
   // 页面每次可见时刷新列表
   useDidShow(() => {
-    fetchRecent().then((data) => {
-      if (data) startPollIfNeeded(data)
-    })
+    fetchRecent()
   })
 
   useEffect(() => {
@@ -102,14 +67,26 @@ export default function CreationPage() {
     }
   }, [])
 
-  // 组件卸载时清理轮询
+  // 订阅 WS 游戏生成状态，实时更新最近创作列表
   useEffect(() => {
-    return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current)
-        pollTimerRef.current = null
-      }
-    }
+    const unsub = onGameGenerateStatus((data) => {
+      const mapped = mapWsStatus(data.status)
+      if (mapped === undefined) return
+
+      setRecentList((prev) => {
+        const idx = prev.findIndex((item) => item.id === data.record_id)
+        if (idx === -1) return prev
+
+        const updated = [...prev]
+        updated[idx] = { ...updated[idx], status: mapped }
+        // 成功时更新标题
+        if (data.result?.game_name) {
+          updated[idx] = { ...updated[idx], title: data.result.game_name }
+        }
+        return updated
+      })
+    })
+    return unsub
   }, [])
 
   const handleSkillClick = (skill: Skill) => {

@@ -2,10 +2,15 @@ import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
-import { getGameDetailById } from '@/api/more'
+import { getTaskStatus, startGenerateTask } from '@/api/creation'
+import { collectGame, removeFavoriteGame } from '@/api/profile'
+import ActionBar from '@/components/ActionBar'
+import type { ActionConfig } from '@/components/ActionBar'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
+import { useShare } from '@/utils/share'
+import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
   step: 1,
@@ -16,36 +21,34 @@ export default function DetailPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<Record<string, any>>({})
+  const [liked, setLiked] = useState(false)
+
+  const genResult = data.generatedResults?.[0]
+  const detailId = router.params?.id
+  useShare(
+    genResult?.game_name || '我生成了一个游戏，快来看看',
+    `/pages/detail/index?id=${detailId}`
+  )
+  const isLikeParam = router.params?.is_like
 
   useEffect(() => {
-    const params = router.params || {}
-    const id = params.id
-    const type = params.type || 'game'
-
-    if (id) {
-      fetchGameDetail(id, type)
+    if (isLikeParam === '1') {
+      setLiked(true)
     }
-  }, [])
 
-  const fetchGameDetail = async (id: string, type: string) => {
+    if (detailId) {
+      fetchGameDetail(detailId)
+    }
+  }, [detailId, isLikeParam])
+
+  const fetchGameDetail = async (id: string) => {
     try {
       setLoading(true)
-      const game = await getGameDetailById({ id, type })
-      // 转换为 ResultPreview 需要的格式
+      const game = await getTaskStatus(Number(id))
       setData({
         age: game.age,
         gameType: game.game_type,
-        generatedResults: [
-          {
-            record_id: game.id,
-            age: game.age,
-            game_type: game.game_type,
-            game_name: game.title,
-            generated_content: game.content,
-            music: game.music,
-            created_at: game.created_at,
-          },
-        ],
+        generatedResults: [game],
       })
     } catch (error) {
       console.error('加载详情失败:', error)
@@ -68,12 +71,77 @@ export default function DetailPage() {
   if (!data.generatedResults) {
     return (
       <Layout title="错误" showTabBar={false}>
-        <View className="flex items-center justify-center h-screen">
+        <View className="flex flex-col items-center justify-center h-screen">
           <Text className="text-gray-400">未找到游戏数据</Text>
         </View>
       </Layout>
     )
   }
+
+  const handleRegenerate = async () => {
+    requestTaskCompleteSubscribe()
+    const retryParams = genResult?.retry_params
+    if (!retryParams) {
+      Taro.showToast({ title: '缺少生成参数', icon: 'none' })
+      return
+    }
+    try {
+      const res = await startGenerateTask(retryParams)
+      Taro.showToast({ title: '任务已提交', icon: 'success' })
+      setTimeout(() => {
+        Taro.redirectTo({ url: `/pages/result/index?recordId=${res.record_id}` })
+      }, 1500)
+    } catch {
+      Taro.showToast({ title: '重新生成失败', icon: 'none' })
+    }
+  }
+
+  const handleCollect = async () => {
+    if (!genResult?.record_id) {
+      Taro.showToast({ title: '无法获取记录ID', icon: 'none' })
+      return
+    }
+    try {
+      const res = await collectGame(genResult.record_id)
+      setLiked(res.is_like === 1)
+      Taro.showToast({ title: '收藏成功', icon: 'success' })
+    } catch (err: any) {
+      if (err?.code === 3002) {
+        setLiked(true)
+        Taro.showToast({ title: '已收藏', icon: 'success' })
+      } else {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
+    }
+  }
+
+  const handleUnfavorite = async () => {
+    if (!genResult?.record_id) return
+    try {
+      await removeFavoriteGame(genResult.record_id)
+      setLiked(false)
+      Taro.showToast({ title: '已取消收藏', icon: 'success' })
+    } catch {
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }
+
+  const actions: ActionConfig[] = [
+    { key: 'regenerate', type: 'regenerate', onClick: handleRegenerate },
+    {
+      key: 'share',
+      type: 'share-image',
+      shareData: genResult
+        ? {
+            gameName: genResult.game_name || '游戏',
+            gameType: genResult.game_type || data.gameType || '团队游戏',
+            age: genResult.age || data.age || 6,
+            content: genResult.generated_content || '',
+          }
+        : undefined,
+    },
+    { key: 'collect', type: 'collect', liked, onClick: handleCollect, onConfirm: handleUnfavorite },
+  ]
 
   return (
     <Layout
@@ -88,9 +156,10 @@ export default function DetailPage() {
       <ResultPreview
         config={RESULT_CONFIG}
         value={data}
-        onChange={setData}
-        showMusicSwitch={false}
+        onChange={(newData) => setData((prev) => ({ ...prev, ...newData }))}
+        showMusicSwitch
       />
+      <ActionBar actions={actions} />
     </Layout>
   )
 }

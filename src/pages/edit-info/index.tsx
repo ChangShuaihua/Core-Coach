@@ -23,8 +23,8 @@ export default function EditInfoPage() {
         const tempFilePath = res.tempFilePaths[0]
         try {
           Taro.showLoading({ title: '上传中...' })
-          const uploadedUrl = await uploadAvatar(tempFilePath)
-          setAvatar(uploadedUrl)
+          const result = await uploadAvatar(tempFilePath)
+          setAvatar(result.file_url)
           Taro.hideLoading()
           Taro.showToast({ title: '上传成功', icon: 'success' })
         } catch (error) {

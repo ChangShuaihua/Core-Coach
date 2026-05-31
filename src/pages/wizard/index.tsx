@@ -5,7 +5,8 @@ import { startGenerateTask } from '@/api/creation'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
 import type { SkillStepConfig } from '@/components/Wizard'
-import { useCreationStore, useTaskStore } from '@/store'
+import { useCreationStore } from '@/store'
+import { useTaskStore } from '@/store/taskStore'
 import type { GenerateGameParams } from '@/types/creation'
 import { getConfigByType } from './constants/skillConfig'
 
@@ -20,7 +21,6 @@ import { getConfigByType } from './constants/skillConfig'
  */
 export default function CreationWizardPage() {
   const { mode, isValid, clearMode } = useCreationStore()
-  const { reset: resetTask } = useTaskStore()
   const router = useRouter()
   const [stepConfig, setStepConfig] = useState<SkillStepConfig | null>(null)
   const [loading, setLoading] = useState(true)
@@ -95,12 +95,23 @@ export default function CreationWizardPage() {
       content: '退出后当前进度将不会保存，确定要退出吗？',
       success: (res) => {
         if (res.confirm) {
-          resetTask()
           clearMode()
           navigateToCreation()
         }
       },
     })
+  }
+
+  /**
+   * 任务提交成功，跳转回创作工坊
+   */
+  const handleTaskSubmitted = (recordId: number) => {
+    useTaskStore.getState().startTask(recordId, businessType)
+    Taro.showToast({ title: '任务已提交', icon: 'success' })
+    setTimeout(() => {
+      clearMode()
+      navigateToCreation()
+    }, 1500)
   }
 
   // 无效的 mode，不渲染
@@ -140,7 +151,12 @@ export default function CreationWizardPage() {
         </Text>
       }
     >
-      <Wizard stepConfig={stepConfig} onFinish={handleWizardFinish} onGenerate={handleGenerate} />
+      <Wizard
+        stepConfig={stepConfig}
+        onFinish={handleWizardFinish}
+        onGenerate={handleGenerate}
+        onTaskSubmitted={handleTaskSubmitted}
+      />
     </Layout>
   )
 }
