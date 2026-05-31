@@ -186,7 +186,6 @@ class WsManager {
       if (this._state !== 'authenticated') return
       const pingData: WsPingData = {
         timestamp: Math.floor(Date.now() / 1000),
-        session_id: this._getReconnectContext?.().currentSessionId || '',
       }
       this.send('ping', pingData)
       if (this.pongTimer) {
@@ -346,15 +345,11 @@ class WsManager {
 
   disconnect(): void {
     this.intentionalClose = true
-    const sessionId = this._getReconnectContext?.().currentSessionId || ''
-    if (sessionId) {
-      const data: WsDisconnectData = {
-        session_id: sessionId,
-        reason: 'user_leaving',
-        create_time: Math.floor(Date.now() / 1000),
-      }
-      this.send('disconnect', data)
+    const data: WsDisconnectData = {
+      reason: 'user_leaving',
+      create_time: Math.floor(Date.now() / 1000),
     }
+    this.send('disconnect', data)
     this.stopHeartbeat()
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)

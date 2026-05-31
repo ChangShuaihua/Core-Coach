@@ -2,96 +2,25 @@ import Taro from '@tarojs/taro'
 import { create } from 'zustand'
 import * as chatApi from '@/api/chat'
 import { ws } from '@/services/ws'
-import { Conversation, Message, MessageStatus, Skill, SessionRuntime } from '@/types/chat'
+import type { ChatStore } from '@/types/chat'
+import {
+  clearSendTimeout,
+  setSendTimeout,
+  deleteSendTimeout,
+  SEND_TIMEOUT_MS,
+  clearRuntime,
+  setAbortFallbackTimer,
+  deleteAbortFallbackTimer,
+  loadPersistedSkill,
+  persistSkill,
+} from './chatHelpers'
 
-// 技能持久化 key
-const SKILL_STORAGE_KEY = 'chat_selected_skill'
-
-// 发送超时（30 秒无响应标记为失败）
-const SEND_TIMEOUT_MS = 30_000
-const sendTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
-
-export function clearSendTimeout(sessionId: string) {
-  const timer = sendTimeouts.get(sessionId)
-  if (timer) {
-    clearTimeout(timer)
-    sendTimeouts.delete(sessionId)
-  }
-}
-
-function loadPersistedSkill(): Skill | null {
-  try {
-    const raw = Taro.getStorageSync(SKILL_STORAGE_KEY)
-    return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null
-  } catch {
-    return null
-  }
-}
-
-function persistSkill(skill: Skill | null) {
-  try {
-    if (skill) {
-      Taro.setStorageSync(SKILL_STORAGE_KEY, JSON.stringify(skill))
-    } else {
-      Taro.removeStorageSync(SKILL_STORAGE_KEY)
-    }
-  } catch {}
-}
-
-/** 清除持久化的技能选择（退出登录时调用） */
-export function clearSkillStorage() {
-  persistSkill(null)
-}
-
-interface ChatStore {
-  // ====== State ======
-
-  conversations: Record<string, Conversation>
-  messagesBySession: Record<string, Message[]>
-  currentConversationId: string | null
-  skills: Skill[]
-  defaultWorkflow: Skill | null
-  selectedSkill: Skill | null
-  messageCursor: string | null
-  hasMoreMessages: boolean
-  isLoadingMore: boolean
-
-  // WebSocket 相关
-  wsConnected: boolean
-  sessionRoles: Record<string, 'chatter' | 'viewer'>
-  sessionRuntimes: Record<string, SessionRuntime>
-  lastStreamIds: Record<string, string>
-
-  // ====== Actions ======
-
-  loadConversations: () => Promise<void>
-  ensurePendingConversation: () => void
-  switchConversation: (id: string) => Promise<void>
-  deleteConversation: (id: string) => void
-  addConversation: (conv: Conversation) => void
-  updateConversation: (id: string, updates: Partial<Conversation>) => void
-
-  loadMessages: (sessionId: string) => Promise<void>
-  loadMoreMessages: () => Promise<void>
-  appendMessage: (sessionId: string, message: Message) => void
-  updateMessageStatus: (
-    sessionId: string,
-    msgId: string,
-    status: MessageStatus,
-    content?: string
-  ) => void
-
-  sendMessage: (content: string) => Promise<string | undefined>
-  stopResponding: () => void
-
-  loadWorkflows: () => Promise<void>
-  toggleSkill: (skill: Skill) => void
-  getCurrentWorkflowId: () => string
-
-  setWsConnected: (connected: boolean) => void
-  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => void
-  setLastStreamId: (sessionId: string, streamId: string) => void
-}
+export {
+  clearSendTimeout,
+  clearRuntime,
+  clearAbortFallbackTimer,
+  clearSkillStorage,
+} from './chatHelpers'
 
 export const useChatStore = create<ChatStore>()((set, get) => ({
   // ====== State ======
@@ -104,20 +33,31 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   messageCursor: null,
   hasMoreMessages: true,
   isLoadingMore: false,
+  conversationCursor: null,
+  hasMoreConversations: true,
+  isLoadingMoreConversations: false,
   wsConnected: false,
   sessionRoles: {},
   sessionRuntimes: {},
+  requestToSession: {},
   lastStreamIds: {},
 
   // ====== 会话 Actions ======
 
   loadConversations: async () => {
     const result = await chatApi.getConversations()
-    const { conversations } = get()
+    const { conversations, sessionRuntimes } = get()
 
-    const merged: Record<string, Conversation> = { ...conversations }
+    // 有 pending 会话正在等待 server 响应时，跳过添加新会话
+    // 避免 server 返回的真实 session 与本地 pending 会话并存（产生重复）
+    const hasPendingWithRuntime = Object.keys(conversations).some(
+      (id) => id.startsWith('pending-') && sessionRuntimes[id]
+    )
+
+    const merged: Record<string, import('@/types/chat').Conversation> = { ...conversations }
     result.conversations.forEach((conv) => {
       if (!merged[conv.id]) {
+        if (hasPendingWithRuntime) return // 跳过添加新会话
         merged[conv.id] = conv
       } else {
         merged[conv.id] = {
@@ -128,18 +68,63 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       }
     })
 
-    set({ conversations: merged })
+    set({
+      conversations: merged,
+      conversationCursor: result.nextCursor,
+      hasMoreConversations: result.hasMore,
+    })
+  },
+
+  loadMoreConversations: async () => {
+    const { conversationCursor, hasMoreConversations, isLoadingMoreConversations } = get()
+    if (!hasMoreConversations || isLoadingMoreConversations || !conversationCursor) return
+
+    set({ isLoadingMoreConversations: true })
+    try {
+      const result = await chatApi.getConversations(conversationCursor)
+      const { conversations } = get()
+
+      const merged: Record<string, import('@/types/chat').Conversation> = { ...conversations }
+      result.conversations.forEach((conv) => {
+        if (!merged[conv.id]) {
+          merged[conv.id] = conv
+        } else {
+          merged[conv.id] = {
+            ...merged[conv.id],
+            title: conv.title,
+            updatedAt: conv.updatedAt,
+          }
+        }
+      })
+
+      set({
+        conversations: merged,
+        conversationCursor: result.nextCursor,
+        hasMoreConversations: result.hasMore,
+      })
+    } finally {
+      set({ isLoadingMoreConversations: false })
+    }
   },
 
   ensurePendingConversation: () => {
-    const { conversations } = get()
+    const { conversations, currentConversationId } = get()
+
+    // 离开旧会话（pending 不用通知服务端）
+    if (currentConversationId && !currentConversationId.startsWith('pending-')) {
+      ws.send('session_leave', {
+        session_id: currentConversationId,
+        create_time: Math.floor(Date.now() / 1000),
+      })
+    }
+
     const pending = Object.values(conversations).find((c) => c.id.startsWith('pending-'))
 
     if (pending) {
       set({ currentConversationId: pending.id })
     } else {
       const tempId = 'pending-' + Date.now()
-      const tempConv: Conversation = {
+      const tempConv: import('@/types/chat').Conversation = {
         id: tempId,
         title: '新对话',
         updatedAt: Date.now(),
@@ -212,13 +197,13 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
   },
 
-  addConversation: (conv: Conversation) => {
+  addConversation: (conv) => {
     set((state) => ({
       conversations: { ...state.conversations, [conv.id]: conv },
     }))
   },
 
-  updateConversation: (id: string, updates: Partial<Conversation>) => {
+  updateConversation: (id, updates) => {
     set((state) => {
       const conv = state.conversations[id]
       if (!conv) return state
@@ -270,7 +255,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }
   },
 
-  appendMessage: (sessionId: string, message: Message) => {
+  appendMessage: (sessionId, message) => {
     set((state) => {
       const messages = state.messagesBySession[sessionId] || []
       const updatedMessages = [...messages, message]
@@ -302,12 +287,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
   },
 
-  updateMessageStatus: (
-    sessionId: string,
-    msgId: string,
-    status: MessageStatus,
-    content?: string
-  ) => {
+  updateMessageStatus: (sessionId, msgId, status, content) => {
     set((state) => {
       const messages = state.messagesBySession[sessionId] || []
       const updated = messages.map((m) =>
@@ -330,7 +310,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       return
     }
 
-    const userMsg: Message = {
+    const userMsg: import('@/types/chat').Message = {
       id: 'u-' + Date.now(),
       role: 'user',
       content,
@@ -338,7 +318,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       status: 'success',
     }
     const aiMsgId = 'a-' + Date.now()
-    const aiMsg: Message = {
+    const aiMsg: import('@/types/chat').Message = {
       id: aiMsgId,
       role: 'assistant',
       content: '',
@@ -356,6 +336,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         ...state.sessionRuntimes,
         [targetSessionId]: { requestId, assistantMsgId: aiMsgId, status: 'pending' },
       },
+      requestToSession: {
+        ...state.requestToSession,
+        [requestId]: targetSessionId,
+      },
     }))
 
     // 检查连接状态
@@ -363,10 +347,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       ws.tryReconnect()
       Taro.showToast({ title: '连接断开，正在重连...', icon: 'none' })
       get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '连接断开，请稍后重试')
-      set((state) => {
-        const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
-      })
+      clearRuntime(targetSessionId)
       return
     }
 
@@ -381,17 +362,14 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
     // 启动发送超时定时器
     const timer = setTimeout(() => {
-      sendTimeouts.delete(targetSessionId)
+      deleteSendTimeout(targetSessionId)
       const runtime = get().sessionRuntimes[targetSessionId]
       if (runtime && runtime.assistantMsgId === aiMsgId) {
         get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '请求超时，请重试')
-        set((state) => {
-          const { [targetSessionId]: _, ...rest } = state.sessionRuntimes
-          return { sessionRuntimes: rest }
-        })
+        clearRuntime(targetSessionId)
       }
     }, SEND_TIMEOUT_MS)
-    sendTimeouts.set(targetSessionId, timer)
+    setSendTimeout(targetSessionId, timer)
 
     return targetSessionId
   },
@@ -415,10 +393,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
         }
       })
-      set((state) => {
-        const { [currentConversationId]: _, ...rest } = state.sessionRuntimes
-        return { sessionRuntimes: rest }
-      })
+      clearRuntime(currentConversationId)
       return
     }
 
@@ -433,7 +408,8 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
 
     // 超时兜底：5 秒内服务端没有返回 abort_result，直接清理
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      deleteAbortFallbackTimer(requestId)
       const currentRuntime = get().sessionRuntimes[currentConversationId]
       if (currentRuntime && currentRuntime.requestId === requestId) {
         const messages = get().messagesBySession[currentConversationId] || []
@@ -442,12 +418,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
             get().updateMessageStatus(currentConversationId, m.id, 'error', '已停止生成')
           }
         })
-        set((state) => {
-          const { [currentConversationId]: _, ...rest } = state.sessionRuntimes
-          return { sessionRuntimes: rest }
-        })
+        clearRuntime(currentConversationId)
       }
     }, 5000)
+    setAbortFallbackTimer(requestId, timer)
   },
 
   // ====== 技能 ======
@@ -467,7 +441,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }
   },
 
-  toggleSkill: (skill: Skill) => {
+  toggleSkill: (skill) => {
     const { selectedSkill } = get()
     const next = selectedSkill?.id === skill.id ? null : skill
     persistSkill(next)
@@ -481,15 +455,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   // ====== WebSocket 状态 ======
 
-  setWsConnected: (connected: boolean) => set({ wsConnected: connected }),
+  setWsConnected: (connected) => set({ wsConnected: connected }),
 
-  setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => {
+  setSessionRole: (sessionId, role) => {
     set((state) => ({
       sessionRoles: { ...state.sessionRoles, [sessionId]: role },
     }))
   },
 
-  setLastStreamId: (sessionId: string, streamId: string) => {
+  setLastStreamId: (sessionId, streamId) => {
     set((state) => ({
       lastStreamIds: { ...state.lastStreamIds, [sessionId]: streamId },
     }))

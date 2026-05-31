@@ -37,6 +37,7 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
   const conversationsMap = useChatStore((s) => s.conversations)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const switchConversation = useChatStore((s) => s.switchConversation)
+  const loadMoreConversations = useChatStore((s) => s.loadMoreConversations)
 
   // 从 Record 转为数组，pending 会话置顶，其余按更新时间倒序
   const sorted = Object.values(conversationsMap).sort((a, b) => {
@@ -53,7 +54,7 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
   }
 
   return (
-    <ScrollView scrollY className="h-full mt-2">
+    <ScrollView scrollY className="h-full mt-2" onScrollToLower={loadMoreConversations}>
       {sorted.length === 0 ? (
         <View className="flex items-center justify-center h-40 text-gray-400 text-sm">
           暂无对话记录
@@ -68,7 +69,7 @@ export default function ConversationList({ onSelect }: { onSelect?: () => void }
               onClick={() => handleClick(conv.id)}
             />
           ))}
-          <View className="h-4" />
+          <View className="h-4"></View>
         </>
       )}
     </ScrollView>
