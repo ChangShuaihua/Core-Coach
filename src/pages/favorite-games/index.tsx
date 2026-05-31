@@ -35,6 +35,7 @@ export default function FavoriteGamesPage() {
     list: [],
   })
   const [loading, setLoading] = useState(false)
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(null)
 
   const favGenResult = detailData.generatedResults?.[0]
   useShare(
@@ -98,6 +99,7 @@ export default function FavoriteGamesPage() {
 
   const handleGameClick = async (game: Game) => {
     try {
+      setSelectedGameId(game.id)
       const detail = await getGameDetail(game.id)
       if (!detail) {
         Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -128,23 +130,46 @@ export default function FavoriteGamesPage() {
   const handleBack = () => {
     if (selectedGame) {
       setSelectedGame(null)
+      setSelectedGameId(null)
       setDetailData({})
     } else {
       Taro.navigateBack()
     }
   }
 
+  const handleUnfavorite = async () => {
+    if (!selectedGameId) return
+    try {
+      await removeFavoriteGame(selectedGameId)
+      setGames(games.filter((g) => g.id !== selectedGameId))
+      setSelectedGame(null)
+      setSelectedGameId(null)
+      setDetailData({})
+      Taro.showToast({ title: '已取消收藏', icon: 'success' })
+    } catch (error) {
+      console.error('取消收藏失败:', error)
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }
+
   const totalPages = Math.ceil(pagination.total / pagination.page_size)
 
   if (selectedGame) {
+    const genResult = detailData.generatedResults?.[0]
+
     const actions: ActionConfig[] = [
+      { key: 'collect', type: 'collect', liked: true, onConfirm: handleUnfavorite },
       {
         key: 'share',
-        label: '分享',
-        icon: 'photo',
-        color: '#FFFFFF',
-        bgColor: '#FF7A2F',
-        type: 'share',
+        type: 'share-image',
+        shareData: genResult
+          ? {
+              gameName: genResult.game_name || '游戏',
+              gameType: genResult.game_type || detailData.gameType || '团队游戏',
+              age: genResult.age || detailData.age || 6,
+              content: genResult.generated_content || '',
+            }
+          : undefined,
       },
     ]
 

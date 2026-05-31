@@ -3,7 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getTaskStatus, startGenerateTask } from '@/api/creation'
-import { collectGame } from '@/api/profile'
+import { collectGame, removeFavoriteGame } from '@/api/profile'
 import ActionBar from '@/components/ActionBar'
 import type { ActionConfig } from '@/components/ActionBar'
 import Layout from '@/components/Layout'
@@ -23,14 +23,12 @@ export default function DetailPage() {
   const [data, setData] = useState<Record<string, any>>({})
   const [liked, setLiked] = useState(false)
 
-  const detailGenResult = data.generatedResults?.[0]
-  const detailParams = router.params || {}
-  useShare(
-    detailGenResult?.game_name || '我生成了一个游戏，快来看看',
-    `/pages/detail/index?id=${detailParams.id}&type=${detailParams.type || 'game'}`
-  )
-
+  const genResult = data.generatedResults?.[0]
   const detailId = router.params?.id
+  useShare(
+    genResult?.game_name || '我生成了一个游戏，快来看看',
+    `/pages/detail/index?id=${detailId}`
+  )
   const isLikeParam = router.params?.is_like
 
   useEffect(() => {
@@ -80,8 +78,6 @@ export default function DetailPage() {
     )
   }
 
-  const genResult = data.generatedResults?.[0]
-
   const handleRegenerate = async () => {
     requestTaskCompleteSubscribe()
     const retryParams = genResult?.retry_params
@@ -108,7 +104,7 @@ export default function DetailPage() {
     try {
       const res = await collectGame(genResult.record_id)
       setLiked(res.is_like === 1)
-      Taro.showToast({ title: res.is_like === 1 ? '收藏成功' : '已取消收藏', icon: 'success' })
+      Taro.showToast({ title: '收藏成功', icon: 'success' })
     } catch (err: any) {
       if (err?.code === 3002) {
         setLiked(true)
@@ -119,31 +115,32 @@ export default function DetailPage() {
     }
   }
 
+  const handleUnfavorite = async () => {
+    if (!genResult?.record_id) return
+    try {
+      await removeFavoriteGame(genResult.record_id)
+      setLiked(false)
+      Taro.showToast({ title: '已取消收藏', icon: 'success' })
+    } catch {
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }
+
   const actions: ActionConfig[] = [
-    {
-      key: 'regenerate',
-      label: '重新生成',
-      icon: 'refresh',
-      color: '#FF7A2F',
-      bgColor: '#FFF7F2',
-      onClick: handleRegenerate,
-    },
+    { key: 'regenerate', type: 'regenerate', onClick: handleRegenerate },
     {
       key: 'share',
-      label: '分享',
-      icon: 'photo',
-      color: '#7C5CFC',
-      bgColor: '#F3F0FF',
-      type: 'share',
+      type: 'share-image',
+      shareData: genResult
+        ? {
+            gameName: genResult.game_name || '游戏',
+            gameType: genResult.game_type || data.gameType || '团队游戏',
+            age: genResult.age || data.age || 6,
+            content: genResult.generated_content || '',
+          }
+        : undefined,
     },
-    {
-      key: 'collect',
-      label: liked ? '已收藏' : '收藏',
-      icon: 'star',
-      color: liked ? '#FF7A2F' : '#FFFFFF',
-      bgColor: liked ? '#FFF7F2' : '#FF7A2F',
-      onClick: handleCollect,
-    },
+    { key: 'collect', type: 'collect', liked, onClick: handleCollect, onConfirm: handleUnfavorite },
   ]
 
   return (

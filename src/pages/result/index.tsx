@@ -150,38 +150,21 @@ export default function ResultPage() {
   }
 
   const actions: ActionConfig[] = [
-    {
-      key: 'prev',
-      label: '上一步',
-      icon: 'arrow-left',
-      color: '#4B5563',
-      bgColor: '#F3F4F6',
-      onClick: handlePrev,
-    },
-    {
-      key: 'regenerate',
-      label: '重新生成',
-      icon: 'refresh',
-      color: '#FF7A2F',
-      bgColor: '#FFF7F2',
-      onClick: handleRegenerate,
-    },
+    { key: 'prev', type: 'back', onClick: handlePrev },
+    { key: 'regenerate', type: 'regenerate', onClick: handleRegenerate },
     {
       key: 'share',
-      label: '分享',
-      icon: 'photo',
-      color: '#7C5CFC',
-      bgColor: '#F3F0FF',
-      type: 'share',
+      type: 'share-image',
+      shareData: genResult
+        ? {
+            gameName: genResult.game_name || '游戏',
+            gameType: genResult.game_type || data.gameType || '团队游戏',
+            age: genResult.age || data.age || 6,
+            content: genResult.generated_content || '',
+          }
+        : undefined,
     },
-    {
-      key: 'collect',
-      label: liked ? '已收藏' : '收藏',
-      icon: 'star',
-      color: liked ? '#FF7A2F' : '#FFFFFF',
-      bgColor: liked ? '#FFF7F2' : '#FF7A2F',
-      onClick: handleCollect,
-    },
+    { key: 'collect', type: 'collect', liked, onClick: handleCollect },
   ]
 
   return (
