@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft, ArrowRight, Star } from '@nutui/icons-react-taro'
 import {
@@ -8,11 +8,14 @@ import {
   removeFavoriteGame,
   type FavoriteGamesResult,
 } from '@/api/profile'
+import ActionBar from '@/components/ActionBar'
+import type { ActionConfig } from '@/components/ActionBar'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
 import type { Game } from '@/types/game'
+import { generateAndSaveImage } from '@/utils/shareImage'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
   step: 1,
@@ -126,6 +129,34 @@ export default function FavoriteGamesPage() {
   const totalPages = Math.ceil(pagination.total / pagination.page_size)
 
   if (selectedGame) {
+    const genResult = detailData.generatedResults?.[0]
+
+    const handleShare = async () => {
+      if (!genResult) return
+      const success = await generateAndSaveImage({
+        gameName: genResult.game_name || '游戏',
+        gameType: genResult.game_type || detailData.gameType || '团队游戏',
+        age: genResult.age || detailData.age || 6,
+        content: genResult.generated_content || '',
+      })
+      if (success) {
+        Taro.showToast({ title: '已保存到相册', icon: 'success' })
+      } else {
+        Taro.showToast({ title: '保存失败', icon: 'none' })
+      }
+    }
+
+    const actions: ActionConfig[] = [
+      {
+        key: 'share',
+        label: '分享图片',
+        icon: 'photo',
+        color: '#FFFFFF',
+        bgColor: '#FF7A2F',
+        onClick: handleShare,
+      },
+    ]
+
     return (
       <Layout
         title="游戏详情"
@@ -136,7 +167,23 @@ export default function FavoriteGamesPage() {
           </View>
         }
       >
-        <ResultPreview config={RESULT_CONFIG} value={detailData} onChange={setDetailData} />
+        <Canvas
+          type="2d"
+          id="shareCanvas"
+          style={{
+            position: 'fixed',
+            left: '-9999px',
+            top: '-9999px',
+            width: '300px',
+            height: '420px',
+          }}
+        />
+        <ResultPreview
+          config={RESULT_CONFIG}
+          value={detailData}
+          onChange={(newData) => setDetailData((prev) => ({ ...prev, ...newData }))}
+        />
+        <ActionBar actions={actions} />
       </Layout>
     )
   }

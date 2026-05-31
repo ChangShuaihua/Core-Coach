@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { View, Text, Button, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Refresh, Photograph, StarFill } from '@nutui/icons-react-taro'
-import { collectGame } from '@/api/profile'
+import { Refresh } from '@nutui/icons-react-taro'
 import StepIndicator from '@/components/Step'
 import StepRenderer from '@/pages/wizard/components/StepRenderer'
 import type { StepConfig } from '@/pages/wizard/components/StepRenderer'
-import { generateAndSaveImage } from '@/utils/shareImage'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 export interface SkillStepConfig {
@@ -130,7 +128,7 @@ export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitt
       </View>
 
       {/* 底部按钮栏 */}
-      {!subPageActive && (
+      {!subPageActive && !isLastStep && (
         <View className="flex-shrink-0 bg-white py-4 border-t border-gray-200">
           <View className="max-w-2xl mx-auto flex flex-row gap-2">
             {!isFirstStep && (
@@ -145,83 +143,7 @@ export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitt
               </View>
             )}
 
-            {isLastStep ? (
-              <>
-                <View
-                  className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
-                  style={{ backgroundColor: '#FFF7F2' }}
-                  onClick={async () => {
-                    if (onGenerate) {
-                      const genResult = await onGenerate(data)
-                      if (genResult) {
-                        onTaskSubmitted?.(genResult.recordId)
-                      }
-                    }
-                  }}
-                >
-                  <Refresh color="#FF7A2F" size={14} />
-                  <Text className="text-sm font-medium" style={{ color: '#FF7A2F' }}>
-                    重新生成
-                  </Text>
-                </View>
-
-                <View
-                  className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
-                  style={{ backgroundColor: '#F3F0FF' }}
-                  onClick={async () => {
-                    // 获取生成结果数据
-                    const generatedResults = data.generatedResults || []
-                    if (generatedResults.length === 0) {
-                      Taro.showToast({ title: '暂无生成结果', icon: 'none' })
-                      return
-                    }
-                    const genResult = generatedResults[0]
-                    const success = await generateAndSaveImage({
-                      gameName: genResult.game_name || '新生成游戏',
-                      gameType: genResult.game_type || data.gameType || '团队游戏',
-                      age: genResult.age || data.age || 6,
-                      content: genResult.generated_content || '',
-                    })
-                    if (success) {
-                      Taro.showToast({ title: '已保存到相册', icon: 'success' })
-                    } else {
-                      Taro.showToast({ title: '保存失败', icon: 'none' })
-                    }
-                  }}
-                >
-                  <Photograph color="#7C5CFC" size={14} />
-                  <Text className="text-sm font-medium" style={{ color: '#7C5CFC' }}>
-                    分享图片
-                  </Text>
-                </View>
-
-                <View
-                  className="flex-1 flex flex-row items-center justify-center gap-1 py-2 px-2 rounded-full"
-                  style={{ backgroundColor: '#FF7A2F' }}
-                  onClick={async () => {
-                    const generatedResults = data.generatedResults || []
-                    if (generatedResults.length === 0) {
-                      Taro.showToast({ title: '暂无生成结果', icon: 'none' })
-                      return
-                    }
-                    const recordId = generatedResults[0].record_id
-                    if (!recordId) {
-                      Taro.showToast({ title: '无法获取记录ID', icon: 'none' })
-                      return
-                    }
-                    try {
-                      await collectGame(recordId)
-                      Taro.showToast({ title: '收藏成功', icon: 'success' })
-                    } catch (error) {
-                      Taro.showToast({ title: '收藏失败', icon: 'none' })
-                    }
-                  }}
-                >
-                  <StarFill color="#fff" size={14} />
-                  <Text className="text-sm font-semibold text-white">收藏</Text>
-                </View>
-              </>
-            ) : steps.length === 2 && isFirstStep ? (
+            {steps.length === 2 && isFirstStep ? (
               <Button
                 className="flex-1 flex items-center justify-center py-3 rounded-full"
                 style={{
@@ -232,9 +154,7 @@ export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitt
                 }}
                 onClick={() => {
                   if (!validateCurrentStep()) return
-                  // 同步调用订阅授权
                   requestTaskCompleteSubscribe()
-                  // 异步处理生成任务
                   if (onGenerate) {
                     onGenerate(data).then((genResult) => {
                       if (genResult) {
