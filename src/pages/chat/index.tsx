@@ -70,6 +70,12 @@ export default function ChatPage() {
   useEffect(() => {
     Taro.onKeyboardHeightChange((res) => {
       setKeyboardHeight(res.height)
+      // 键盘弹起时自动滚动到底部
+      if (res.height > 0) {
+        setTimeout(() => {
+          scrollToBottomRef.current?.()
+        }, 100)
+      }
     })
     return () => {
       Taro.offKeyboardHeightChange(() => {})
