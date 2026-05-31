@@ -42,6 +42,7 @@ export interface Conversation {
   title: string
   updatedAt: number
   messageCount: number
+  hasOtherDevice: boolean
 }
 
 // API 返回的原始消息格式
