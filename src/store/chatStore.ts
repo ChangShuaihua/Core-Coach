@@ -64,6 +64,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           ...merged[conv.id],
           title: conv.title,
           updatedAt: conv.updatedAt,
+          hasOtherDevice: conv.hasOtherDevice,
         }
       }
     })
@@ -129,6 +130,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         title: '新对话',
         updatedAt: Date.now(),
         messageCount: 0,
+        hasOtherDevice: false,
       }
       set((state) => ({
         currentConversationId: tempId,

@@ -9,7 +9,12 @@ export async function getConversations(
   limit = 20
 ): Promise<{ conversations: Conversation[]; nextCursor: string | null; hasMore: boolean }> {
   const res = await get<{
-    sessions: Array<{ session_id: string; title: string; last_message_at: string }>
+    sessions: Array<{
+      session_id: string
+      title: string
+      last_message_at: string
+      has_other_device: boolean
+    }>
     total: number
     next_cursor: string | null
   }>('/app/ai-qa/sessions', {
@@ -23,6 +28,7 @@ export async function getConversations(
     title: s.title,
     updatedAt: dayjs(s.last_message_at).valueOf(),
     messageCount: 0,
+    hasOtherDevice: s.has_other_device,
   }))
 
   return {

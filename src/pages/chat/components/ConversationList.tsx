@@ -53,11 +53,16 @@ function ConversationItem({
       >
         {conversation.title}
       </Text>
-      {!isPending && (
-        <View className="ml-2 px-1" onClick={handleDelete}>
-          <Close size={14} color="red" />
-        </View>
-      )}
+      {!isPending &&
+        (conversation.hasOtherDevice ? (
+          <View className="ml-2 px-1">
+            <Text style={{ fontSize: '12px', color: '#999' }}>被占用</Text>
+          </View>
+        ) : (
+          <View className="ml-2 px-1" onClick={handleDelete}>
+            <Close size={14} color="red" />
+          </View>
+        ))}
     </View>
   )
 }
