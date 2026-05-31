@@ -57,8 +57,9 @@ export default function ChatPage() {
     loadWorkflows()
   }, [loadConversations, ensurePendingConversation, loadWorkflows])
 
-  // 切换会话时拉取消息 + 刷新会话列表
+  // 切换会话时拉取消息 + 刷新会话列表 + 重置滚动按钮状态
   useEffect(() => {
+    setShowScrollToBottom(false)
     if (currentConversationId && !sendingRef.current) {
       loadMessages(currentConversationId)
       loadConversations()
@@ -69,6 +70,12 @@ export default function ChatPage() {
   useEffect(() => {
     Taro.onKeyboardHeightChange((res) => {
       setKeyboardHeight(res.height)
+      // 键盘弹起时自动滚动到底部
+      if (res.height > 0) {
+        setTimeout(() => {
+          scrollToBottomRef.current?.()
+        }, 100)
+      }
     })
     return () => {
       Taro.offKeyboardHeightChange(() => {})
@@ -157,9 +164,11 @@ export default function ChatPage() {
           </View>
           {showScrollToBottom && (
             <View
-              className="absolute right-5"
+              className="absolute"
               style={{
-                bottom: '140px',
+                bottom: '100px',
+                left: '50%',
+                transform: 'translateX(-50%)',
                 width: '36px',
                 height: '36px',
                 borderRadius: '50%',

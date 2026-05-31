@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { get, post } from '@/services/http'
+import { get, post, del } from '@/services/http'
 import type { Conversation, Message, Skill, MessagePageData } from '@/types/chat'
 
 // ========== 会话列表（支持游标分页） ==========
@@ -79,4 +79,10 @@ export async function getWorkflows(): Promise<Skill[]> {
     type: item.type,
     outputType: item.output_type,
   }))
+}
+
+// ========== 删除会话 ==========
+
+export async function deleteSession(id: string) {
+  return del(`/app/ai-qa/sessions/${id}`)
 }

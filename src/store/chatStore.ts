@@ -178,23 +178,44 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }
   },
 
-  deleteConversation: (id: string) => {
+  deleteConversation: async (id: string) => {
+    const { currentConversationId } = get()
+    const isDeletingCurrent = currentConversationId === id
+
+    // pending 会话直接本地清理，不需要调 API
+    if (id.startsWith('pending-')) {
+      set((state) => {
+        const { [id]: _, ...restConvs } = state.conversations
+        const { [id]: __, ...restMsgs } = state.messagesBySession
+        return {
+          conversations: restConvs,
+          messagesBySession: restMsgs,
+        }
+      })
+      // 删除的是当前会话，跳到新会话
+      if (isDeletingCurrent) {
+        get().ensurePendingConversation()
+      }
+      return
+    }
+
+    // 调 API 删除
+    await chatApi.deleteSession(id)
+
+    // API 成功后清理本地状态
     set((state) => {
       const { [id]: _, ...restConvs } = state.conversations
       const { [id]: __, ...restMsgs } = state.messagesBySession
-
-      let newCurrentId = state.currentConversationId
-      if (state.currentConversationId === id) {
-        const firstId = Object.keys(restConvs)[0] || null
-        newCurrentId = firstId
-      }
-
       return {
         conversations: restConvs,
         messagesBySession: restMsgs,
-        currentConversationId: newCurrentId,
       }
     })
+
+    // 删除的是当前会话，跳到新会话
+    if (isDeletingCurrent) {
+      get().ensurePendingConversation()
+    }
   },
 
   addConversation: (conv) => {

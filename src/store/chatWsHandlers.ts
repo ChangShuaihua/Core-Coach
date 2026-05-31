@@ -86,18 +86,21 @@ export function initWsHandlers() {
 
     const { sessionRuntimes } = get()
 
-    // 按 session_id 或 request_id 定位 runtime
-    let runtimeKey =
-      (sessionRuntimes[data.session_id] ? data.session_id : null) ||
-      findSessionByRequestId(data.request_id)
+    // 按 session_id 定位 runtime（已迁移过的 session）
+    let runtimeKey = sessionRuntimes[data.session_id] ? data.session_id : null
 
-    // 通过 requestId 找到发起请求的 pending session，首次 chunk 时迁移
+    // 没有找到 → 可能是 pending session 的首次 chunk，需要迁移
     if (!runtimeKey && data.session_id) {
       const sourcePending = findSourcePending(data.request_id)
       if (sourcePending) {
         runtimeKey = sourcePending
         migratePendingSession(sourcePending, data.session_id)
       }
+    }
+
+    // 兜底：通过 request_id 查找（非 pending 场景）
+    if (!runtimeKey) {
+      runtimeKey = findSessionByRequestId(data.request_id) || null
     }
 
     if (!runtimeKey) return
@@ -110,15 +113,22 @@ export function initWsHandlers() {
     clearSendTimeout(runtimeKey)
 
     const runtime = sessionRuntimes[runtimeKey]
-    const messages =
-      get().messagesBySession[runtimeKey.startsWith('pending-') ? data.session_id : runtimeKey] ||
-      get().messagesBySession[runtimeKey] ||
-      []
+    const msgSessionId = runtimeKey.startsWith('pending-') ? data.session_id : runtimeKey
+    const messages = get().messagesBySession[msgSessionId] || []
     const msg = messages.find((m) => m.id === runtime.assistantMsgId)
+
+    console.log('[chunk] 更新消息', {
+      runtimeKey,
+      msgSessionId,
+      assistantMsgId: runtime.assistantMsgId,
+      messagesLen: messages.length,
+      msgFound: !!msg,
+      content: data.content,
+      currentConversationId: get().currentConversationId,
+    })
     if (!msg) return
 
     const newContent = msg.content + data.content
-    const msgSessionId = runtimeKey.startsWith('pending-') ? data.session_id : runtimeKey
     get().updateMessageStatus(msgSessionId, runtime.assistantMsgId, 'streaming', newContent)
 
     useChatStore.setState((state) => ({
@@ -135,6 +145,14 @@ export function initWsHandlers() {
     const runtimeKey =
       (sessionRuntimes[data.session_id] ? data.session_id : null) ||
       findSessionByRequestId(data.request_id)
+
+    console.log('[stream_done]', {
+      requestId: data.request_id,
+      sessionId: data.session_id,
+      runtimeKey,
+      currentConversationId: get().currentConversationId,
+      contentLen: data.content?.length,
+    })
     if (!runtimeKey) return
 
     clearSendTimeout(runtimeKey)
