@@ -89,6 +89,10 @@ export default function ResultPreview({
   const realResult = generatedResults[0]
   const game = parseGameContent(realResult.generated_content)
 
+  // 优先使用已选音乐，否则用原始音乐
+  const musicName = value.selectedMusic || realResult.game_name || '游戏配乐'
+  const musicUrl = value.selectedMusicUrl || realResult.music || ''
+
   return (
     <View
       style={{
@@ -200,55 +204,53 @@ export default function ResultPreview({
           </SectionCard>
         )}
 
-        {realResult.music && (
-          <View style={{ marginBottom: '24px' }}>
-            <View
-              style={{
-                backgroundColor: '#f9fafb',
-                borderRadius: '12px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '12px',
-              }}
-            >
-              <View style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '4px' }}>
-                  背景音乐
-                </Text>
-                <Text
-                  style={{
-                    fontSize: '14px',
-                    color: '#374151',
-                    fontWeight: '500',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {realResult.game_name || '游戏配乐'}
-                </Text>
-              </View>
-              {showMusicSwitch && (
-                <Text
-                  style={{
-                    fontSize: '14px',
-                    color: '#f97316',
-                    fontWeight: '500',
-                    marginLeft: '16px',
-                    flexShrink: 0,
-                  }}
-                  onClick={() => toggleMusicSettings(true)}
-                >
-                  更换音乐
-                </Text>
-              )}
+        <View style={{ marginBottom: '24px' }}>
+          <View
+            style={{
+              backgroundColor: '#f9fafb',
+              borderRadius: '12px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '12px',
+            }}
+          >
+            <View style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+              <Text style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '4px' }}>
+                背景音乐
+              </Text>
+              <Text
+                style={{
+                  fontSize: '14px',
+                  color: '#374151',
+                  fontWeight: '500',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {musicName}
+              </Text>
             </View>
-            <MusicPlayer musicUrl={realResult.music} />
+            {showMusicSwitch && (
+              <Text
+                style={{
+                  fontSize: '14px',
+                  color: '#f97316',
+                  fontWeight: '500',
+                  marginLeft: '16px',
+                  flexShrink: 0,
+                }}
+                onClick={() => toggleMusicSettings(true)}
+              >
+                更换音乐
+              </Text>
+            )}
           </View>
-        )}
+          {musicUrl && <MusicPlayer musicUrl={musicUrl} />}
+        </View>
       </View>
     </View>
   )

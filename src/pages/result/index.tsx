@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import { useRouter } from '@tarojs/taro'
-import { getTaskStatus } from '@/api/creation'
+import Taro, { useRouter } from '@tarojs/taro'
+import { getTaskStatus, startGenerateTask } from '@/api/creation'
+import { collectGame } from '@/api/profile'
+import ActionBar from '@/components/ActionBar'
+import type { ActionConfig } from '@/components/ActionBar'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
+import WaitingPage from '@/components/WaitingPage'
+import { useCreationStore } from '@/store'
 import type { TaskStatusCode } from '@/types/creation'
+import { useShare } from '@/utils/share'
+import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
   step: 1,
@@ -19,8 +26,17 @@ export default function ResultPage() {
   const [data, setData] = useState<Record<string, any>>({})
   const [status, setStatus] = useState<TaskStatusCode | null>(null)
   const [createdAt, setCreatedAt] = useState('')
+  const [liked, setLiked] = useState(false)
+
+  const { setMode } = useCreationStore()
 
   const recordId = router.params.recordId
+
+  const genResult = data.generatedResults?.[0]
+  useShare(
+    genResult?.game_name || '我生成了一个游戏，快来看看',
+    `/pages/result/index?recordId=${recordId}`
+  )
 
   useEffect(() => {
     if (!recordId) {
@@ -42,7 +58,6 @@ export default function ResultPage() {
             generatedResults: [res],
           })
         } else if (res.status === 3 || res.status === 2) {
-          // 生成中或排队中
           setData({
             age: res.age,
             gameType: res.game_type,
@@ -82,26 +97,75 @@ export default function ResultPage() {
     )
   }
 
-  // 生成中或排队中
   if (status === 2 || status === 3) {
     return (
       <Layout title="生成中" showTabBar>
-        <View className="flex flex-col items-center justify-center h-screen px-8">
-          <View className="mb-8">
-            <View className="w-24 h-24 rounded-full bg-orange-100 flex items-center justify-center animate-pulse">
-              <Text className="text-4xl">✨</Text>
-            </View>
-          </View>
-          <Text className="text-lg font-semibold text-gray-900 mb-2">正在为你生成游戏</Text>
-          <Text className="text-sm text-gray-500 mb-4">{data.userMessage}</Text>
-          {createdAt && (
-            <Text className="text-xs text-gray-400">创建时间：{formatTime(createdAt)}</Text>
-          )}
-          <View className="w-8 h-8 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin mt-6" />
-        </View>
+        <WaitingPage title="游戏" />
       </Layout>
     )
   }
+
+  const handleRegenerate = async () => {
+    requestTaskCompleteSubscribe()
+    const retryParams = genResult?.retry_params
+    if (!retryParams) {
+      Taro.showToast({ title: '缺少生成参数', icon: 'none' })
+      return
+    }
+    try {
+      const res = await startGenerateTask(retryParams)
+      Taro.showToast({ title: '任务已提交', icon: 'success' })
+      setTimeout(() => {
+        Taro.redirectTo({ url: `/pages/result/index?recordId=${res.record_id}` })
+      }, 1500)
+    } catch {
+      Taro.showToast({ title: '重新生成失败', icon: 'none' })
+    }
+  }
+
+  const handleCollect = async () => {
+    const generatedResults = data.generatedResults || []
+    const rid = generatedResults[0]?.record_id || recordId
+    if (!rid) {
+      Taro.showToast({ title: '无法获取记录ID', icon: 'none' })
+      return
+    }
+    try {
+      const res = await collectGame(Number(rid))
+      setLiked(res.is_like === 1)
+      Taro.showToast({ title: res.is_like === 1 ? '收藏成功' : '已取消收藏', icon: 'success' })
+    } catch (err: any) {
+      if (err?.code === 3002) {
+        setLiked(true)
+        Taro.showToast({ title: '已收藏', icon: 'success' })
+      } else {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
+    }
+  }
+
+  const handlePrev = () => {
+    setMode('game')
+    Taro.redirectTo({ url: '/pages/wizard/index' })
+  }
+
+  const actions: ActionConfig[] = [
+    { key: 'prev', type: 'back', onClick: handlePrev },
+    { key: 'regenerate', type: 'regenerate', onClick: handleRegenerate },
+    {
+      key: 'share',
+      type: 'share-image',
+      shareData: genResult
+        ? {
+            gameName: genResult.game_name || '游戏',
+            gameType: genResult.game_type || data.gameType || '团队游戏',
+            age: genResult.age || data.age || 6,
+            content: genResult.generated_content || '',
+          }
+        : undefined,
+    },
+    { key: 'collect', type: 'collect', liked, onClick: handleCollect },
+  ]
 
   return (
     <Layout title="生成结果" showTabBar>
@@ -110,7 +174,12 @@ export default function ResultPage() {
           <Text className="text-xs text-gray-400">创建时间：{formatTime(createdAt)}</Text>
         </View>
       )}
-      <ResultPreview config={RESULT_CONFIG} value={data} onChange={setData} />
+      <ResultPreview
+        config={RESULT_CONFIG}
+        value={data}
+        onChange={(newData) => setData((prev) => ({ ...prev, ...newData }))}
+      />
+      <ActionBar actions={actions} />
     </Layout>
   )
 }

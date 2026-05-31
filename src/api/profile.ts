@@ -47,8 +47,15 @@ export async function getGameDetail(id: number): Promise<Game | undefined> {
   return result.data
 }
 
-export async function collectGame(recordId: number): Promise<void> {
-  await post('/game/favorite', { record_id: recordId })
+export interface CollectResult {
+  record_id: number
+  is_like: number
+  message: string
+}
+
+export async function collectGame(recordId: number): Promise<CollectResult> {
+  const res = await post<CollectResult>('/game/favorite', { record_id: recordId })
+  return res.data
 }
 
 export async function removeFavoriteGame(id: number): Promise<void> {

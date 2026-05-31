@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
+import { getMusicList } from '@/api/creation'
+import type { MusicItem, CurrentMusic } from '@/types/creation'
 
 export interface MusicSettingsProps {
   data: Record<string, any>
@@ -8,26 +10,44 @@ export interface MusicSettingsProps {
   onBack?: () => void
 }
 
-const musicPresets = [
-  { name: '阳光小步伐', desc: '轻快活泼，适合热身活动' },
-  { name: '快乐探险家', desc: '冒险风格，适合闯关游戏' },
-  { name: '森林奇遇记', desc: '自然清新，适合户外主题' },
-  { name: '童趣时光', desc: '可爱童趣，适合低龄儿童' },
-  { name: '星星的约定', desc: '温暖治愈，适合放松环节' },
-]
-
 export default function MusicSettings({ data, updateData, onBack }: MusicSettingsProps) {
   const generatedResults = data.generatedResults || []
-  const currentMusic = generatedResults[0]?.music || ''
-  const [selectedPreset, setSelectedPreset] = useState<string>('')
+  const recordId = generatedResults[0]?.record_id
 
-  const handleSelect = (name: string) => {
-    setSelectedPreset(name)
+  const [currentMusic, setCurrentMusic] = useState<CurrentMusic | null>(null)
+  const [musicList, setMusicList] = useState<MusicItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetchMusicList()
+  }, [])
+
+  const fetchMusicList = async () => {
+    try {
+      setLoading(true)
+      const res = await getMusicList(recordId ? { record_id: recordId } : undefined)
+      setCurrentMusic(res.current_music || null)
+      setMusicList(res.music_list || [])
+    } catch (e) {
+      console.error('获取音乐列表失败:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelect = (id: number) => {
+    setSelectedId(id)
   }
 
   const handleConfirm = () => {
-    if (selectedPreset) {
-      updateData('selectedMusic', selectedPreset)
+    if (selectedId !== null) {
+      const selected = musicList.find((m) => m.id === selectedId)
+      if (selected) {
+        updateData('selectedMusic', selected.music_name)
+        updateData('selectedMusicId', selected.id)
+        updateData('selectedMusicUrl', selected.music_url)
+      }
     }
     onBack?.()
   }
@@ -114,28 +134,14 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
               <Text
                 style={{ fontSize: '14px', color: '#374151', fontWeight: '500', display: 'block' }}
               >
-                AI 生成配乐
-              </Text>
-              <Text
-                style={{
-                  fontSize: '12px',
-                  color: '#9ca3af',
-                  marginTop: '2px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  display: 'block',
-                  maxWidth: '200px',
-                }}
-              >
-                {currentMusic}
+                {currentMusic.music_name}
               </Text>
             </View>
           </View>
         </View>
       )}
 
-      {/* 预设音乐列表 */}
+      {/* 音乐列表 */}
       <View
         style={{
           backgroundColor: '#ffffff',
@@ -147,75 +153,88 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
         <Text
           style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '12px', display: 'block' }}
         >
-          预设音乐
+          可选音乐
         </Text>
-        <View style={{ display: 'flex', flexDirection: 'column' }}>
-          {musicPresets.map((music) => {
-            const isSelected = selectedPreset === music.name
-            return (
-              <View
-                key={music.name}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '14px 4px',
-                  borderBottom: '1px solid #f9fafb',
-                  cursor: 'pointer',
-                }}
-                onClick={() => handleSelect(music.name)}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: '14px',
-                      color: isSelected ? '#f97316' : '#374151',
-                      fontWeight: isSelected ? 'bold' : 'normal',
-                      display: 'block',
-                    }}
-                  >
-                    {music.name}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: '12px',
-                      color: '#9ca3af',
-                      marginTop: '2px',
-                      display: 'block',
-                    }}
-                  >
-                    {music.desc}
-                  </Text>
-                </View>
+
+        {loading ? (
+          <View style={{ padding: '20px', textAlign: 'center' as any }}>
+            <Text style={{ fontSize: '14px', color: '#9ca3af' }}>加载中...</Text>
+          </View>
+        ) : musicList.length === 0 ? (
+          <View style={{ padding: '20px', textAlign: 'center' as any }}>
+            <Text style={{ fontSize: '14px', color: '#9ca3af' }}>暂无可选音乐</Text>
+          </View>
+        ) : (
+          <View style={{ display: 'flex', flexDirection: 'column' }}>
+            {musicList.map((music) => {
+              const isSelected = selectedId === music.id
+              return (
                 <View
+                  key={music.id}
                   style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '9999px',
-                    border: `1px solid ${isSelected ? '#f97316' : '#d1d5db'}`,
                     display: 'flex',
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginLeft: '12px',
+                    padding: '14px 4px',
+                    borderBottom: '1px solid #f9fafb',
+                    cursor: 'pointer',
                   }}
+                  onClick={() => handleSelect(music.id)}
                 >
-                  {isSelected && (
-                    <View
+                  <View style={{ flex: 1 }}>
+                    <Text
                       style={{
-                        width: '10px',
-                        height: '10px',
-                        backgroundColor: '#f97316',
-                        borderRadius: '9999px',
+                        fontSize: '14px',
+                        color: isSelected ? '#f97316' : '#374151',
+                        fontWeight: isSelected ? 'bold' : 'normal',
+                        display: 'block',
                       }}
-                    />
-                  )}
+                    >
+                      {music.music_name}
+                    </Text>
+                    {music.duration && (
+                      <Text
+                        style={{
+                          fontSize: '12px',
+                          color: '#9ca3af',
+                          marginTop: '2px',
+                          display: 'block',
+                        }}
+                      >
+                        {music.duration}
+                      </Text>
+                    )}
+                  </View>
+                  <View
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '9999px',
+                      border: `1px solid ${isSelected ? '#f97316' : '#d1d5db'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      marginLeft: '12px',
+                    }}
+                  >
+                    {isSelected && (
+                      <View
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          backgroundColor: '#f97316',
+                          borderRadius: '9999px',
+                        }}
+                      />
+                    )}
+                  </View>
                 </View>
-              </View>
-            )
-          })}
-        </View>
+              )
+            })}
+          </View>
+        )}
       </View>
 
       {/* 确认按钮 */}
@@ -223,14 +242,14 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
         style={{
           width: '100%',
           height: '48px',
-          backgroundColor: '#f97316',
+          backgroundColor: selectedId !== null ? '#f97316' : '#d1d5db',
           borderRadius: '12px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
+          cursor: selectedId !== null ? 'pointer' : 'default',
         }}
-        onClick={handleConfirm}
+        onClick={selectedId !== null ? handleConfirm : undefined}
       >
         <Text style={{ fontSize: '16px', color: '#ffffff', fontWeight: '600' }}>
           确定选用此音乐

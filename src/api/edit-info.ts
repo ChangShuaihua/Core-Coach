@@ -1,4 +1,5 @@
-import { put } from '@/services/http'
+import Taro from '@tarojs/taro'
+import { put, getStoredState } from '@/services/http'
 
 export interface UserInfo {
   nickname: string
@@ -11,7 +12,7 @@ export interface UpdateUserInfoResponse {
 }
 
 export interface UploadAvatarResponse {
-  url: string
+  file_url: string
 }
 
 const useMock = false
@@ -43,15 +44,36 @@ export async function updateUserInfo(
 export async function uploadAvatar(filePath: string): Promise<UploadAvatarResponse> {
   if (useMock) {
     return Promise.resolve({
-      url: filePath,
+      file_url: filePath,
     })
   }
 
-  const result = await put<UploadAvatarResponse>('/upload/avatar', { filePath })
+  const BASE_URL = process.env.TARO_APP_API_URL || 'http://192.168.10.7:8083/api/v1'
+  const { accessToken } = getStoredState()
 
-  if (!result.data) {
-    throw new Error((result as any).message || (result as any).msg || '上传头像失败')
-  }
-
-  return result.data
+  return new Promise((resolve, reject) => {
+    Taro.uploadFile({
+      url: `${BASE_URL}/upload`,
+      filePath,
+      name: 'file',
+      header: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      success: (res) => {
+        try {
+          const data = JSON.parse(res.data)
+          if (data.code === 0 && data.data) {
+            resolve({ file_url: data.data.file_url })
+          } else {
+            reject(new Error(data.message || '上传头像失败'))
+          }
+        } catch {
+          reject(new Error('解析响应失败'))
+        }
+      },
+      fail: (err) => {
+        reject(new Error(err.errMsg || '上传头像失败'))
+      },
+    })
+  })
 }

@@ -1,27 +1,11 @@
 import WxmpRsa from 'wxmp-rsa'
 
-const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvts8T06L8b1plhkOIDhM
-UjsjZQsitSNt8M3+fhtT/LtCKo33Wdf/l3GbfHDzcXMtDAXK/B7y53w/J45vcVAM
-Lue+wvz0vLXznlWAwWZVPf0wEzzNltK5lwjce2tD8eMXpXZN0GJ5zRa7otNE3Yyh
-BFvKDt8O3GH/7N3Q/biSUYuPLFUyjb5rtFLrNey3eRqsZIymlh7jPJQcl9RZy2Y8
-UzvzCIECPVOb6SrG60FqCp0CtN9lLq0XRBv564eoM58vb/N9kxgeMjoSHia62NgE
-UdlsFYgUHK9pjL3q+IO5XewYsbyHkPLOcaHzKUuChelRuUze5f30e1fjxCwXRckj
-dQIDAQAB
------END PUBLIC KEY-----`
-
-interface DecryptedData {
-  pwd: string
-  exp: number
-  nonce: number
-}
-
-const usedNonces = new Set<number>()
-const rsa = new WxmpRsa()
-
-rsa.setPublicKey(PUBLIC_KEY)
+const usedNonces = new Set<string>()
 
 /**
+<<<<<<< HEAD
+ * 生成 RSA 2048 位密钥对（异步，小程序环境可能耗时数秒）
+=======
  * 解密密码（旧格式，兼容保留）
  */
 export function decryptPassword(cipherText: string): string | null {
@@ -117,6 +101,7 @@ export function verifyAndDecryptPassword(signedData: string): string | null {
 
 /**
  * 生成 RSA 1024 位密钥对（异步，小程序环境可能耗时数秒）
+>>>>>>> 5b31e4f9d94de25317a052f9a6319315c4d85f9d
  */
 export async function generateRsaKeyPair(): Promise<{
   publicKey: string
@@ -124,7 +109,7 @@ export async function generateRsaKeyPair(): Promise<{
 }> {
   return new Promise((resolve, reject) => {
     try {
-      const keyPair = new WxmpRsa()
+      const keyPair = new WxmpRsa({ default_key_size: 2048 })
       keyPair.getKey(() => {
         try {
           const publicKey = keyPair.getPublicKey()
@@ -141,7 +126,7 @@ export async function generateRsaKeyPair(): Promise<{
     } catch {
       // 回调方式失败时回退到同步生成
       try {
-        const keyPair = new WxmpRsa()
+        const keyPair = new WxmpRsa({ default_key_size: 2048 })
         keyPair.getKey()
         const publicKey = keyPair.getPublicKey()
         const privateKey = keyPair.getPrivateKey()
@@ -155,12 +140,31 @@ export async function generateRsaKeyPair(): Promise<{
 
 /**
  * 用私钥解密后端返回的密码密文
+ * 后端返回格式：JSON { nonce, pwd }
  */
 export function decryptWithPrivateKey(cipherText: string, privateKeyPem: string): string | null {
   try {
-    const decryptor = new WxmpRsa()
+    const decryptor = new WxmpRsa({ default_key_size: 2048 })
     decryptor.setPrivateKey(privateKeyPem)
-    return decryptor.decryptLong(cipherText) || null
+    const decrypted = decryptor.decryptLong(cipherText)
+    if (!decrypted) return null
+
+    const data = JSON.parse(decrypted)
+
+    // nonce 防重放校验
+    if (data.nonce && usedNonces.has(data.nonce)) {
+      console.error('nonce 重复，拒绝展示')
+      return null
+    }
+    if (data.nonce) {
+      usedNonces.add(data.nonce)
+      if (usedNonces.size > 100) {
+        const arr = Array.from(usedNonces)
+        arr.slice(0, 50).forEach((n) => usedNonces.delete(n))
+      }
+    }
+
+    return data.pwd || null
   } catch {
     console.error('RSA 私钥解密失败')
     return null

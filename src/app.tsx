@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { refreshTokenIfNeeded, getStoredState } from '@/services/http'
 import { ws } from '@/services/ws'
+import { initTaskWsHandlers } from '@/store/taskWsHandler'
 import 'dayjs/locale/zh-cn'
 import './app.scss'
 
@@ -14,6 +15,7 @@ function App({ children }) {
 
   useEffect(() => {
     ws.initNetworkListener()
+    initTaskWsHandlers()
   }, [])
 
   // 后台时断开 WebSocket

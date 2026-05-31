@@ -8,11 +8,14 @@ import {
   removeFavoriteGame,
   type FavoriteGamesResult,
 } from '@/api/profile'
+import ActionBar from '@/components/ActionBar'
+import type { ActionConfig } from '@/components/ActionBar'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
 import type { Game } from '@/types/game'
+import { useShare } from '@/utils/share'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
   step: 1,
@@ -32,6 +35,15 @@ export default function FavoriteGamesPage() {
     list: [],
   })
   const [loading, setLoading] = useState(false)
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(null)
+
+  const favGenResult = detailData.generatedResults?.[0]
+  useShare(
+    favGenResult?.game_name || '我收藏了一个游戏，快来看看',
+    selectedGame && favGenResult?.record_id
+      ? `/pages/detail/index?id=${favGenResult.record_id}&type=game&is_like=1`
+      : '/pages/creation/index'
+  )
 
   useEffect(() => {
     loadGames(1, 10)
@@ -87,6 +99,7 @@ export default function FavoriteGamesPage() {
 
   const handleGameClick = async (game: Game) => {
     try {
+      setSelectedGameId(game.id)
       const detail = await getGameDetail(game.id)
       if (!detail) {
         Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -117,15 +130,49 @@ export default function FavoriteGamesPage() {
   const handleBack = () => {
     if (selectedGame) {
       setSelectedGame(null)
+      setSelectedGameId(null)
       setDetailData({})
     } else {
       Taro.navigateBack()
     }
   }
 
+  const handleUnfavorite = async () => {
+    if (!selectedGameId) return
+    try {
+      await removeFavoriteGame(selectedGameId)
+      setGames(games.filter((g) => g.id !== selectedGameId))
+      setSelectedGame(null)
+      setSelectedGameId(null)
+      setDetailData({})
+      Taro.showToast({ title: '已取消收藏', icon: 'success' })
+    } catch (error) {
+      console.error('取消收藏失败:', error)
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }
+
   const totalPages = Math.ceil(pagination.total / pagination.page_size)
 
   if (selectedGame) {
+    const genResult = detailData.generatedResults?.[0]
+
+    const actions: ActionConfig[] = [
+      { key: 'collect', type: 'collect', liked: true, onConfirm: handleUnfavorite },
+      {
+        key: 'share',
+        type: 'share-image',
+        shareData: genResult
+          ? {
+              gameName: genResult.game_name || '游戏',
+              gameType: genResult.game_type || detailData.gameType || '团队游戏',
+              age: genResult.age || detailData.age || 6,
+              content: genResult.generated_content || '',
+            }
+          : undefined,
+      },
+    ]
+
     return (
       <Layout
         title="游戏详情"
@@ -136,7 +183,12 @@ export default function FavoriteGamesPage() {
           </View>
         }
       >
-        <ResultPreview config={RESULT_CONFIG} value={detailData} onChange={setDetailData} />
+        <ResultPreview
+          config={RESULT_CONFIG}
+          value={detailData}
+          onChange={(newData) => setDetailData((prev) => ({ ...prev, ...newData }))}
+        />
+        <ActionBar actions={actions} />
       </Layout>
     )
   }
