@@ -6,6 +6,7 @@ import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
 import type { SkillStepConfig } from '@/components/Wizard'
 import { useCreationStore } from '@/store'
+import { useTaskStore } from '@/store/taskStore'
 import type { GenerateGameParams } from '@/types/creation'
 import { getConfigByType } from './constants/skillConfig'
 
@@ -104,7 +105,8 @@ export default function CreationWizardPage() {
   /**
    * 任务提交成功，跳转回创作工坊
    */
-  const handleTaskSubmitted = (_recordId: number) => {
+  const handleTaskSubmitted = (recordId: number) => {
+    useTaskStore.getState().startTask(recordId, businessType)
     Taro.showToast({ title: '任务已提交', icon: 'success' })
     setTimeout(() => {
       clearMode()

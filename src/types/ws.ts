@@ -22,6 +22,7 @@ export type WsEventType =
   | 'reconnect'
   | 'reconnect_result'
   | 'disconnect'
+  | 'game_generate_status'
 
 // ============ 连接状态 ============
 
@@ -194,6 +195,25 @@ export interface WsSessionRoleChangeData {
   session_id: string
   new_role: 'chatter' | 'viewer'
   create_time: number
+}
+
+// ============ 游戏生成状态推送 ============
+
+export interface WsGameGenerateResult {
+  game_name: string
+  generated_content: string
+  music?: string
+  music_storage_status?: string
+}
+
+export interface WsGameGenerateStatusData {
+  record_id: number
+  status: 'queued' | 'generating' | 'success' | 'failed'
+  message: string
+  create_time: number
+  estimated_seconds?: number
+  result?: WsGameGenerateResult
+  error?: string
 }
 
 // ============ 错误码常量 ============

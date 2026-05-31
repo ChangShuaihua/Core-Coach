@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { getTaskStatus } from '@/api/creation'
 import type { GenerateTaskResult } from '@/types/creation'
+import type { WsGameGenerateStatusData } from '@/types/ws'
 
 export type TaskStatus = 'idle' | 'pending' | 'processing' | 'completed' | 'failed'
 
@@ -11,21 +12,20 @@ interface TaskState {
   result: GenerateTaskResult | null
   error: string | null
   businessType: string
-  pollTimer: ReturnType<typeof setInterval> | null
 
   startTask: (recordId: number, businessType: string) => void
-  stopPoll: () => void
+  handleWsStatus: (data: WsGameGenerateStatusData) => void
+  fallbackQuery: () => Promise<void>
+  stopTask: () => void
   reset: () => void
 }
 
-const POLL_INTERVAL = 2000
-
-// 任务状态码映射
-const statusMap: Record<number, TaskStatus> = {
-  0: 'failed',
-  1: 'completed',
-  2: 'pending',
-  3: 'processing',
+// WS status → TaskStatus 映射
+const wsStatusMap: Record<string, TaskStatus> = {
+  queued: 'pending',
+  generating: 'processing',
+  success: 'completed',
+  failed: 'failed',
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -35,12 +35,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   result: null,
   error: null,
   businessType: 'game',
-  pollTimer: null,
 
   startTask: (recordId: number, businessType: string) => {
-    const { pollTimer } = get()
-    if (pollTimer) clearInterval(pollTimer)
-
     set({
       recordId,
       businessType,
@@ -49,52 +45,82 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       result: null,
       error: null,
     })
-
-    const timer = setInterval(async () => {
-      try {
-        const res = await getTaskStatus(recordId)
-        const mappedStatus = statusMap[res.status] || 'processing'
-
-        if (mappedStatus === 'completed') {
-          get().stopPoll()
-          set({
-            status: 'completed',
-            statusText: res.status_text || '生成成功',
-            result: res,
-          })
-        } else if (mappedStatus === 'failed') {
-          get().stopPoll()
-          set({
-            status: 'failed',
-            statusText: res.status_text || '生成失败',
-            error: res.user_message || '生成失败',
-            result: res,
-          })
-        } else {
-          set({
-            status: mappedStatus,
-            statusText: res.status_text || '生成中',
-          })
-        }
-      } catch (error) {
-        console.error('轮询任务状态失败:', error)
-      }
-    }, POLL_INTERVAL)
-
-    set({ pollTimer: timer })
   },
 
-  stopPoll: () => {
-    const { pollTimer } = get()
-    if (pollTimer) {
-      clearInterval(pollTimer)
-      set({ pollTimer: null })
+  handleWsStatus: (data: WsGameGenerateStatusData) => {
+    const { recordId } = get()
+    if (recordId === null || data.record_id !== recordId) return
+
+    const mapped = wsStatusMap[data.status]
+    if (!mapped) return
+
+    if (mapped === 'completed') {
+      set({
+        status: 'completed',
+        statusText: data.message || '生成成功',
+        result: data.result
+          ? ({
+              record_id: data.record_id,
+              status: 1,
+              status_text: data.message,
+              game_name: data.result.game_name,
+              generated_content: data.result.generated_content,
+              music: data.result.music,
+            } as GenerateTaskResult)
+          : null,
+      })
+    } else if (mapped === 'failed') {
+      set({
+        status: 'failed',
+        statusText: data.message || '生成失败',
+        error: data.error || '生成失败',
+      })
+    } else {
+      set({
+        status: mapped,
+        statusText: data.message || (mapped === 'pending' ? '排队中' : '生成中'),
+      })
     }
   },
 
+  /** 断线重连/页面刷新时，兜底查询一次当前任务状态 */
+  fallbackQuery: async () => {
+    const { recordId, status } = get()
+    if (recordId === null) return
+    if (status === 'completed' || status === 'failed' || status === 'idle') return
+
+    try {
+      const res = await getTaskStatus(recordId)
+      const statusMap: Record<number, TaskStatus> = {
+        0: 'failed',
+        1: 'completed',
+        2: 'pending',
+        3: 'processing',
+      }
+      const mapped = statusMap[res.status] || 'processing'
+
+      if (mapped === 'completed') {
+        set({ status: 'completed', statusText: res.status_text || '生成成功', result: res })
+      } else if (mapped === 'failed') {
+        set({
+          status: 'failed',
+          statusText: res.status_text || '生成失败',
+          error: res.user_message || '生成失败',
+          result: res,
+        })
+      } else {
+        set({ status: mapped, statusText: res.status_text || '生成中' })
+      }
+    } catch (e) {
+      console.error('兜底查询任务状态失败:', e)
+    }
+  },
+
+  stopTask: () => {
+    set({ recordId: null })
+  },
+
   reset: () => {
-    const { pollTimer } = get()
-    if (pollTimer) clearInterval(pollTimer)
     set({
       recordId: null,
       status: 'idle',
@@ -102,7 +128,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       result: null,
       error: null,
       businessType: 'game',
-      pollTimer: null,
     })
   },
 }))
