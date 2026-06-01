@@ -9,6 +9,7 @@ import defaultAvatar from '@/assets/images/avatar.png'
 import LOGO from '@/assets/images/logo.png'
 import { validateLogin } from '@/schemas/user'
 // import { useUserStore, waitForHydration } from '@/store/useUserStore'
+import { refreshTokenIfNeeded } from '@/services/http'
 import { ws } from '@/services/ws'
 import { useUserStore } from '@/store/useUserStore'
 
@@ -31,20 +32,24 @@ export default function Login() {
   } = useUserStore()
 
   useEffect(() => {
-    // waitForHydration.then(() => {
-    const token = useUserStore.getState().accessToken
-    if (token) {
-      Taro.switchTab({ url: '/pages/chat/index' })
-    }
-    // })
+    const { accessToken, refreshToken } = useUserStore.getState()
+    if (!accessToken || !refreshToken) return
+    refreshTokenIfNeeded().then((success) => {
+      if (success) {
+        Taro.switchTab({ url: '/pages/chat/index' })
+      }
+    })
   }, [])
 
-  // 登录成功后判断是否需要完善资料
-  const afterLogin = (userInfo: any) => {
-    // TODO: 测试完改回 if (!userInfo.nickName)
-    setNickname(userInfo.nickName || '')
-    setAvatar(userInfo.avatarUrl || '')
-    setShowProfilePopup(true)
+  // 首次微信登录（avatarUrl 为空）弹窗完善资料，返回 true 表示弹了窗
+  const afterLogin = (userInfo: any): boolean => {
+    if (!userInfo.avatarUrl) {
+      setNickname(userInfo.nickName || '')
+      setAvatar('')
+      setShowProfilePopup(true)
+      return true
+    }
+    return false
   }
 
   // 微信官方 chooseAvatar
@@ -102,9 +107,10 @@ export default function Login() {
         setAccessExpireTime(res.accessExpire)
         setRefreshExpireTime(res.refreshExpire)
         setUserInfo(res.userInfo)
-        afterLogin(res.userInfo)
-        ws.connect(res.accessToken, String(res.userInfo.account))
-        Taro.switchTab({ url: '/pages/chat/index' })
+        ws.connect(res.accessToken)
+        if (!afterLogin(res.userInfo)) {
+          Taro.switchTab({ url: '/pages/chat/index' })
+        }
         return
       } catch (err: any) {
         if (i === MAX_RETRY) {
@@ -128,8 +134,7 @@ export default function Login() {
       setAccessExpireTime(res.accessExpire)
       setRefreshExpireTime(res.refreshExpire)
       setUserInfo(res.userInfo)
-      afterLogin(res.userInfo)
-      ws.connect(res.accessToken, String(res.userInfo.account))
+      ws.connect(res.accessToken)
       Taro.switchTab({ url: '/pages/chat/index' })
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '登录失败，请重试', icon: 'none' })
@@ -251,9 +256,16 @@ export default function Login() {
                 padding: 0,
                 margin: 0,
                 lineHeight: 'normal',
+                width: '80px',
+                height: '80px',
+                minWidth: 'auto',
               }}
             >
-              <Avatar size="large" src={avatar || defaultAvatar} />
+              <Avatar
+                size="large"
+                src={avatar || defaultAvatar}
+                style={{ width: '80px', height: '80px', borderRadius: '50%' }}
+              />
             </Button>
             <Text className="text-xs text-gray-400 mt-2">点击选择头像</Text>
           </View>
@@ -284,7 +296,7 @@ export default function Login() {
             <Text className="text-base">保存</Text>
           </Button>
 
-          <View className="text-center">
+          <View className="text-center mt-1">
             <Text className="text-sm text-gray-400" onClick={handleSkipProfile}>
               暂时跳过
             </Text>
