@@ -3,7 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getCreationList } from '@/api/more'
-import Card from '@/components/Card'
+import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
 import PaginatedList from '@/components/PaginatedList'
 import { getGameConfig } from '@/types/creation'
@@ -163,23 +163,19 @@ export default function MorePage() {
           </View>
         )}
         renderItem={(item) => (
-          <Card
+          <GameCard
             key={item.id}
-            className="p-4 mb-3"
+            title={item.title}
+            age={item.age}
+            gameType={item.game_type}
+            extra={formatTime(item.created_at)}
+            className="mb-3"
             onClick={() =>
               Taro.navigateTo({
                 url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
               })
             }
-          >
-            <View
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: '12px',
-              }}
-            >
+            leftSlot={
               <View
                 style={{
                   width: '48px',
@@ -194,39 +190,9 @@ export default function MorePage() {
               >
                 <Text style={{ fontSize: '24px' }}>🎮</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: '16px',
-                    fontWeight: '500',
-                    color: '#111827',
-                    display: 'block',
-                  }}
-                >
-                  {item.title}
-                </Text>
-                <View
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    gap: '8px',
-                    marginTop: '4px',
-                  }}
-                >
-                  <Text style={{ fontSize: '12px', color: '#9ca3af' }}>
-                    {formatTime(item.created_at)}
-                  </Text>
-                  {item.age !== undefined && (
-                    <Text style={{ fontSize: '12px', color: '#f97316' }}>{item.age}岁</Text>
-                  )}
-                  {item.game_type && (
-                    <Text style={{ fontSize: '12px', color: '#6b7280' }}>{item.game_type}</Text>
-                  )}
-                </View>
-              </View>
-              <Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>
-            </View>
-          </Card>
+            }
+            rightSlot={<Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>}
+          />
         )}
       />
     </Layout>

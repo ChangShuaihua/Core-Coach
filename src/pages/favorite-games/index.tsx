@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ArrowLeft } from '@nutui/icons-react-taro'
+import { ArrowLeft, StarFill } from '@nutui/icons-react-taro'
 import { Checkbox } from '@nutui/nutui-react-taro'
 import { getFavoriteGames, removeFavoriteGame, batchRemoveFavoriteGames } from '@/api/profile'
-import Card from '@/components/Card'
+import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
 import PaginatedList from '@/components/PaginatedList'
 import type { Game } from '@/types/game'
@@ -144,32 +144,24 @@ export default function FavoriteGamesPage() {
               </View>
             )}
             <View className="flex-1 min-w-0">
-              <Card onClick={isManageMode ? undefined : () => handleGameClick(game)}>
-                <View className="px-4 py-3">
-                  <View className="flex items-center justify-between mb-2">
-                    <Text className="text-base font-semibold text-gray-10 truncate">
-                      {game.game_name}
-                    </Text>
-                    {!isManageMode && (
-                      <Text
-                        className="text-sm text-red flex-shrink-0 ml-2"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleRemove(game.id)
-                        }}
-                      >
-                        删除
-                      </Text>
-                    )}
-                  </View>
-                  <View className="flex gap-4">
-                    <Text className="text-xs text-gray-7">{game.age}岁</Text>
-                    <View className="px-2 py-1 bg-orange-1 rounded-full">
-                      <Text className="text-xs text-orange-6">{game.game_type}</Text>
+              <GameCard
+                title={game.game_name}
+                age={game.age}
+                gameType={game.game_type}
+                onClick={isManageMode ? undefined : () => handleGameClick(game)}
+                rightSlot={
+                  !isManageMode ? (
+                    <View
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemove(game.id)
+                      }}
+                    >
+                      <StarFill size="18" color="#ff9500" />
                     </View>
-                  </View>
-                </View>
-              </Card>
+                  ) : undefined
+                }
+              />
             </View>
           </View>
         )}
