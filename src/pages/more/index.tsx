@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
-import { getRecentCreations } from '@/api/more'
+import { getCreationList } from '@/api/more'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { getGameConfig } from '@/types/creation'
@@ -23,7 +23,7 @@ const AGE_TABS = [
   { key: '9+' as const, label: '9岁+' },
 ]
 
-const PAGE_BATCH = 20
+const PAGE_SIZE = 10
 
 export default function MorePage() {
   const [gameTypeFilter, setGameTypeFilter] = useState('all')
@@ -31,28 +31,31 @@ export default function MorePage() {
   const [ageFilter, setAgeFilter] = useState<'all' | '3-4' | '5-6' | '7-8' | '9+'>('all')
   const [allList, setAllList] = useState<RecentCreation[]>([])
   const [loading, setLoading] = useState(true)
-  const [displayCount, setDisplayCount] = useState(PAGE_BATCH)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [gameTypeTabs, setGameTypeTabs] = useState<Array<{ key: string; label: string }>>([
     { key: 'all', label: '全部' },
   ])
 
-  const fetchAllData = useCallback(async () => {
+  const fetchData = useCallback(async (pageNum: number, append = false) => {
     try {
-      setLoading(true)
-      const data = await getRecentCreations()
-      setAllList(data)
-      setDisplayCount(PAGE_BATCH)
+      if (!append) setLoading(true)
+      const res = await getCreationList({ page: pageNum, page_size: PAGE_SIZE })
+      setAllList((prev) => (append ? [...prev, ...res.list] : res.list))
+      setTotal(res.total)
+      setPage(res.page)
     } catch (error) {
       console.error('加载失败:', error)
       Taro.showToast({ title: '加载失败', icon: 'none' })
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchAllData()
+    fetchData(1)
     getGameConfig().then((res) => {
       const types = res.game_type_options
         .filter((t) => t.status === 1)
@@ -61,9 +64,10 @@ export default function MorePage() {
     })
   }, [])
 
-  // 筛选条件变化时重置显示数量
+  // 筛选条件变化时重新加载
   useEffect(() => {
-    setDisplayCount(PAGE_BATCH)
+    setAllList([])
+    fetchData(1)
   }, [gameTypeFilter, timeFilter, ageFilter])
 
   const filteredList = allList.filter((item) => {
@@ -75,16 +79,12 @@ export default function MorePage() {
     return true
   })
 
-  const renderList = filteredList.slice(0, displayCount)
-  const hasMore = displayCount < filteredList.length
+  const hasMore = allList.length < total
 
   const handleScrollToLower = () => {
     if (hasMore && !loadingMore) {
       setLoadingMore(true)
-      setTimeout(() => {
-        setDisplayCount((prev) => Math.min(prev + PAGE_BATCH, filteredList.length))
-        setLoadingMore(false)
-      }, 300)
+      fetchData(page + 1, true)
     }
   }
 
@@ -203,7 +203,7 @@ export default function MorePage() {
             </View>
           ) : (
             <View style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {renderList.map((item) => (
+              {filteredList.map((item) => (
                 <Card
                   key={item.id}
                   className="p-4"
@@ -282,7 +282,7 @@ export default function MorePage() {
               ) : (
                 <View style={{ textAlign: 'center', padding: '16px 0' }}>
                   <Text style={{ fontSize: '12px', color: '#9ca3af' }}>
-                    没有更多了（共 {filteredList.length} 条）
+                    没有更多了（共 {total} 条）
                   </Text>
                 </View>
               )}

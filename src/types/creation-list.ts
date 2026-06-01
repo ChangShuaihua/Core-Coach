@@ -12,6 +12,13 @@ export interface RecentListResponse {
   list: RecentCreation[]
 }
 
+export interface CreationListResponse {
+  list: RecentCreation[]
+  total: number
+  page: number
+  page_size: number
+}
+
 export interface DetailParams {
   id?: string
   type?: string
