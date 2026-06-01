@@ -256,9 +256,16 @@ export default function Login() {
                 padding: 0,
                 margin: 0,
                 lineHeight: 'normal',
+                width: '80px',
+                height: '80px',
+                minWidth: 'auto',
               }}
             >
-              <Avatar size="large" src={avatar || defaultAvatar} />
+              <Avatar
+                size="large"
+                src={avatar || defaultAvatar}
+                style={{ width: '80px', height: '80px', borderRadius: '50%' }}
+              />
             </Button>
             <Text className="text-xs text-gray-400 mt-2">点击选择头像</Text>
           </View>
@@ -289,7 +296,7 @@ export default function Login() {
             <Text className="text-base">保存</Text>
           </Button>
 
-          <View className="text-center">
+          <View className="text-center mt-1">
             <Text className="text-sm text-gray-400" onClick={handleSkipProfile}>
               暂时跳过
             </Text>
