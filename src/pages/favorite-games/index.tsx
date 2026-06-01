@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ArrowLeft, Star } from '@nutui/icons-react-taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
 import { Checkbox } from '@nutui/nutui-react-taro'
 import { getFavoriteGames, removeFavoriteGame, batchRemoveFavoriteGames } from '@/api/profile'
 import Card from '@/components/Card'
@@ -9,36 +9,39 @@ import Layout from '@/components/Layout'
 import PaginatedList from '@/components/PaginatedList'
 import type { Game } from '@/types/game'
 
+const PAGE_SIZE = 20
+
 export default function FavoriteGamesPage() {
   const [games, setGames] = useState<Game[]>([])
   const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(false)
   const [isManageMode, setIsManageMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const pageRef = useRef(1)
 
-  useEffect(() => {
-    loadGames(1, 10)
-  }, [])
+  const hasMore = games.length < total
 
-  const loadGames = async (p: number, size: number) => {
+  const loadGames = useCallback(async (pageNum: number, append: boolean) => {
     setLoading(true)
     try {
-      const data = await getFavoriteGames(p, size)
-      setGames(data.list)
+      const data = await getFavoriteGames(pageNum, PAGE_SIZE)
+      setGames((prev) => (append ? [...prev, ...data.list] : data.list))
       setTotal(data.total)
-      setPage(data.page)
-      setPageSize(data.page_size)
+      pageRef.current = data.page
     } catch (error) {
       console.error('加载游戏失败:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const handlePageChange = (p: number) => loadGames(p, pageSize)
-  const handlePageSizeChange = (size: number) => loadGames(1, size)
+  useEffect(() => {
+    loadGames(1, false)
+  }, [])
+
+  const handleLoadMore = useCallback(async () => {
+    await loadGames(pageRef.current + 1, true)
+  }, [loadGames])
 
   const toggleManageMode = () => {
     setIsManageMode(!isManageMode)
@@ -69,7 +72,8 @@ export default function FavoriteGamesPage() {
             Taro.showToast({ title: result.message || '取消收藏成功', icon: 'success' })
             setSelectedIds(new Set())
             setIsManageMode(false)
-            loadGames(page, pageSize)
+            pageRef.current = 1
+            loadGames(1, false)
           } catch {
             Taro.showToast({ title: '操作失败', icon: 'none' })
           }
@@ -115,12 +119,10 @@ export default function FavoriteGamesPage() {
       <PaginatedList
         items={games}
         loading={loading}
-        total={total}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
+        hasMore={hasMore}
+        onLoadMore={handleLoadMore}
         emptyText="暂无收藏游戏"
+        showBackTop={!isManageMode}
         renderHeader={() => (
           <View className="flex items-center justify-between p-4 pb-0">
             <Text className="text-sm text-gray-6">共 {total} 个收藏</Text>
@@ -171,42 +173,38 @@ export default function FavoriteGamesPage() {
             </View>
           </View>
         )}
-        renderBottomBar={
-          isManageMode
-            ? () => (
-                <View className="fixed bottom-0 left-0 right-0 z-50">
-                  <View className="bg-white border-t border-gray-2 py-4 px-6">
-                    <View className="flex items-center justify-between">
-                      <View className="flex items-center gap-2">
-                        <Checkbox
-                          checked={selectedIds.size === games.length && games.length > 0}
-                          onChange={toggleSelectAll}
-                        />
-                        <Text className="text-sm text-gray-8">全选</Text>
-                      </View>
-                      <View
-                        className="px-6 py-2 rounded-full"
-                        style={{
-                          backgroundColor: selectedIds.size > 0 ? '#ff9500' : '#e5e5e5',
-                        }}
-                        onClick={handleBatchRemove}
-                      >
-                        <Text
-                          className="text-sm font-medium"
-                          style={{
-                            color: selectedIds.size > 0 ? '#ffffff' : '#999999',
-                          }}
-                        >
-                          取消收藏({selectedIds.size})
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              )
-            : undefined
-        }
       />
+      {isManageMode && (
+        <View className="fixed bottom-0 left-0 right-0 z-50">
+          <View className="bg-white border-t border-gray-2 py-4 px-6">
+            <View className="flex items-center justify-between">
+              <View className="flex items-center gap-2">
+                <Checkbox
+                  checked={selectedIds.size === games.length && games.length > 0}
+                  onChange={toggleSelectAll}
+                />
+                <Text className="text-sm text-gray-8">全选</Text>
+              </View>
+              <View
+                className="px-6 py-2 rounded-full"
+                style={{
+                  backgroundColor: selectedIds.size > 0 ? '#ff9500' : '#e5e5e5',
+                }}
+                onClick={handleBatchRemove}
+              >
+                <Text
+                  className="text-sm font-medium"
+                  style={{
+                    color: selectedIds.size > 0 ? '#ffffff' : '#999999',
+                  }}
+                >
+                  取消收藏({selectedIds.size})
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </Layout>
   )
 }

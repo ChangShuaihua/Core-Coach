@@ -1,4 +1,3 @@
-@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -154,6 +153,10 @@ page {
   @include design-tokens;
 
   --nutui-cell-group-wrap-margin: 0;
+  // NutUI 全局主题色覆盖为橙色
+  --nutui-color-primary: var(--orange-6);
+  --nutui-color-primary-stop-1: var(--orange-5);
+  --nutui-color-primary-stop-2: var(--orange-6);
 }
 
 /* #endif */
@@ -166,6 +169,10 @@ page {
 page,
 :root {
   @include design-tokens;
+
+  --nutui-color-primary: var(--orange-6);
+  --nutui-color-primary-stop-1: var(--orange-5);
+  --nutui-color-primary-stop-2: var(--orange-6);
 }
 
 /* #endif */

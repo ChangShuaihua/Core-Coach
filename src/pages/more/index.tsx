@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
@@ -24,24 +24,25 @@ const AGE_TABS = [
   { key: '9+' as const, label: '9岁+' },
 ]
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 20
 
 const filterBarStyle = {
   display: 'flex' as const,
   flexDirection: 'row' as const,
-  gap: '8px',
-  marginBottom: '12px',
+  gap: '6px',
+  marginBottom: '10px',
   flexWrap: 'wrap' as const,
+  alignItems: 'center' as const,
 }
 
 const pillStyle = (active: boolean) => ({
-  padding: '6px 16px',
+  padding: '4px 12px',
   borderRadius: '9999px',
   backgroundColor: active ? '#f97316' : '#f3f4f6',
 })
 
 const pillTextStyle = (active: boolean) => ({
-  fontSize: '13px',
+  fontSize: '12px',
   color: active ? '#ffffff' : '#6b7280',
   fontWeight: active ? ('600' as const) : ('400' as const),
 })
@@ -50,33 +51,33 @@ export default function MorePage() {
   const [gameTypeFilter, setGameTypeFilter] = useState('all')
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'week'>('all')
   const [ageFilter, setAgeFilter] = useState<'all' | '3-4' | '5-6' | '7-8' | '9+'>('all')
-  const [allList, setAllList] = useState<RecentCreation[]>([])
+  const [list, setList] = useState<RecentCreation[]>([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const pageRef = useRef(1)
   const [gameTypeTabs, setGameTypeTabs] = useState<Array<{ key: string; label: string }>>([
     { key: 'all', label: '全部' },
   ])
 
-  const fetchData = useCallback(async (pageNum: number, append = false) => {
+  const hasMore = list.length < total
+
+  const fetchData = useCallback(async (pageNum: number, append: boolean) => {
     try {
-      if (!append) setLoading(true)
+      setLoading(true)
       const res = await getCreationList({ page: pageNum, page_size: PAGE_SIZE })
-      setAllList((prev) => (append ? [...prev, ...res.list] : res.list))
+      setList((prev) => (append ? [...prev, ...res.list] : res.list))
       setTotal(res.total)
-      setPage(res.page)
+      pageRef.current = res.page
     } catch (error) {
       console.error('加载失败:', error)
       Taro.showToast({ title: '加载失败', icon: 'none' })
     } finally {
       setLoading(false)
-      setLoadingMore(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchData(1)
+    fetchData(1, false)
     getGameConfig().then((res) => {
       const types = res.game_type_options
         .filter((t) => t.status === 1)
@@ -85,12 +86,19 @@ export default function MorePage() {
     })
   }, [])
 
+  // 筛选条件变化 → 清空 + page=1 重新请求
   useEffect(() => {
-    setAllList([])
-    fetchData(1)
+    setList([])
+    setTotal(0)
+    pageRef.current = 1
+    fetchData(1, false)
   }, [gameTypeFilter, timeFilter, ageFilter])
 
-  const filteredList = allList.filter((item) => {
+  const handleLoadMore = useCallback(async () => {
+    await fetchData(pageRef.current + 1, true)
+  }, [fetchData])
+
+  const filteredList = list.filter((item) => {
     if (gameTypeFilter !== 'all' && item.game_type !== gameTypeFilter) return false
     if (timeFilter === 'today' && !isToday(item.created_at)) return false
     if (timeFilter === 'week' && !isWithinDays(item.created_at, 7)) return false
@@ -98,15 +106,6 @@ export default function MorePage() {
       return false
     return true
   })
-
-  const hasMore = allList.length < total
-
-  const handleScrollToLower = () => {
-    if (hasMore && !loadingMore) {
-      setLoadingMore(true)
-      fetchData(page + 1, true)
-    }
-  }
 
   return (
     <Layout
@@ -121,16 +120,11 @@ export default function MorePage() {
       <PaginatedList
         items={filteredList}
         loading={loading}
-        total={total}
-        page={page}
-        pageSize={PAGE_SIZE}
-        mode="infinite"
-        loadingMore={loadingMore}
-        onScrollToLower={handleScrollToLower}
-        onPageChange={() => {}}
+        hasMore={hasMore}
+        onLoadMore={handleLoadMore}
         emptyText="暂无创作记录"
         renderHeader={() => (
-          <View style={{ padding: '16px', paddingBottom: 0 }}>
+          <View style={{ padding: '12px', paddingBottom: 0 }}>
             <View style={filterBarStyle}>
               {TIME_TABS.map((tab) => (
                 <View
@@ -143,6 +137,7 @@ export default function MorePage() {
               ))}
             </View>
             <View style={filterBarStyle}>
+              <Text style={{ fontSize: '14px', color: '#6b7280', flexShrink: 0 }}>活动模式:</Text>
               {gameTypeTabs.map((tab) => (
                 <View
                   key={tab.key}
@@ -153,7 +148,8 @@ export default function MorePage() {
                 </View>
               ))}
             </View>
-            <View style={{ ...filterBarStyle, marginBottom: '16px' }}>
+            <View style={{ ...filterBarStyle, marginBottom: '12px' }}>
+              <Text style={{ fontSize: '14px', color: '#6b7280', flexShrink: 0 }}>适用年龄:</Text>
               {AGE_TABS.map((tab) => (
                 <View
                   key={tab.key}
