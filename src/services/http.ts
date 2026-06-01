@@ -72,9 +72,22 @@ function isTokenExpiringSoon(): boolean {
   return Date.now() + REFRESH_ADVANCE_MS >= accessExpireTime
 }
 
+// 统一登出 + 跳转登录页（防重复执行）
+let isLoggingOut = false
+export function logoutAndRedirect() {
+  if (isLoggingOut) return
+  isLoggingOut = true
+  useUserStore.getState().clearAuth()
+  Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
+  setTimeout(() => {
+    Taro.reLaunch({ url: '/pages/login/index' })
+    isLoggingOut = false
+  }, 1500)
+}
+
 async function doRefreshToken(): Promise<string> {
   const refreshTokenStr = getStoredState().refreshToken
-  if (!refreshTokenStr) Taro.redirectTo({ url: '/pages/login/index' })
+  if (!refreshTokenStr) throw new Error('refreshToken 不存在')
   log('[Refresh] 开始刷新 token')
   const { refreshToken: refreshFn } = await import('@/api/login')
   const result = await refreshFn(refreshTokenStr)
@@ -110,11 +123,7 @@ async function ensureTokenValid(): Promise<string | null> {
   } catch (err) {
     log('[Refresh] 刷新失败，执行登出')
     pendingQueue = []
-    useUserStore.getState().clearAuth()
-    Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-    setTimeout(() => {
-      Taro.redirectTo({ url: '/pages/login/index' })
-    }, 1500)
+    logoutAndRedirect()
     return null
   } finally {
     isRefreshing = false
@@ -125,11 +134,11 @@ async function ensureTokenValid(): Promise<string | null> {
  * 应用级 token 刷新（用于 useDidShow 等场景）
  * 复用内部 ensureTokenValid，全局锁只有一套
  */
-export async function refreshTokenIfNeeded(): Promise<void> {
+export async function refreshTokenIfNeeded(): Promise<boolean> {
   const { accessToken, refreshToken } = getStoredState()
-  // 无 token 说明未登录，跳过
-  if (!accessToken || !refreshToken) return
-  await ensureTokenValid()
+  if (!accessToken || !refreshToken) return false
+  const result = await ensureTokenValid()
+  return !!result
 }
 
 // 被动刷新（401 触发）
@@ -151,11 +160,7 @@ async function handleTokenRefresh(failedOptions: RequestOptions): Promise<any> {
   } catch (err) {
     log('[Refresh] 401 刷新失败，执行登出')
     pendingQueue = []
-    useUserStore.getState().clearAuth()
-    Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-    setTimeout(() => {
-      Taro.redirectTo({ url: '/pages/login/index' })
-    }, 1500)
+    logoutAndRedirect()
     return Promise.reject(new Error('token 刷新失败'))
   } finally {
     isRefreshing = false
@@ -188,7 +193,6 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
   if (withToken) {
     const token = await ensureTokenValid()
     if (!token) {
-      Taro.redirectTo({ url: '/pages/login/index' })
       return Promise.reject(new Error('token 为空！'))
     }
     header['Authorization'] = `Bearer ${token}`
@@ -222,11 +226,7 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
       }
       // 刷新重试的请求也 401，直接登出
       if (_isRefreshRetry) {
-        useUserStore.getState().clearAuth()
-        Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-        setTimeout(() => {
-          Taro.redirectTo({ url: '/pages/login/index' })
-        }, 1500)
+        logoutAndRedirect()
         return Promise.reject(new Error('未授权'))
       }
       // 尝试刷新 token

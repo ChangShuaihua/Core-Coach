@@ -38,7 +38,6 @@ export interface WsMessage<T = any> {
 // ============ 客户端 → 服务端 ============
 
 export interface WsAuthData {
-  user_id: string
   token: string
 }
 
