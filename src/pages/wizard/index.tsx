@@ -64,9 +64,12 @@ export default function CreationWizardPage() {
         recordId: result.record_id,
         businessType,
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ 生成失败:', error)
-      showErrorToast('生成失败，请重试')
+      // 超时/网络错误已由 HTTP 客户端统一处理，只处理业务错误
+      if (error?.code) {
+        showErrorToast(error.message)
+      }
       return null
     }
   }

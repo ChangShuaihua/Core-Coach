@@ -154,10 +154,10 @@ export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitt
                 }}
                 onClick={() => {
                   if (!validateCurrentStep()) return
-                  requestTaskCompleteSubscribe()
                   if (onGenerate) {
                     onGenerate(data).then((genResult) => {
                       if (genResult) {
+                        requestTaskCompleteSubscribe()
                         onTaskSubmitted?.(genResult.recordId)
                       }
                     })
