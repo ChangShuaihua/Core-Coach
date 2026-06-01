@@ -9,6 +9,7 @@ import defaultAvatar from '@/assets/images/avatar.png'
 import LOGO from '@/assets/images/logo.png'
 import { validateLogin } from '@/schemas/user'
 // import { useUserStore, waitForHydration } from '@/store/useUserStore'
+import { refreshTokenIfNeeded } from '@/services/http'
 import { ws } from '@/services/ws'
 import { useUserStore } from '@/store/useUserStore'
 
@@ -29,14 +30,15 @@ export default function Login() {
     setRefreshExpireTime,
     setUserInfo,
   } = useUserStore()
-  // debugger
+
   useEffect(() => {
-    // waitForHydration.then(() => {
-    const token = useUserStore.getState().accessToken
-    if (token) {
-      Taro.switchTab({ url: '/pages/chat/index' })
-    }
-    // })
+    const { accessToken, refreshToken } = useUserStore.getState()
+    if (!accessToken || !refreshToken) return
+    refreshTokenIfNeeded().then((success) => {
+      if (success) {
+        Taro.switchTab({ url: '/pages/chat/index' })
+      }
+    })
   }, [])
 
   // 首次微信登录（avatarUrl 为空）弹窗完善资料，返回 true 表示弹了窗
