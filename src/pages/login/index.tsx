@@ -103,7 +103,7 @@ export default function Login() {
         setRefreshExpireTime(res.refreshExpire)
         setUserInfo(res.userInfo)
         afterLogin(res.userInfo)
-        ws.connect(res.accessToken, String(res.userInfo.account))
+        ws.connect(res.accessToken)
         Taro.switchTab({ url: '/pages/chat/index' })
         return
       } catch (err: any) {
@@ -129,7 +129,7 @@ export default function Login() {
       setRefreshExpireTime(res.refreshExpire)
       setUserInfo(res.userInfo)
       afterLogin(res.userInfo)
-      ws.connect(res.accessToken, String(res.userInfo.account))
+      ws.connect(res.accessToken)
       Taro.switchTab({ url: '/pages/chat/index' })
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '登录失败，请重试', icon: 'none' })

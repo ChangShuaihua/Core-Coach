@@ -26,9 +26,9 @@ function App({ children }) {
   // 切回前台：刷新 token + 连接 WebSocket
   useDidShow(async () => {
     await refreshTokenIfNeeded()
-    const { accessToken, userInfo } = getStoredState()
-    if (accessToken && userInfo?.account && !ws.connected) {
-      ws.connect(accessToken, userInfo.account)
+    const { accessToken } = getStoredState()
+    if (accessToken && !ws.connected) {
+      ws.connect(accessToken)
     }
   })
 

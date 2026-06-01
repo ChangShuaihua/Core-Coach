@@ -42,7 +42,6 @@ class WsManager {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectAttempts = 0
   private token = ''
-  private userId = ''
   private intentionalClose = false
   private authFailed = false
   private connectionId = 0
@@ -99,7 +98,7 @@ class WsManager {
 
   // ============ 连接 ============
 
-  connect(token: string, userId: string): void {
+  connect(token: string): void {
     if (this._state === 'authenticated') return
 
     if (this.reconnectTimer) {
@@ -108,15 +107,14 @@ class WsManager {
     }
 
     this.token = token
-    this.userId = userId
     this.intentionalClose = false
     this.authFailed = false
     this._state = 'connecting'
     this.reconnectAttempts = 0
-    this.doConnect(token, userId)
+    this.doConnect(token)
   }
 
-  private doConnect(token: string, userId: string): void {
+  private doConnect(token: string): void {
     const connId = ++this.connectionId
     console.log('[WS] connecting...', `conn#${connId}`)
 
@@ -134,7 +132,7 @@ class WsManager {
         console.error('[WS] connectSocket fail:', err)
         if (connId !== this.connectionId) return
         this._state = 'disconnected'
-        this.scheduleReconnect(token, userId)
+        this.scheduleReconnect(token)
       },
     }).then((task) => {
       if (connId !== this.connectionId) return
@@ -144,7 +142,7 @@ class WsManager {
         if (connId !== this.connectionId) return
         console.log('[WS] onOpen', `conn#${connId}`)
         this._state = 'connected'
-        this.sendAuth(token, userId)
+        this.sendAuth(token)
       })
       task.onMessage((res) => {
         if (connId !== this.connectionId) return
@@ -157,7 +155,7 @@ class WsManager {
         if (disconnected) return
         disconnected = true
         console.log(`[WS] ${reason}`, `conn#${connId}`)
-        this.handleDisconnect(token, userId)
+        this.handleDisconnect(token)
       }
 
       task.onClose((res) => {
@@ -171,10 +169,9 @@ class WsManager {
 
   // ============ 认证 ============
 
-  private sendAuth(token: string, userId: string): void {
+  private sendAuth(token: string): void {
     const { accessToken } = getStoredState()
     const authData: WsAuthData = {
-      user_id: userId,
       token: accessToken || token,
     }
     this.send('auth', authData)
@@ -214,7 +211,7 @@ class WsManager {
 
   // ============ 断线重连 ============
 
-  private async handleDisconnect(token: string, userId: string): Promise<void> {
+  private async handleDisconnect(token: string): Promise<void> {
     this.stopHeartbeat()
     this._state = 'disconnected'
     if (this.authFailed) {
@@ -246,10 +243,10 @@ class WsManager {
     if (latestToken !== this.token) {
       this.token = latestToken
     }
-    this.scheduleReconnect(latestToken, userId)
+    this.scheduleReconnect(latestToken)
   }
 
-  private scheduleReconnect(token: string, userId: string): void {
+  private scheduleReconnect(token: string): void {
     if (this.reconnectTimer) return
     if (!this.isOnline) {
       console.log('[WS] offline, skip scheduleReconnect')
@@ -263,7 +260,7 @@ class WsManager {
     console.log(`[WS] reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
-      this.doConnect(token, userId)
+      this.doConnect(token)
     }, delay)
   }
 
@@ -341,12 +338,12 @@ class WsManager {
     if (this._state === 'connecting' || this._state === 'authenticated') return
     const { accessToken } = getStoredState()
     const token = accessToken || this.token
-    if (!token || !this.userId) {
-      console.warn('[WS] cannot reconnect: no token or userId')
+    if (!token) {
+      console.warn('[WS] cannot reconnect: no token')
       return
     }
     this._state = 'disconnected'
-    this.scheduleReconnect(token, this.userId)
+    this.scheduleReconnect(token)
   }
 
   disconnect(): void {
@@ -394,9 +391,9 @@ class WsManager {
 
       if (!wasOnline && res.isConnected) {
         console.log('[WS] network restored, checking connection...')
-        if (this._state === 'disconnected' && this.token && this.userId) {
+        if (this._state === 'disconnected' && this.token) {
           this.reconnectAttempts = 0
-          this.doConnect(this.token, this.userId)
+          this.doConnect(this.token)
         }
       } else if (!res.isConnected) {
         console.log('[WS] network lost')
