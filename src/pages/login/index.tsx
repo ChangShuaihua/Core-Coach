@@ -39,12 +39,15 @@ export default function Login() {
     // })
   }, [])
 
-  // 登录成功后判断是否需要完善资料
-  const afterLogin = (userInfo: any) => {
-    // TODO: 测试完改回 if (!userInfo.nickName)
-    setNickname(userInfo.nickName || '')
-    setAvatar(userInfo.avatarUrl || '')
-    setShowProfilePopup(true)
+  // 首次微信登录（avatarUrl 为空）弹窗完善资料，返回 true 表示弹了窗
+  const afterLogin = (userInfo: any): boolean => {
+    if (!userInfo.avatarUrl) {
+      setNickname(userInfo.nickName || '')
+      setAvatar('')
+      setShowProfilePopup(true)
+      return true
+    }
+    return false
   }
 
   // 微信官方 chooseAvatar
@@ -102,9 +105,10 @@ export default function Login() {
         setAccessExpireTime(res.accessExpire)
         setRefreshExpireTime(res.refreshExpire)
         setUserInfo(res.userInfo)
-        afterLogin(res.userInfo)
         ws.connect(res.accessToken)
-        Taro.switchTab({ url: '/pages/chat/index' })
+        if (!afterLogin(res.userInfo)) {
+          Taro.switchTab({ url: '/pages/chat/index' })
+        }
         return
       } catch (err: any) {
         if (i === MAX_RETRY) {
@@ -128,7 +132,6 @@ export default function Login() {
       setAccessExpireTime(res.accessExpire)
       setRefreshExpireTime(res.refreshExpire)
       setUserInfo(res.userInfo)
-      afterLogin(res.userInfo)
       ws.connect(res.accessToken)
       Taro.switchTab({ url: '/pages/chat/index' })
     } catch (err: any) {
