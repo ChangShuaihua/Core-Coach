@@ -44,6 +44,7 @@ class WsManager {
   private token = ''
   private userId = ''
   private intentionalClose = false
+  private authFailed = false
   private connectionId = 0
   private isOnline = true
 
@@ -109,6 +110,7 @@ class WsManager {
     this.token = token
     this.userId = userId
     this.intentionalClose = false
+    this.authFailed = false
     this._state = 'connecting'
     this.reconnectAttempts = 0
     this.doConnect(token, userId)
@@ -215,6 +217,11 @@ class WsManager {
   private async handleDisconnect(token: string, userId: string): Promise<void> {
     this.stopHeartbeat()
     this._state = 'disconnected'
+    if (this.authFailed) {
+      this.authFailed = false
+      console.log('[WS] auth failed, skip reconnect')
+      return
+    }
     if (this.intentionalClose) {
       this.intentionalClose = false
       console.log('[WS] intentional close, skip reconnect')
@@ -295,10 +302,9 @@ class WsManager {
 
       case 'auth_failed':
         console.error('[WS] auth_failed:', data)
+        this.authFailed = true
         this._state = 'disconnected'
-        if (!this.intentionalClose) {
-          this.socketTask?.close({})
-        }
+        this.socketTask?.close({})
         break
 
       case 'pong':
@@ -359,6 +365,7 @@ class WsManager {
     this.socketTask = null
     this._state = 'disconnected'
     this.reconnectAttempts = 0
+    this.authFailed = false
   }
 
   private sendReconnect(ctx: ReconnectContext): void {
