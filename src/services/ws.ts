@@ -3,7 +3,6 @@ import type {
   WsMessage,
   WsEventType,
   WsConnectionState,
-  WsAuthData,
   WsReconnectData,
   WsDisconnectData,
   WsPingData,
@@ -170,11 +169,7 @@ class WsManager {
   // ============ 认证 ============
 
   private sendAuth(token: string): void {
-    const { accessToken } = getStoredState()
-    const authData: WsAuthData = {
-      token: accessToken || token,
-    }
-    this.send('auth', authData)
+    this.send('auth', { token })
   }
 
   // ============ 心跳 ============
