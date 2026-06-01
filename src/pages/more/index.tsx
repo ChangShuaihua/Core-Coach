@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getCreationList } from '@/api/more'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import PaginatedList from '@/components/PaginatedList'
 import { getGameConfig } from '@/types/creation'
 import type { RecentCreation } from '@/types/creation-list'
 import { formatTime, isToday, isWithinDays, matchAge } from '@/utils/date'
@@ -24,6 +25,26 @@ const AGE_TABS = [
 ]
 
 const PAGE_SIZE = 10
+
+const filterBarStyle = {
+  display: 'flex' as const,
+  flexDirection: 'row' as const,
+  gap: '8px',
+  marginBottom: '12px',
+  flexWrap: 'wrap' as const,
+}
+
+const pillStyle = (active: boolean) => ({
+  padding: '6px 16px',
+  borderRadius: '9999px',
+  backgroundColor: active ? '#f97316' : '#f3f4f6',
+})
+
+const pillTextStyle = (active: boolean) => ({
+  fontSize: '13px',
+  color: active ? '#ffffff' : '#6b7280',
+  fontWeight: active ? ('600' as const) : ('400' as const),
+})
 
 export default function MorePage() {
   const [gameTypeFilter, setGameTypeFilter] = useState('all')
@@ -64,7 +85,6 @@ export default function MorePage() {
     })
   }, [])
 
-  // 筛选条件变化时重新加载
   useEffect(() => {
     setAllList([])
     fetchData(1)
@@ -98,198 +118,121 @@ export default function MorePage() {
         </View>
       }
     >
-      <ScrollView scrollY style={{ height: '100%' }} onScrollToLower={handleScrollToLower}>
-        <View style={{ padding: '16px' }}>
-          {/* 时间筛选 */}
-          <View style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginBottom: '12px' }}>
-            {TIME_TABS.map((tab) => (
-              <View
-                key={tab.key}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '9999px',
-                  backgroundColor: timeFilter === tab.key ? '#f97316' : '#f3f4f6',
-                }}
-                onClick={() => setTimeFilter(tab.key)}
-              >
-                <Text
-                  style={{
-                    fontSize: '13px',
-                    color: timeFilter === tab.key ? '#ffffff' : '#6b7280',
-                    fontWeight: timeFilter === tab.key ? '600' : '400',
-                  }}
+      <PaginatedList
+        items={filteredList}
+        loading={loading}
+        total={total}
+        page={page}
+        pageSize={PAGE_SIZE}
+        mode="infinite"
+        loadingMore={loadingMore}
+        onScrollToLower={handleScrollToLower}
+        onPageChange={() => {}}
+        emptyText="暂无创作记录"
+        renderHeader={() => (
+          <View style={{ padding: '16px', paddingBottom: 0 }}>
+            <View style={filterBarStyle}>
+              {TIME_TABS.map((tab) => (
+                <View
+                  key={tab.key}
+                  style={pillStyle(timeFilter === tab.key)}
+                  onClick={() => setTimeFilter(tab.key)}
                 >
-                  {tab.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 游戏类型筛选 */}
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '8px',
-              marginBottom: '12px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {gameTypeTabs.map((tab) => (
-              <View
-                key={tab.key}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '9999px',
-                  backgroundColor: gameTypeFilter === tab.key ? '#f97316' : '#f3f4f6',
-                }}
-                onClick={() => setGameTypeFilter(tab.key)}
-              >
-                <Text
-                  style={{
-                    fontSize: '13px',
-                    color: gameTypeFilter === tab.key ? '#ffffff' : '#6b7280',
-                    fontWeight: gameTypeFilter === tab.key ? '600' : '400',
-                  }}
-                >
-                  {tab.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 年龄筛选 */}
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '8px',
-              marginBottom: '16px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {AGE_TABS.map((tab) => (
-              <View
-                key={tab.key}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '9999px',
-                  backgroundColor: ageFilter === tab.key ? '#f97316' : '#f3f4f6',
-                }}
-                onClick={() => setAgeFilter(tab.key)}
-              >
-                <Text
-                  style={{
-                    fontSize: '13px',
-                    color: ageFilter === tab.key ? '#ffffff' : '#6b7280',
-                    fontWeight: ageFilter === tab.key ? '600' : '400',
-                  }}
-                >
-                  {tab.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 列表 */}
-          {loading ? (
-            <View style={{ textAlign: 'center', paddingTop: '60px' }}>
-              <Text style={{ fontSize: '14px', color: '#9ca3af' }}>加载中...</Text>
-            </View>
-          ) : filteredList.length === 0 ? (
-            <View style={{ textAlign: 'center', paddingTop: '60px' }}>
-              <Text style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>📭</Text>
-              <Text style={{ fontSize: '14px', color: '#9ca3af' }}>暂无创作记录</Text>
-            </View>
-          ) : (
-            <View style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {filteredList.map((item) => (
-                <Card
-                  key={item.id}
-                  className="p-4"
-                  onClick={() =>
-                    Taro.navigateTo({
-                      url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
-                    })
-                  }
-                >
-                  <View
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: '12px',
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        backgroundColor: '#fff7ed',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Text style={{ fontSize: '24px' }}>🎮</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: '16px',
-                          fontWeight: '500',
-                          color: '#111827',
-                          display: 'block',
-                        }}
-                      >
-                        {item.title}
-                      </Text>
-                      <View
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'row',
-                          gap: '8px',
-                          marginTop: '4px',
-                        }}
-                      >
-                        <Text style={{ fontSize: '12px', color: '#9ca3af' }}>
-                          {formatTime(item.created_at)}
-                        </Text>
-                        {item.age !== undefined && (
-                          <Text style={{ fontSize: '12px', color: '#f97316' }}>{item.age}岁</Text>
-                        )}
-                        {item.game_type && (
-                          <Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                            {item.game_type}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>
-                  </View>
-                </Card>
+                  <Text style={pillTextStyle(timeFilter === tab.key)}>{tab.label}</Text>
+                </View>
               ))}
-
-              {/* 加载状态 */}
-              {hasMore ? (
-                <View style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <Text style={{ fontSize: '14px', color: '#9ca3af' }}>
-                    {loadingMore ? '加载中...' : '上滑加载更多'}
-                  </Text>
-                </View>
-              ) : (
-                <View style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <Text style={{ fontSize: '12px', color: '#9ca3af' }}>
-                    没有更多了（共 {total} 条）
-                  </Text>
-                </View>
-              )}
             </View>
-          )}
-        </View>
-      </ScrollView>
+            <View style={filterBarStyle}>
+              {gameTypeTabs.map((tab) => (
+                <View
+                  key={tab.key}
+                  style={pillStyle(gameTypeFilter === tab.key)}
+                  onClick={() => setGameTypeFilter(tab.key)}
+                >
+                  <Text style={pillTextStyle(gameTypeFilter === tab.key)}>{tab.label}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ ...filterBarStyle, marginBottom: '16px' }}>
+              {AGE_TABS.map((tab) => (
+                <View
+                  key={tab.key}
+                  style={pillStyle(ageFilter === tab.key)}
+                  onClick={() => setAgeFilter(tab.key)}
+                >
+                  <Text style={pillTextStyle(ageFilter === tab.key)}>{tab.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        renderItem={(item) => (
+          <Card
+            key={item.id}
+            className="p-4 mb-3"
+            onClick={() =>
+              Taro.navigateTo({
+                url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
+              })
+            }
+          >
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <View
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  backgroundColor: '#fff7ed',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Text style={{ fontSize: '24px' }}>🎮</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    color: '#111827',
+                    display: 'block',
+                  }}
+                >
+                  {item.title}
+                </Text>
+                <View
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: '8px',
+                    marginTop: '4px',
+                  }}
+                >
+                  <Text style={{ fontSize: '12px', color: '#9ca3af' }}>
+                    {formatTime(item.created_at)}
+                  </Text>
+                  {item.age !== undefined && (
+                    <Text style={{ fontSize: '12px', color: '#f97316' }}>{item.age}岁</Text>
+                  )}
+                  {item.game_type && (
+                    <Text style={{ fontSize: '12px', color: '#6b7280' }}>{item.game_type}</Text>
+                  )}
+                </View>
+              </View>
+              <Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>
+            </View>
+          </Card>
+        )}
+      />
     </Layout>
   )
 }

@@ -126,11 +126,15 @@ export default function DetailPage() {
     }
   }
 
+  const isFromFavorites = isLikeParam === '1'
+
   const actions: ActionConfig[] = [
-    { key: 'regenerate', type: 'regenerate', onClick: handleRegenerate },
+    ...(!isFromFavorites
+      ? [{ key: 'regenerate', type: 'regenerate' as const, onClick: handleRegenerate }]
+      : []),
     {
       key: 'share',
-      type: 'share-image',
+      type: 'share-image' as const,
       shareData: genResult
         ? {
             gameName: genResult.game_name || '游戏',
@@ -140,7 +144,13 @@ export default function DetailPage() {
           }
         : undefined,
     },
-    { key: 'collect', type: 'collect', liked, onClick: handleCollect, onConfirm: handleUnfavorite },
+    {
+      key: 'collect',
+      type: 'collect' as const,
+      liked,
+      onClick: handleCollect,
+      onConfirm: handleUnfavorite,
+    },
   ]
 
   return (
