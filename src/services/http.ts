@@ -134,11 +134,11 @@ async function ensureTokenValid(): Promise<string | null> {
  * 应用级 token 刷新（用于 useDidShow 等场景）
  * 复用内部 ensureTokenValid，全局锁只有一套
  */
-export async function refreshTokenIfNeeded(): Promise<void> {
+export async function refreshTokenIfNeeded(): Promise<boolean> {
   const { accessToken, refreshToken } = getStoredState()
-  // 无 token 说明未登录，跳过
-  if (!accessToken || !refreshToken) return
-  await ensureTokenValid()
+  if (!accessToken || !refreshToken) return false
+  const result = await ensureTokenValid()
+  return !!result
 }
 
 // 被动刷新（401 触发）

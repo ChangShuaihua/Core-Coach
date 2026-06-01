@@ -25,7 +25,8 @@ function App({ children }) {
 
   // 切回前台：刷新 token + 连接 WebSocket
   useDidShow(async () => {
-    await refreshTokenIfNeeded()
+    const success = await refreshTokenIfNeeded()
+    if (!success) return
     const { accessToken } = getStoredState()
     if (accessToken && !ws.connected) {
       ws.connect(accessToken)
