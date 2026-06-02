@@ -43,7 +43,7 @@ export default function GameCard({
               flexShrink: 0,
             }}
           >
-            <Image src={gameIcon} style={{ width: '28px', height: '28px' }} mode="aspectFit" />
+            <Image src={gameIcon} style={{ width: '48px', height: '48px' }} mode="aspectFit" />
           </View>
           <View className="flex-1 min-w-0">
             <View className="flex items-center justify-between mb-2">

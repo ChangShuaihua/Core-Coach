@@ -152,7 +152,7 @@ export default function CreationPage() {
                   key={skill.id}
                   className={`flex-1 p-6 border-2 ${
                     isActive
-                      ? 'border-orange-300 bg-gradient-to-r from-orange-50 to-orange-100'
+                      ? 'border-orange-600 bg-white'
                       : 'border-gray-200 bg-gray-100 opacity-60'
                   }`}
                 >
@@ -218,7 +218,7 @@ export default function CreationPage() {
                 <View
                   key={item.id}
                   className={`bg-white rounded-lg p-4 border flex items-center gap-4 ${
-                    isProcessing ? 'border-orange-300 bg-orange-50' : 'border-gray-200'
+                    isProcessing ? 'border-orange-300 bg-orange-50' : 'border-orange-600'
                   }`}
                   onClick={() => {
                     if (isProcessing) {
@@ -232,7 +232,7 @@ export default function CreationPage() {
                 >
                   <View
                     className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      isProcessing ? 'bg-orange-200' : isFailed ? 'bg-red-100' : 'bg-orange-100'
+                      isProcessing ? 'bg-orange-200' : isFailed ? 'bg-red-100' : 'bg-orange-500'
                     }`}
                   >
                     {isProcessing ? (
@@ -242,7 +242,7 @@ export default function CreationPage() {
                     ) : typeIconMap[item.type]?.length > 2 ? (
                       <Image
                         src={typeIconMap[item.type]}
-                        style={{ width: '32px', height: '32px' }}
+                        style={{ width: '48px', height: '48px' }}
                         mode="aspectFit"
                       />
                     ) : (

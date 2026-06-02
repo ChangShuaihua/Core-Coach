@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
-import { getMusicList } from '@/api/creation'
+import { getMusicList, selectMusic } from '@/api/creation'
+import MusicPlayer from '@/components/MusicPlayer'
 import type { MusicItem, CurrentMusic } from '@/types/creation'
+
+const CURRENT_MUSIC_ID = -1
 
 export interface MusicSettingsProps {
   data: Record<string, any>
@@ -40,13 +43,21 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
     setSelectedId(id)
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (selectedId !== null) {
-      const selected = musicList.find((m) => m.id === selectedId)
+      const isCurrentMusic = selectedId === CURRENT_MUSIC_ID
+      const selected = isCurrentMusic ? currentMusic : musicList.find((m) => m.id === selectedId)
       if (selected) {
         updateData('selectedMusic', selected.music_name)
-        updateData('selectedMusicId', selected.id)
+        updateData('selectedMusicId', selectedId)
         updateData('selectedMusicUrl', selected.music_url)
+        if (!isCurrentMusic && recordId) {
+          try {
+            await selectMusic({ music_id: selectedId, record_id: recordId })
+          } catch (e) {
+            console.error('选择音乐失败:', e)
+          }
+        }
       }
     }
     onBack?.()
@@ -76,86 +87,133 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
         <Text style={{ fontSize: '16px', color: '#f97316', fontWeight: '500' }}>← 返回</Text>
       </View>
 
-      {/* 标题 */}
+      {/* 主卡片 */}
       <View
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '16px',
           padding: '20px',
-          marginBottom: '16px',
         }}
       >
+        {/* 标题 */}
         <Text
           style={{
             fontSize: '18px',
             fontWeight: 'bold',
             color: '#111827',
             display: 'block',
-            marginBottom: '8px',
+            marginBottom: '4px',
           }}
         >
           选择背景音乐
         </Text>
-        <Text style={{ fontSize: '14px', color: '#9ca3af' }}>为游戏选择合适的背景音乐</Text>
-      </View>
-
-      {/* 当前音乐 */}
-      {currentMusic && (
-        <View
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            padding: '20px',
-            marginBottom: '16px',
-          }}
+        <Text
+          style={{ fontSize: '14px', color: '#9ca3af', display: 'block', marginBottom: '16px' }}
         >
-          <Text
-            style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '8px', display: 'block' }}
-          >
-            当前音乐
-          </Text>
-          <View
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}
-          >
-            <View
-              style={{
-                width: '40px',
-                height: '40px',
-                backgroundColor: '#fff7ed',
-                borderRadius: '9999px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ fontSize: '18px' }}>🎵</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{ fontSize: '14px', color: '#374151', fontWeight: '500', display: 'block' }}
-              >
-                {currentMusic.music_name}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
+          为游戏选择合适的背景音乐
+        </Text>
 
-      {/* 音乐列表 */}
-      <View
-        style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          padding: '20px',
-          marginBottom: '24px',
-        }}
-      >
+        {/* 当前AI生成音乐 */}
+        {currentMusic &&
+          (() => {
+            const isSelected = selectedId === CURRENT_MUSIC_ID
+            return (
+              <View style={{ marginBottom: '16px' }}>
+                <Text
+                  style={{
+                    fontSize: '14px',
+                    color: '#9ca3af',
+                    marginBottom: '8px',
+                    display: 'block',
+                  }}
+                >
+                  当前音乐
+                </Text>
+                <View
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: '12px',
+                    cursor: 'pointer',
+                    padding: '4px 0',
+                  }}
+                  onClick={() => handleSelect(CURRENT_MUSIC_ID)}
+                >
+                  <View
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      backgroundColor: '#fff7ed',
+                      borderRadius: '9999px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: '18px' }}>🎵</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: '14px',
+                        color: isSelected ? '#f97316' : '#374151',
+                        fontWeight: isSelected ? 'bold' : '500',
+                        display: 'block',
+                      }}
+                    >
+                      {currentMusic.music_name}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: '12px',
+                        color: '#f97316',
+                        marginTop: '2px',
+                        display: 'block',
+                      }}
+                    >
+                      AI生成
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '9999px',
+                      border: `1px solid ${isSelected ? '#f97316' : '#d1d5db'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isSelected && (
+                      <View
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          backgroundColor: '#f97316',
+                          borderRadius: '9999px',
+                        }}
+                      />
+                    )}
+                  </View>
+                </View>
+              </View>
+            )
+          })()}
+
+        {/* 分割线 */}
+        <View style={{ height: '1px', backgroundColor: '#f3f4f6', marginBottom: '16px' }} />
+
+        {/* 可选音乐标题 */}
         <Text
           style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '12px', display: 'block' }}
         >
           可选音乐
         </Text>
 
+        {/* 音乐列表 */}
         {loading ? (
           <View style={{ padding: '20px', textAlign: 'center' as any }}>
             <Text style={{ fontSize: '14px', color: '#9ca3af' }}>加载中...</Text>
@@ -235,6 +293,20 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
             })}
           </View>
         )}
+
+        {/* 试听播放器 */}
+        {selectedId !== null &&
+          (() => {
+            const url =
+              selectedId === CURRENT_MUSIC_ID
+                ? currentMusic?.music_url
+                : musicList.find((m) => m.id === selectedId)?.music_url
+            return url ? (
+              <View style={{ marginTop: '16px' }}>
+                <MusicPlayer musicUrl={url} />
+              </View>
+            ) : null
+          })()}
       </View>
 
       {/* 确认按钮 */}
@@ -248,6 +320,7 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
           alignItems: 'center',
           justifyContent: 'center',
           cursor: selectedId !== null ? 'pointer' : 'default',
+          marginTop: '24px',
         }}
         onClick={selectedId !== null ? handleConfirm : undefined}
       >

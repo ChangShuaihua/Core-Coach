@@ -22,6 +22,7 @@ export default function DetailPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<Record<string, any>>({})
   const [liked, setLiked] = useState(false)
+  const [subPageActive, setSubPageActive] = useState(false)
 
   const genResult = data.generatedResults?.[0]
   const detailId = router.params?.id
@@ -150,9 +151,10 @@ export default function DetailPage() {
         config={RESULT_CONFIG}
         value={data}
         onChange={(newData) => setData((prev) => ({ ...prev, ...newData }))}
+        onSubPageChange={setSubPageActive}
         showMusicSwitch
       />
-      <ActionBar actions={actions} />
+      {!subPageActive && <ActionBar actions={actions} />}
     </Layout>
   )
 }
