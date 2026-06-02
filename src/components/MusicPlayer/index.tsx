@@ -258,7 +258,7 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
           style={{
             position: 'absolute',
             right: '0px',
-            top: '56px',
+            bottom: '56px',
             backgroundColor: '#ffffff',
             borderRadius: '10px',
             boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
