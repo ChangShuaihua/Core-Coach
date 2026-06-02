@@ -5,6 +5,7 @@ import { StarFill, Star } from '@nutui/icons-react-taro'
 import { getSkillList } from '@/api/creation'
 import { getRecentCreations } from '@/api/more'
 import { collectGame } from '@/api/profile'
+import gameIcon from '@/assets/images/icon.png'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
@@ -16,7 +17,7 @@ import { formatTime } from '@/utils/date'
 import { getStatusText, getModeBySkillId } from './constants/skills'
 
 const typeIconMap: Record<string, string> = {
-  game: '🎮',
+  game: gameIcon,
   lesson: '📋',
 }
 
@@ -125,7 +126,10 @@ export default function CreationPage() {
 
   const renderIcon = (skill: Skill) => {
     if (skill.image_need === 1 && skill.icon.startsWith('http')) {
-      return <Image className="w-10 h-10" src={skill.icon} mode="aspectFit" />
+      return <Image className="w-16 h-16" src={skill.icon} mode="aspectFit" />
+    }
+    if (skill.icon.length > 2) {
+      return <Image className="w-16 h-16" src={skill.icon} mode="aspectFit" />
     }
     return <Text className="text-4xl">{skill.icon}</Text>
   }
@@ -231,13 +235,19 @@ export default function CreationPage() {
                       isProcessing ? 'bg-orange-200' : isFailed ? 'bg-red-100' : 'bg-orange-100'
                     }`}
                   >
-                    <Text className="text-2xl">
-                      {isProcessing
-                        ? config?.icon || '✨'
-                        : isFailed
-                          ? '😢'
-                          : typeIconMap[item.type] || '✨'}
-                    </Text>
+                    {isProcessing ? (
+                      <Text className="text-2xl">{config?.icon || '✨'}</Text>
+                    ) : isFailed ? (
+                      <Text className="text-2xl">😢</Text>
+                    ) : typeIconMap[item.type]?.length > 2 ? (
+                      <Image
+                        src={typeIconMap[item.type]}
+                        style={{ width: '32px', height: '32px' }}
+                        mode="aspectFit"
+                      />
+                    ) : (
+                      <Text className="text-2xl">{typeIconMap[item.type] || '✨'}</Text>
+                    )}
                   </View>
                   <View className="flex-1">
                     <Text className="text-base font-medium text-gray-900 block mb-1">

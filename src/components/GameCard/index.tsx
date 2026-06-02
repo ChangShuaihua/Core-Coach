@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import { Star, StarFill } from '@nutui/icons-react-taro'
+import gameIcon from '@/assets/images/icon.png'
 import Card from '@/components/Card'
 
 interface GameCardProps {
@@ -34,7 +35,7 @@ export default function GameCard({
             style={{
               width: '48px',
               height: '48px',
-              backgroundColor: '#fff7ed',
+              backgroundColor: '#f97316',
               borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
@@ -42,7 +43,7 @@ export default function GameCard({
               flexShrink: 0,
             }}
           >
-            <Text style={{ fontSize: '24px' }}>🎮</Text>
+            <Image src={gameIcon} style={{ width: '28px', height: '28px' }} mode="aspectFit" />
           </View>
           <View className="flex-1 min-w-0">
             <View className="flex items-center justify-between mb-2">

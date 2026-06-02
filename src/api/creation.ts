@@ -1,3 +1,4 @@
+import gameIcon from '@/assets/images/icon.png'
 import type {
   Skill,
   GenerateGameParams,
@@ -49,7 +50,7 @@ export const getSkillList = async (): Promise<Skill[]> => {
 function getDefaultIcon(skillId: number): string {
   switch (skillId) {
     case 1:
-      return '🎮' // 游戏生成
+      return gameIcon // 游戏生成
     case 4:
       return '📋' // 教案生成
     case 5:
