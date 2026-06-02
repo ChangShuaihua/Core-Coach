@@ -100,10 +100,14 @@ export default function MorePage() {
   }, [fetchData])
 
   const handleToggleFavorite = useCallback(async (item: RecentCreation) => {
+    if (item.is_like === 1) {
+      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
+      return
+    }
     try {
       const res = await collectGame(item.id)
       setList((prev) => prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g)))
-      Taro.showToast({ title: res.is_like ? '已收藏' : '已取消', icon: 'success' })
+      Taro.showToast({ title: '已收藏', icon: 'success' })
     } catch {
       Taro.showToast({ title: '操作失败', icon: 'none' })
     }

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
+import { StarFill, Star } from '@nutui/icons-react-taro'
 import { getSkillList } from '@/api/creation'
 import { getRecentCreations } from '@/api/more'
+import { collectGame } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
@@ -87,6 +89,22 @@ export default function CreationPage() {
       })
     })
     return unsub
+  }, [])
+
+  const handleToggleFavorite = useCallback(async (item: RecentCreation) => {
+    if (item.is_like === 1) {
+      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
+      return
+    }
+    try {
+      const res = await collectGame(item.id)
+      setRecentList((prev) =>
+        prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g))
+      )
+      Taro.showToast({ title: '已收藏', icon: 'success' })
+    } catch {
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
   }, [])
 
   const handleSkillClick = (skill: Skill) => {
@@ -240,7 +258,25 @@ export default function CreationPage() {
                   {isProcessing ? (
                     <View className="w-5 h-5 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
                   ) : (
-                    <Text className="text-gray-400 text-xl">›</Text>
+                    <View className="flex items-center gap-2">
+                      <View
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleToggleFavorite(item)
+                        }}
+                        onTap={(e) => {
+                          e.stopPropagation()
+                          handleToggleFavorite(item)
+                        }}
+                      >
+                        {item.is_like === 1 ? (
+                          <StarFill size="18" color="#ff9500" />
+                        ) : (
+                          <Star size="18" color="#d1d5db" />
+                        )}
+                      </View>
+                      <Text className="text-gray-400 text-xl">›</Text>
+                    </View>
                   )}
                 </View>
               )

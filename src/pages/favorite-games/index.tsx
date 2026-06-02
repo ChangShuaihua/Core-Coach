@@ -153,6 +153,7 @@ export default function FavoriteGamesPage() {
                 onClick={isManageMode ? undefined : () => handleGameClick(game)}
                 favorited={!isManageMode ? true : undefined}
                 onToggleFavorite={() => handleRemove(game.id)}
+                rightSlot={<Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>}
               />
             </View>
           </View>
