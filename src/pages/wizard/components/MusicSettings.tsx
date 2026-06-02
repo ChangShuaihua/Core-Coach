@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
-import { getMusicList } from '@/api/creation'
+import { getMusicList, selectMusic } from '@/api/creation'
 import type { MusicItem, CurrentMusic } from '@/types/creation'
 
 export interface MusicSettingsProps {
@@ -40,13 +40,20 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
     setSelectedId(id)
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (selectedId !== null) {
       const selected = musicList.find((m) => m.id === selectedId)
       if (selected) {
         updateData('selectedMusic', selected.music_name)
         updateData('selectedMusicId', selected.id)
         updateData('selectedMusicUrl', selected.music_url)
+        if (recordId) {
+          try {
+            await selectMusic({ music_id: selected.id, record_id: recordId })
+          } catch (e) {
+            console.error('选择音乐失败:', e)
+          }
+        }
       }
     }
     onBack?.()
