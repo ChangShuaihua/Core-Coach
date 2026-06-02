@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ArrowLeft, StarFill } from '@nutui/icons-react-taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
 import { Checkbox } from '@nutui/nutui-react-taro'
 import { getFavoriteGames, removeFavoriteGame, batchRemoveFavoriteGames } from '@/api/profile'
 import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
 import PaginatedList from '@/components/PaginatedList'
 import type { Game } from '@/types/game'
+import { formatTime } from '@/utils/date'
 
 const PAGE_SIZE = 20
 
@@ -102,7 +103,7 @@ export default function FavoriteGamesPage() {
 
   const handleGameClick = (game: Game) => {
     Taro.navigateTo({
-      url: `/pages/detail/index?id=${game.record_id}&type=game&is_like=1`,
+      url: `/pages/detail/index?id=${game.record_id}&type=game&from=favorites`,
     })
   }
 
@@ -148,19 +149,10 @@ export default function FavoriteGamesPage() {
                 title={game.game_name}
                 age={game.age}
                 gameType={game.game_type}
+                extra={formatTime(game.collected_at)}
                 onClick={isManageMode ? undefined : () => handleGameClick(game)}
-                rightSlot={
-                  !isManageMode ? (
-                    <View
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemove(game.id)
-                      }}
-                    >
-                      <StarFill size="18" color="#ff9500" />
-                    </View>
-                  ) : undefined
-                }
+                favorited={!isManageMode ? true : undefined}
+                onToggleFavorite={() => handleRemove(game.id)}
               />
             </View>
           </View>

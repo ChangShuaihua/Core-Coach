@@ -3,6 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getCreationList } from '@/api/more'
+import { collectGame } from '@/api/profile'
 import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
 import PaginatedList from '@/components/PaginatedList'
@@ -98,6 +99,16 @@ export default function MorePage() {
     await fetchData(pageRef.current + 1, true)
   }, [fetchData])
 
+  const handleToggleFavorite = useCallback(async (item: RecentCreation) => {
+    try {
+      const res = await collectGame(item.id)
+      setList((prev) => prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g)))
+      Taro.showToast({ title: res.is_like ? '已收藏' : '已取消', icon: 'success' })
+    } catch {
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }, [])
+
   const filteredList = list.filter((item) => {
     if (gameTypeFilter !== 'all' && item.game_type !== gameTypeFilter) return false
     if (timeFilter === 'today' && !isToday(item.created_at)) return false
@@ -175,22 +186,8 @@ export default function MorePage() {
                 url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
               })
             }
-            leftSlot={
-              <View
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  backgroundColor: '#fff7ed',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Text style={{ fontSize: '24px' }}>🎮</Text>
-              </View>
-            }
+            favorited={item.is_like === 1}
+            onToggleFavorite={() => handleToggleFavorite(item)}
             rightSlot={<Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>}
           />
         )}

@@ -6,6 +6,7 @@ export interface RecentCreation {
   status?: number // 0=失败, 1=成功, 2=排队中, 3=生成中
   age?: number
   game_type?: string
+  is_like?: number
 }
 
 export interface RecentListResponse {
