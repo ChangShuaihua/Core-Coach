@@ -51,14 +51,6 @@ export interface WsChatData {
   create_time: number
 }
 
-export interface WsSessionSwitchData {
-  request_id: string
-  old_session_id: string
-  new_session_id: string
-  switch_reason: 'user_initiated'
-  create_time: number
-}
-
 export interface WsAbortData {
   request_id: string
   session_id: string

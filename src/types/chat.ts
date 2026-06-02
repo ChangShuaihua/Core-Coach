@@ -36,13 +36,6 @@ export interface SessionRuntime {
   status: 'pending' | 'streaming' | 'done'
 }
 
-// 快捷操作接口（deprecated，后续统一用 Skill）
-export interface QuickAction {
-  id: string
-  title: string
-  prompt: string
-}
-
 // 会话接口
 export interface Conversation {
   id: string
