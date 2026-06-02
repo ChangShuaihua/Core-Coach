@@ -1,7 +1,8 @@
 import Taro from '@tarojs/taro'
 import { ws } from '@/services/ws'
-import { Conversation } from '@/types/chat'
+import type { Conversation } from '@/types/chat'
 import type {
+  WsChatSessionCreatedData,
   WsStreamChunkData,
   WsStreamDoneData,
   WsReplyData,
@@ -29,16 +30,28 @@ function findSourcePending(requestId: string): string | undefined {
 }
 
 /**
- * 执行 pending -> real session 迁移
- * - 仅在用户正在查看该 pending 时切换 currentConversationId
+ * 执行 pending -> real session 迁移（状态 + 运行时 + 会话通知）
+ * - 原子更新：conversations / messagesBySession / sessionRuntimes / requestToSession / currentConversationId
+ * - 迁移后发送 session_leave + session_enter，确保用户拿到 chatter 角色
  * - 若 realSession 已存在于 conversations（并发场景），合并而非覆盖
  */
 function migratePendingSession(pendingId: string, realSessionId: string, title?: string) {
+  const wasViewing = useChatStore.getState().currentConversationId === pendingId
+
   useChatStore.setState((state) => {
     const { [pendingId]: pendingConv, ...restConvs } = state.conversations
     const { [pendingId]: pendingMsgs, ...restMsgs } = state.messagesBySession
 
-    const isViewing = state.currentConversationId === pendingId
+    // 迁移 runtime：pending → real session
+    const runtime = state.sessionRuntimes[pendingId]
+    let newRuntimes = state.sessionRuntimes
+    let newRequestToSession = state.requestToSession
+    if (runtime) {
+      const { [pendingId]: _, ...restRuntimes } = state.sessionRuntimes
+      newRuntimes = { ...restRuntimes, [realSessionId]: runtime }
+      const { [runtime.requestId]: __, ...restMapping } = state.requestToSession
+      newRequestToSession = { ...restMapping, [runtime.requestId]: realSessionId }
+    }
 
     // realSession 已存在（并发场景：多个 pending 迁移到同一 session）
     if (state.conversations[realSessionId]) {
@@ -51,7 +64,9 @@ function migratePendingSession(pendingId: string, realSessionId: string, title?:
           [realSessionId]: { ...existingConv, messageCount: mergedMsgs.length },
         },
         messagesBySession: { ...restMsgs, [realSessionId]: mergedMsgs },
-        ...(isViewing ? { currentConversationId: realSessionId } : {}),
+        sessionRuntimes: newRuntimes,
+        requestToSession: newRequestToSession,
+        ...(wasViewing ? { currentConversationId: realSessionId } : {}),
       }
     }
 
@@ -64,8 +79,20 @@ function migratePendingSession(pendingId: string, realSessionId: string, title?:
     return {
       conversations: { [realSessionId]: newConv, ...restConvs },
       messagesBySession: { [realSessionId]: pendingMsgs || [], ...restMsgs },
-      ...(isViewing ? { currentConversationId: realSessionId } : {}),
+      sessionRuntimes: newRuntimes,
+      requestToSession: newRequestToSession,
+      ...(wasViewing ? { currentConversationId: realSessionId } : {}),
     }
+  })
+
+  // 通知后端：先 leave 再 enter，确保拿到 chatter 角色
+  ws.send('session_leave', {
+    session_id: realSessionId,
+    create_time: Math.floor(Date.now() / 1000),
+  })
+  ws.send('session_enter', {
+    session_id: realSessionId,
+    create_time: Math.floor(Date.now() / 1000),
   })
 }
 
@@ -76,6 +103,24 @@ const processedChunkIndex = new Map<string, number>()
 
 export function initWsHandlers() {
   const get = useChatStore.getState
+
+  // ---- 新会话创建（主迁移路径：比 stream_chunk 更早到达） ----
+  ws.on('chat_session_created', (data: WsChatSessionCreatedData) => {
+    const sourcePending = findSourcePending(data.request_id)
+    if (!sourcePending) return
+
+    console.log('[chat_session_created]', {
+      pendingId: sourcePending,
+      realSessionId: data.session_id,
+      title: data.title,
+    })
+
+    // 更新会话标题（服务端生成的标题比 content.slice 更准确）
+    get().updateConversation(sourcePending, { title: data.title || '新对话' })
+
+    // 执行迁移 + session_leave/enter
+    migratePendingSession(sourcePending, data.session_id, data.title || '新对话')
+  })
 
   // ---- 流式分片（优先 session_id，兜底 request_id，含首次 chunk 迁移） ----
   ws.on('stream_chunk', (data: WsStreamChunkData) => {

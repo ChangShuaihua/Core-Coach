@@ -109,21 +109,27 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   ensurePendingConversation: () => {
-    const { conversations, currentConversationId } = get()
+    const { conversations, currentConversationId, sessionRuntimes } = get()
 
-    // 离开旧会话（pending 不用通知服务端）
-    if (currentConversationId && !currentConversationId.startsWith('pending-')) {
-      ws.send('session_leave', {
-        session_id: currentConversationId,
-        create_time: Math.floor(Date.now() / 1000),
-      })
+    // 离开旧会话
+    if (currentConversationId) {
+      if (!currentConversationId.startsWith('pending-')) {
+        ws.send('session_leave', {
+          session_id: currentConversationId,
+          create_time: Math.floor(Date.now() / 1000),
+        })
+      }
     }
 
-    const pending = Object.values(conversations).find((c) => c.id.startsWith('pending-'))
+    // 查找空闲的 pending 会话（没有活跃 runtime 的）
+    const idlePending = Object.values(conversations).find(
+      (c) => c.id.startsWith('pending-') && !sessionRuntimes[c.id]
+    )
 
-    if (pending) {
-      set({ currentConversationId: pending.id })
+    if (idlePending) {
+      set({ currentConversationId: idlePending.id })
     } else {
+      // 所有 pending 都有活跃 runtime（AI 正在回复）→ 创建新的
       const tempId = 'pending-' + Date.now()
       const tempConv: import('@/types/chat').Conversation = {
         id: tempId,

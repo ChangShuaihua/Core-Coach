@@ -7,6 +7,7 @@ export type WsEventType =
   | 'ping'
   | 'pong'
   | 'chat'
+  | 'chat_session_created'
   | 'reply'
   | 'stream_chunk'
   | 'stream_done'
@@ -88,6 +89,13 @@ export interface WsSessionLeaveData {
 }
 
 // ============ 服务端 → 客户端 ============
+
+export interface WsChatSessionCreatedData {
+  session_id: string
+  title: string
+  request_id: string
+  create_time: number
+}
 
 export interface WsConnectedData {
   content: 'success'
