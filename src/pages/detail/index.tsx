@@ -29,22 +29,18 @@ export default function DetailPage() {
     genResult?.game_name || '我生成了一个游戏，快来看看',
     `/pages/detail/index?id=${detailId}`
   )
-  const isLikeParam = router.params?.is_like
 
   useEffect(() => {
-    if (isLikeParam === '1') {
-      setLiked(true)
-    }
-
     if (detailId) {
       fetchGameDetail(detailId)
     }
-  }, [detailId, isLikeParam])
+  }, [detailId])
 
   const fetchGameDetail = async (id: string) => {
     try {
       setLoading(true)
       const game = await getTaskStatus(Number(id))
+      setLiked(game.is_like === 1)
       setData({
         age: game.age,
         gameType: game.game_type,
@@ -126,7 +122,7 @@ export default function DetailPage() {
     }
   }
 
-  const isFromFavorites = isLikeParam === '1'
+  const isFromFavorites = router.params?.from === 'favorites'
 
   const actions: ActionConfig[] = [
     ...(!isFromFavorites
