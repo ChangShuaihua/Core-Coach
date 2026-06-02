@@ -4,11 +4,18 @@ export type MessageRole = 'user' | 'assistant' | 'system'
 // 消息状态
 export type MessageStatus = 'pending' | 'streaming' | 'success' | 'error'
 
+// 消息图片
+export interface MessageImage {
+  name: string
+  url: string
+}
+
 // 消息接口
 export interface Message {
   id: string
   role: MessageRole
   content: string
+  images?: MessageImage[]
   timestamp: number
   status: MessageStatus
 }
@@ -27,13 +34,6 @@ export interface SessionRuntime {
   requestId: string // 当前活跃的 request_id
   assistantMsgId: string // 对应的 assistant 消息 ID
   status: 'pending' | 'streaming' | 'done'
-}
-
-// 快捷操作接口（deprecated，后续统一用 Skill）
-export interface QuickAction {
-  id: string
-  title: string
-  prompt: string
 }
 
 // 会话接口
@@ -109,6 +109,7 @@ export interface ChatStore {
     status: MessageStatus,
     content?: string
   ) => void
+  updateMessageImages: (sessionId: string, msgId: string, images: MessageImage[]) => void
 
   sendMessage: (content: string) => Promise<string | undefined>
   stopResponding: () => void

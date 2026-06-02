@@ -7,6 +7,7 @@ export type WsEventType =
   | 'ping'
   | 'pong'
   | 'chat'
+  | 'chat_session_created'
   | 'reply'
   | 'stream_chunk'
   | 'stream_done'
@@ -47,14 +48,7 @@ export interface WsChatData {
   session_id: string
   content: string
   workflow_id?: string
-  create_time: number
-}
-
-export interface WsSessionSwitchData {
-  request_id: string
-  old_session_id: string
-  new_session_id: string
-  switch_reason: 'user_initiated'
+  image_need?: number
   create_time: number
 }
 
@@ -96,6 +90,13 @@ export interface WsSessionLeaveData {
 
 // ============ 服务端 → 客户端 ============
 
+export interface WsChatSessionCreatedData {
+  session_id: string
+  title: string
+  request_id: string
+  create_time: number
+}
+
 export interface WsConnectedData {
   content: 'success'
 }
@@ -117,6 +118,7 @@ export interface WsReplyData {
   request_id: string
   session_id: string
   content: string
+  images?: Array<{ name: string; url: string }>
   create_time: number
   finished: boolean
 }
@@ -138,6 +140,7 @@ export interface WsStreamDoneData {
   session_id: string
   total_chunks: number
   content: string
+  images?: Array<{ name: string; url: string }>
   create_time: number
   finished: true
 }
