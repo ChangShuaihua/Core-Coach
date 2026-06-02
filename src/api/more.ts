@@ -1,5 +1,10 @@
 import type { Game } from '@/types/creation'
-import type { DetailParams, RecentCreation, RecentListResponse } from '@/types/creation-list'
+import type {
+  DetailParams,
+  RecentCreation,
+  RecentListResponse,
+  CreationListResponse,
+} from '@/types/creation-list'
 import { get } from '../services/http'
 
 /**
@@ -10,6 +15,19 @@ import { get } from '../services/http'
 export const getRecentCreations = async (): Promise<RecentCreation[]> => {
   const res = await get<RecentListResponse>('/creation/recent')
   return res.data?.list || []
+}
+
+/**
+ * 获取全部创作列表（分页）
+ * 接口: GET /creation/list
+ * 返回: { code: 0, message: "成功", data: { list, total, page, page_size } }
+ */
+export const getCreationList = async (params: {
+  page: number
+  page_size: number
+}): Promise<CreationListResponse> => {
+  const res = await get<CreationListResponse>('/creation/list', params as Record<string, any>)
+  return res.data
 }
 
 /**

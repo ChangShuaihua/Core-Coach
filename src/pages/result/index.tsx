@@ -124,6 +124,10 @@ export default function ResultPage() {
   }
 
   const handleCollect = async () => {
+    if (liked) {
+      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
+      return
+    }
     const generatedResults = data.generatedResults || []
     const rid = generatedResults[0]?.record_id || recordId
     if (!rid) {
@@ -133,14 +137,9 @@ export default function ResultPage() {
     try {
       const res = await collectGame(Number(rid))
       setLiked(res.is_like === 1)
-      Taro.showToast({ title: res.is_like === 1 ? '收藏成功' : '已取消收藏', icon: 'success' })
-    } catch (err: any) {
-      if (err?.code === 3002) {
-        setLiked(true)
-        Taro.showToast({ title: '已收藏', icon: 'success' })
-      } else {
-        Taro.showToast({ title: '操作失败', icon: 'none' })
-      }
+      Taro.showToast({ title: '收藏成功', icon: 'success' })
+    } catch {
+      Taro.showToast({ title: '操作失败', icon: 'none' })
     }
   }
 

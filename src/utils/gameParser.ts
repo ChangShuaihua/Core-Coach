@@ -104,11 +104,11 @@ export function parseGameContent(content: string): ParsedGame {
       currentRound = { title, props: '', rule: '', safety: '' }
     } else if (currentSection === 'outline' && currentRound && line.match(/▷[①②③④⑤⑥⑦⑧⑨⑩]/)) {
       if (line.includes('（所需道具）')) {
-        currentRound.props = line.replace(/.*（所需道具）[）)]\s*[：:]?\s*/, '').trim()
+        currentRound.props = line.replace(/.*（所需道具）\s*[：:]?\s*/, '').trim()
       } else if (line.includes('（规则简述）')) {
-        currentRound.rule = line.replace(/.*（规则简述）[）)]\s*[：:]?\s*/, '').trim()
+        currentRound.rule = line.replace(/.*（规则简述）\s*[：:]?\s*/, '').trim()
       } else if (line.includes('（安全提醒）')) {
-        currentRound.safety = line.replace(/.*（安全提醒）[）)]\s*[：:]?\s*/, '').trim()
+        currentRound.safety = line.replace(/.*（安全提醒）\s*[：:]?\s*/, '').trim()
       }
     } else if (currentSection === 'script' && line.match(/▶[❶❷❸❹❺❻❼❽❾❿]/)) {
       saveScript()

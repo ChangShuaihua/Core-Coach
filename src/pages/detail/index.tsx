@@ -3,7 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getTaskStatus, startGenerateTask } from '@/api/creation'
-import { collectGame, removeFavoriteGame } from '@/api/profile'
+import { collectGame } from '@/api/profile'
 import ActionBar from '@/components/ActionBar'
 import type { ActionConfig } from '@/components/ActionBar'
 import Layout from '@/components/Layout'
@@ -29,22 +29,18 @@ export default function DetailPage() {
     genResult?.game_name || '我生成了一个游戏，快来看看',
     `/pages/detail/index?id=${detailId}`
   )
-  const isLikeParam = router.params?.is_like
 
   useEffect(() => {
-    if (isLikeParam === '1') {
-      setLiked(true)
-    }
-
     if (detailId) {
       fetchGameDetail(detailId)
     }
-  }, [detailId, isLikeParam])
+  }, [detailId])
 
   const fetchGameDetail = async (id: string) => {
     try {
       setLoading(true)
       const game = await getTaskStatus(Number(id))
+      setLiked(game.is_like === 1)
       setData({
         age: game.age,
         gameType: game.game_type,
@@ -97,6 +93,10 @@ export default function DetailPage() {
   }
 
   const handleCollect = async () => {
+    if (liked) {
+      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
+      return
+    }
     if (!genResult?.record_id) {
       Taro.showToast({ title: '无法获取记录ID', icon: 'none' })
       return
@@ -105,32 +105,20 @@ export default function DetailPage() {
       const res = await collectGame(genResult.record_id)
       setLiked(res.is_like === 1)
       Taro.showToast({ title: '收藏成功', icon: 'success' })
-    } catch (err: any) {
-      if (err?.code === 3002) {
-        setLiked(true)
-        Taro.showToast({ title: '已收藏', icon: 'success' })
-      } else {
-        Taro.showToast({ title: '操作失败', icon: 'none' })
-      }
-    }
-  }
-
-  const handleUnfavorite = async () => {
-    if (!genResult?.record_id) return
-    try {
-      await removeFavoriteGame(genResult.record_id)
-      setLiked(false)
-      Taro.showToast({ title: '已取消收藏', icon: 'success' })
     } catch {
       Taro.showToast({ title: '操作失败', icon: 'none' })
     }
   }
 
+  const isFromFavorites = router.params?.from === 'favorites'
+
   const actions: ActionConfig[] = [
-    { key: 'regenerate', type: 'regenerate', onClick: handleRegenerate },
+    ...(!isFromFavorites
+      ? [{ key: 'regenerate', type: 'regenerate' as const, onClick: handleRegenerate }]
+      : []),
     {
       key: 'share',
-      type: 'share-image',
+      type: 'share-image' as const,
       shareData: genResult
         ? {
             gameName: genResult.game_name || '游戏',
@@ -140,7 +128,12 @@ export default function DetailPage() {
           }
         : undefined,
     },
-    { key: 'collect', type: 'collect', liked, onClick: handleCollect, onConfirm: handleUnfavorite },
+    {
+      key: 'collect',
+      type: 'collect' as const,
+      liked,
+      onClick: handleCollect,
+    },
   ]
 
   return (

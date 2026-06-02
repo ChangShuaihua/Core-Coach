@@ -43,6 +43,7 @@ export interface GenerateTaskResult {
   record_id: number
   status: TaskStatusCode
   status_text: string
+  is_like?: number
   age?: number
   game_type?: string
   game_name?: string

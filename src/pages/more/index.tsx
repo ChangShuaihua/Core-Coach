@@ -1,10 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
-import { getRecentCreations } from '@/api/more'
-import Card from '@/components/Card'
+import { getCreationList } from '@/api/more'
+import { collectGame } from '@/api/profile'
+import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
+import PaginatedList from '@/components/PaginatedList'
 import { getGameConfig } from '@/types/creation'
 import type { RecentCreation } from '@/types/creation-list'
 import { formatTime, isToday, isWithinDays, matchAge } from '@/utils/date'
@@ -23,26 +25,50 @@ const AGE_TABS = [
   { key: '9+' as const, label: '9岁+' },
 ]
 
-const PAGE_BATCH = 20
+const PAGE_SIZE = 20
+
+const filterBarStyle = {
+  display: 'flex' as const,
+  flexDirection: 'row' as const,
+  gap: '6px',
+  marginBottom: '10px',
+  flexWrap: 'wrap' as const,
+  alignItems: 'center' as const,
+}
+
+const pillStyle = (active: boolean) => ({
+  padding: '4px 12px',
+  borderRadius: '9999px',
+  backgroundColor: active ? '#f97316' : '#f3f4f6',
+})
+
+const pillTextStyle = (active: boolean) => ({
+  fontSize: '12px',
+  color: active ? '#ffffff' : '#6b7280',
+  fontWeight: active ? ('600' as const) : ('400' as const),
+})
 
 export default function MorePage() {
   const [gameTypeFilter, setGameTypeFilter] = useState('all')
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'week'>('all')
   const [ageFilter, setAgeFilter] = useState<'all' | '3-4' | '5-6' | '7-8' | '9+'>('all')
-  const [allList, setAllList] = useState<RecentCreation[]>([])
+  const [list, setList] = useState<RecentCreation[]>([])
   const [loading, setLoading] = useState(true)
-  const [displayCount, setDisplayCount] = useState(PAGE_BATCH)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const [total, setTotal] = useState(0)
+  const pageRef = useRef(1)
   const [gameTypeTabs, setGameTypeTabs] = useState<Array<{ key: string; label: string }>>([
     { key: 'all', label: '全部' },
   ])
 
-  const fetchAllData = useCallback(async () => {
+  const hasMore = list.length < total
+
+  const fetchData = useCallback(async (pageNum: number, append: boolean) => {
     try {
       setLoading(true)
-      const data = await getRecentCreations()
-      setAllList(data)
-      setDisplayCount(PAGE_BATCH)
+      const res = await getCreationList({ page: pageNum, page_size: PAGE_SIZE })
+      setList((prev) => (append ? [...prev, ...res.list] : res.list))
+      setTotal(res.total)
+      pageRef.current = res.page
     } catch (error) {
       console.error('加载失败:', error)
       Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -52,7 +78,7 @@ export default function MorePage() {
   }, [])
 
   useEffect(() => {
-    fetchAllData()
+    fetchData(1, false)
     getGameConfig().then((res) => {
       const types = res.game_type_options
         .filter((t) => t.status === 1)
@@ -61,12 +87,33 @@ export default function MorePage() {
     })
   }, [])
 
-  // 筛选条件变化时重置显示数量
+  // 筛选条件变化 → 清空 + page=1 重新请求
   useEffect(() => {
-    setDisplayCount(PAGE_BATCH)
+    setList([])
+    setTotal(0)
+    pageRef.current = 1
+    fetchData(1, false)
   }, [gameTypeFilter, timeFilter, ageFilter])
 
-  const filteredList = allList.filter((item) => {
+  const handleLoadMore = useCallback(async () => {
+    await fetchData(pageRef.current + 1, true)
+  }, [fetchData])
+
+  const handleToggleFavorite = useCallback(async (item: RecentCreation) => {
+    if (item.is_like === 1) {
+      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
+      return
+    }
+    try {
+      const res = await collectGame(item.id)
+      setList((prev) => prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g)))
+      Taro.showToast({ title: '已收藏', icon: 'success' })
+    } catch {
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }, [])
+
+  const filteredList = list.filter((item) => {
     if (gameTypeFilter !== 'all' && item.game_type !== gameTypeFilter) return false
     if (timeFilter === 'today' && !isToday(item.created_at)) return false
     if (timeFilter === 'week' && !isWithinDays(item.created_at, 7)) return false
@@ -74,19 +121,6 @@ export default function MorePage() {
       return false
     return true
   })
-
-  const renderList = filteredList.slice(0, displayCount)
-  const hasMore = displayCount < filteredList.length
-
-  const handleScrollToLower = () => {
-    if (hasMore && !loadingMore) {
-      setLoadingMore(true)
-      setTimeout(() => {
-        setDisplayCount((prev) => Math.min(prev + PAGE_BATCH, filteredList.length))
-        setLoadingMore(false)
-      }, 300)
-    }
-  }
 
   return (
     <Layout
@@ -98,198 +132,70 @@ export default function MorePage() {
         </View>
       }
     >
-      <ScrollView scrollY style={{ height: '100%' }} onScrollToLower={handleScrollToLower}>
-        <View style={{ padding: '16px' }}>
-          {/* 时间筛选 */}
-          <View style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginBottom: '12px' }}>
-            {TIME_TABS.map((tab) => (
-              <View
-                key={tab.key}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '9999px',
-                  backgroundColor: timeFilter === tab.key ? '#f97316' : '#f3f4f6',
-                }}
-                onClick={() => setTimeFilter(tab.key)}
-              >
-                <Text
-                  style={{
-                    fontSize: '13px',
-                    color: timeFilter === tab.key ? '#ffffff' : '#6b7280',
-                    fontWeight: timeFilter === tab.key ? '600' : '400',
-                  }}
+      <PaginatedList
+        items={filteredList}
+        loading={loading}
+        hasMore={hasMore}
+        onLoadMore={handleLoadMore}
+        emptyText="暂无创作记录"
+        renderHeader={() => (
+          <View style={{ padding: '12px', paddingBottom: 0 }}>
+            <View style={filterBarStyle}>
+              {TIME_TABS.map((tab) => (
+                <View
+                  key={tab.key}
+                  style={pillStyle(timeFilter === tab.key)}
+                  onClick={() => setTimeFilter(tab.key)}
                 >
-                  {tab.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 游戏类型筛选 */}
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '8px',
-              marginBottom: '12px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {gameTypeTabs.map((tab) => (
-              <View
-                key={tab.key}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '9999px',
-                  backgroundColor: gameTypeFilter === tab.key ? '#f97316' : '#f3f4f6',
-                }}
-                onClick={() => setGameTypeFilter(tab.key)}
-              >
-                <Text
-                  style={{
-                    fontSize: '13px',
-                    color: gameTypeFilter === tab.key ? '#ffffff' : '#6b7280',
-                    fontWeight: gameTypeFilter === tab.key ? '600' : '400',
-                  }}
-                >
-                  {tab.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 年龄筛选 */}
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '8px',
-              marginBottom: '16px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {AGE_TABS.map((tab) => (
-              <View
-                key={tab.key}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '9999px',
-                  backgroundColor: ageFilter === tab.key ? '#f97316' : '#f3f4f6',
-                }}
-                onClick={() => setAgeFilter(tab.key)}
-              >
-                <Text
-                  style={{
-                    fontSize: '13px',
-                    color: ageFilter === tab.key ? '#ffffff' : '#6b7280',
-                    fontWeight: ageFilter === tab.key ? '600' : '400',
-                  }}
-                >
-                  {tab.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 列表 */}
-          {loading ? (
-            <View style={{ textAlign: 'center', paddingTop: '60px' }}>
-              <Text style={{ fontSize: '14px', color: '#9ca3af' }}>加载中...</Text>
-            </View>
-          ) : filteredList.length === 0 ? (
-            <View style={{ textAlign: 'center', paddingTop: '60px' }}>
-              <Text style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>📭</Text>
-              <Text style={{ fontSize: '14px', color: '#9ca3af' }}>暂无创作记录</Text>
-            </View>
-          ) : (
-            <View style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {renderList.map((item) => (
-                <Card
-                  key={item.id}
-                  className="p-4"
-                  onClick={() =>
-                    Taro.navigateTo({
-                      url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
-                    })
-                  }
-                >
-                  <View
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: '12px',
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        backgroundColor: '#fff7ed',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Text style={{ fontSize: '24px' }}>🎮</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: '16px',
-                          fontWeight: '500',
-                          color: '#111827',
-                          display: 'block',
-                        }}
-                      >
-                        {item.title}
-                      </Text>
-                      <View
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'row',
-                          gap: '8px',
-                          marginTop: '4px',
-                        }}
-                      >
-                        <Text style={{ fontSize: '12px', color: '#9ca3af' }}>
-                          {formatTime(item.created_at)}
-                        </Text>
-                        {item.age !== undefined && (
-                          <Text style={{ fontSize: '12px', color: '#f97316' }}>{item.age}岁</Text>
-                        )}
-                        {item.game_type && (
-                          <Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                            {item.game_type}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>
-                  </View>
-                </Card>
+                  <Text style={pillTextStyle(timeFilter === tab.key)}>{tab.label}</Text>
+                </View>
               ))}
-
-              {/* 加载状态 */}
-              {hasMore ? (
-                <View style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <Text style={{ fontSize: '14px', color: '#9ca3af' }}>
-                    {loadingMore ? '加载中...' : '上滑加载更多'}
-                  </Text>
-                </View>
-              ) : (
-                <View style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <Text style={{ fontSize: '12px', color: '#9ca3af' }}>
-                    没有更多了（共 {filteredList.length} 条）
-                  </Text>
-                </View>
-              )}
             </View>
-          )}
-        </View>
-      </ScrollView>
+            <View style={filterBarStyle}>
+              <Text style={{ fontSize: '14px', color: '#6b7280', flexShrink: 0 }}>活动模式:</Text>
+              {gameTypeTabs.map((tab) => (
+                <View
+                  key={tab.key}
+                  style={pillStyle(gameTypeFilter === tab.key)}
+                  onClick={() => setGameTypeFilter(tab.key)}
+                >
+                  <Text style={pillTextStyle(gameTypeFilter === tab.key)}>{tab.label}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ ...filterBarStyle, marginBottom: '12px' }}>
+              <Text style={{ fontSize: '14px', color: '#6b7280', flexShrink: 0 }}>适用年龄:</Text>
+              {AGE_TABS.map((tab) => (
+                <View
+                  key={tab.key}
+                  style={pillStyle(ageFilter === tab.key)}
+                  onClick={() => setAgeFilter(tab.key)}
+                >
+                  <Text style={pillTextStyle(ageFilter === tab.key)}>{tab.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        renderItem={(item) => (
+          <GameCard
+            key={item.id}
+            title={item.title}
+            age={item.age}
+            gameType={item.game_type}
+            extra={formatTime(item.created_at)}
+            className="mb-3"
+            onClick={() =>
+              Taro.navigateTo({
+                url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
+              })
+            }
+            favorited={item.is_like === 1}
+            onToggleFavorite={() => handleToggleFavorite(item)}
+            rightSlot={<Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>}
+          />
+        )}
+      />
     </Layout>
   )
 }
