@@ -142,7 +142,7 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
           padding: '12px 14px',
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
+          gap: '14px',
         }}
       >
         {/* 播放/暂停按钮 */}
@@ -173,7 +173,7 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
         </View>
 
         {/* 进度条区域 */}
-        <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flex: 1, minWidth: 0, marginRight: '4px' }}>
           <Slider
             min={0}
             max={duration || 100}
