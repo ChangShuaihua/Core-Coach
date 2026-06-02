@@ -47,6 +47,7 @@ export interface WsChatData {
   session_id: string
   content: string
   workflow_id?: string
+  image_need?: number
   create_time: number
 }
 
@@ -117,6 +118,7 @@ export interface WsReplyData {
   request_id: string
   session_id: string
   content: string
+  images?: Array<{ name: string; url: string }>
   create_time: number
   finished: boolean
 }
@@ -138,6 +140,7 @@ export interface WsStreamDoneData {
   session_id: string
   total_chunks: number
   content: string
+  images?: Array<{ name: string; url: string }>
   create_time: number
   finished: true
 }

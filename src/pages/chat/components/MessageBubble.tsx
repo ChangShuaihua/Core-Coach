@@ -1,4 +1,5 @@
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import dayjs from 'dayjs'
 import { Message } from '@/types/chat'
 
@@ -74,6 +75,37 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
           {/* success / error / user：显示内容 */}
           {(isUser || message.status === 'success' || message.status === 'error') &&
             message.content && <Text style={textStyle}>{message.content}</Text>}
+
+          {/* 图片列表（仅助手消息 success 状态） */}
+          {!isUser && message.status === 'success' && message.images?.length && (
+            <View style={{ marginTop: '8px' }}>
+              {message.images.map((img, index) => (
+                <View key={index} style={{ marginBottom: '8px' }}>
+                  <Image
+                    src={img.url}
+                    mode="widthFix"
+                    style={{ width: '100%', borderRadius: '8px' }}
+                    onClick={() => {
+                      Taro.previewImage({
+                        urls: message.images!.map((i) => i.url),
+                        current: img.url,
+                      })
+                    }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: '12px',
+                      color: '#6b7280',
+                      marginTop: '4px',
+                      display: 'block',
+                    }}
+                  >
+                    {img.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </View>
     </View>

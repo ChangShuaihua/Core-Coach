@@ -4,11 +4,18 @@ export type MessageRole = 'user' | 'assistant' | 'system'
 // 消息状态
 export type MessageStatus = 'pending' | 'streaming' | 'success' | 'error'
 
+// 消息图片
+export interface MessageImage {
+  name: string
+  url: string
+}
+
 // 消息接口
 export interface Message {
   id: string
   role: MessageRole
   content: string
+  images?: MessageImage[]
   timestamp: number
   status: MessageStatus
 }
@@ -109,6 +116,7 @@ export interface ChatStore {
     status: MessageStatus,
     content?: string
   ) => void
+  updateMessageImages: (sessionId: string, msgId: string, images: MessageImage[]) => void
 
   sendMessage: (content: string) => Promise<string | undefined>
   stopResponding: () => void

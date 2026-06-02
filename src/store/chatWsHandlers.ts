@@ -160,6 +160,9 @@ export function initWsHandlers() {
 
     const runtime = sessionRuntimes[runtimeKey]
     get().updateMessageStatus(runtimeKey, runtime.assistantMsgId, 'success', data.content)
+    if (data.images?.length) {
+      get().updateMessageImages(runtimeKey, runtime.assistantMsgId, data.images)
+    }
 
     // 兜底迁移：stream_chunk 未触发迁移时（如 chunk 阶段 session_id 为空），由 stream_done 兜住
     const sourcePending = findSourcePending(data.request_id)
@@ -188,6 +191,9 @@ export function initWsHandlers() {
 
     const runtime = sessionRuntimes[runtimeKey]
     get().updateMessageStatus(runtimeKey, runtime.assistantMsgId, 'success', data.content)
+    if (data.images?.length) {
+      get().updateMessageImages(runtimeKey, runtime.assistantMsgId, data.images)
+    }
 
     // 通过 requestId 找到发起请求的 pending session 迁移
     const sourcePending = findSourcePending(data.request_id)

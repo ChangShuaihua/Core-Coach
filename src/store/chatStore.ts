@@ -320,6 +320,14 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     })
   },
 
+  updateMessageImages: (sessionId, msgId, images) => {
+    set((state) => {
+      const messages = state.messagesBySession[sessionId] || []
+      const updated = messages.map((m) => (m.id === msgId ? { ...m, images } : m))
+      return { messagesBySession: { ...state.messagesBySession, [sessionId]: updated } }
+    })
+  },
+
   // ====== 发送消息（通过 WebSocket） ======
 
   sendMessage: async (content: string) => {
@@ -380,6 +388,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       session_id: isNewConversation ? '' : currentConversationId!,
       content,
       workflow_id: workflowId,
+      image_need: currentWorkflow?.imageNeed ?? 0,
       create_time: Math.floor(Date.now() / 1000),
     })
 
