@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text, Slider } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Play } from '@nutui/icons-react-taro'
+import { Play, ArrowDown } from '@nutui/icons-react-taro'
 
 interface MusicPlayerProps {
   musicUrl: string
@@ -83,6 +83,41 @@ export default function MusicPlayer({ musicUrl }: MusicPlayerProps) {
     }
   }
 
+  const handleDownload = () => {
+    Taro.showLoading({ title: '下载中...' })
+    Taro.downloadFile({
+      url: musicUrl,
+      success: (res) => {
+        if (res.statusCode === 200) {
+          Taro.saveFile({
+            tempFilePath: res.tempFilePath,
+            success: (file) => {
+              Taro.hideLoading()
+              Taro.openDocument({
+                filePath: file.savedFilePath,
+                showMenu: true,
+                fail: () => {
+                  Taro.showToast({ title: '已保存', icon: 'success' })
+                },
+              })
+            },
+            fail: () => {
+              Taro.hideLoading()
+              Taro.showToast({ title: '保存失败', icon: 'none' })
+            },
+          })
+        } else {
+          Taro.hideLoading()
+          Taro.showToast({ title: '下载失败', icon: 'none' })
+        }
+      },
+      fail: () => {
+        Taro.hideLoading()
+        Taro.showToast({ title: '下载失败', icon: 'none' })
+      },
+    })
+  }
+
   if (!musicUrl) return null
 
   return (
@@ -136,6 +171,21 @@ export default function MusicPlayer({ musicUrl }: MusicPlayerProps) {
             <Text style={{ fontSize: '14px', color: '#9ca3af' }}>{formatTime(currentTime)}</Text>
             <Text style={{ fontSize: '14px', color: '#9ca3af' }}>{formatTime(duration)}</Text>
           </View>
+        </View>
+        <View
+          style={{
+            width: '32px',
+            height: '32px',
+            backgroundColor: '#fff7ed',
+            borderRadius: '9999px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+          onClick={handleDownload}
+        >
+          <ArrowDown size={14} style={{ color: '#ea580c' }} />
         </View>
       </View>
     </View>

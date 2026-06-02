@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Refresh, Photograph, StarFill, ArrowLeft } from '@nutui/icons-react-taro'
@@ -48,6 +48,17 @@ interface ActionBarProps {
 export default function ActionBar({ actions }: ActionBarProps) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmAction, setConfirmAction] = useState<ActionConfig | null>(null)
+  const [safeAreaBottom, setSafeAreaBottom] = useState(0)
+
+  useEffect(() => {
+    try {
+      const systemInfo = Taro.getSystemInfoSync()
+      const safeArea = systemInfo.safeArea
+      if (safeArea) {
+        setSafeAreaBottom(systemInfo.screenHeight - safeArea.bottom)
+      }
+    } catch {}
+  }, [])
 
   if (actions.length === 0) return null
 
@@ -71,7 +82,10 @@ export default function ActionBar({ actions }: ActionBarProps) {
   }
 
   return (
-    <View className="flex-shrink-0 bg-white py-3 border-t border-gray-200">
+    <View
+      className="flex-shrink-0 bg-white py-3 border-t border-gray-200"
+      style={{ paddingBottom: `${12 + safeAreaBottom}px` }}
+    >
       <Canvas
         type="2d"
         id="shareCanvas"
