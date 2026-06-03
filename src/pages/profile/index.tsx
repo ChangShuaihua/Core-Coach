@@ -2,6 +2,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowRight } from '@nutui/icons-react-taro'
 import { logout } from '@/api/login'
+import { getUserInfo } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
@@ -12,13 +13,23 @@ import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
 
 export default function ProfilePage() {
   useAuthCheck()
-  const { clearAuth, userInfo: storeUserInfo } = useUserStore()
+  const { clearAuth, userInfo: storeUserInfo, setUserInfo } = useUserStore()
 
   const userInfo = storeUserInfo ?? {
     account: '',
     nickName: '未登录',
     avatarUrl: '',
   }
+
+  // 每次页面展示时拉取最新用户信息
+  Taro.useDidShow(async () => {
+    try {
+      const latest = await getUserInfo()
+      if (storeUserInfo) {
+        setUserInfo({ ...storeUserInfo, ...latest })
+      }
+    } catch {}
+  })
 
   const handleLogout = async () => {
     Taro.showModal({
