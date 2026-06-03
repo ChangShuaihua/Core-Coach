@@ -52,6 +52,7 @@ export interface ApiMessage {
   user_id: number
   role: 'user' | 'assistant'
   content: string
+  images?: { name: string; url: string }[] | null
   result?: 'success' | 'failure'
   created_at: string
 }

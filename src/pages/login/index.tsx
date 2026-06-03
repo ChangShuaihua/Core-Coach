@@ -96,27 +96,27 @@ export default function Login() {
     Taro.switchTab({ url: '/pages/chat/index' })
   }
 
+  const [logging, setLogging] = useState(false)
+
   const handleWechatLogin = async () => {
-    const MAX_RETRY = 2
-    for (let i = 0; i <= MAX_RETRY; i++) {
-      try {
-        const { code } = await Taro.login()
-        const res = await login({ login_type: 'wechat', code, account: '', password: '' })
-        setAccessToken(res.accessToken)
-        setRefreshToken(res.refreshToken)
-        setAccessExpireTime(res.accessExpire)
-        setRefreshExpireTime(res.refreshExpire)
-        setUserInfo(res.userInfo)
-        ws.connect(res.accessToken)
-        if (!afterLogin(res.userInfo)) {
-          Taro.switchTab({ url: '/pages/chat/index' })
-        }
-        return
-      } catch (err: any) {
-        if (i === MAX_RETRY) {
-          Taro.showToast({ title: err?.message || '微信登录失败，请重试', icon: 'none' })
-        }
+    if (logging) return
+    setLogging(true)
+    try {
+      const { code } = await Taro.login()
+      const res = await login({ login_type: 'wechat', code, account: '', password: '' })
+      setAccessToken(res.accessToken)
+      setRefreshToken(res.refreshToken)
+      setAccessExpireTime(res.accessExpire)
+      setRefreshExpireTime(res.refreshExpire)
+      setUserInfo(res.userInfo)
+      ws.connect(res.accessToken)
+      if (!afterLogin(res.userInfo)) {
+        Taro.switchTab({ url: '/pages/chat/index' })
       }
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '微信登录失败，请重试', icon: 'none' })
+    } finally {
+      setLogging(false)
     }
   }
 
@@ -155,10 +155,11 @@ export default function Login() {
             size="large"
             color="var(--gradient-orange)"
             className="w-full mb-4"
+            disabled={logging}
             onClick={handleWechatLogin}
           >
             <View className="flex flex-row items-center justify-center">
-              <Text className="text-base font-medium">微信登录</Text>
+              <Text className="text-base font-medium">{logging ? '登录中...' : '微信登录'}</Text>
             </View>
           </Button>
 

@@ -1,5 +1,6 @@
 import { put, get, post, del } from '@/services/http'
 import type { Game } from '@/types/game'
+import type { UserInfo } from '@/types/profile'
 
 // ============ 账号设置 ============
 
@@ -21,6 +22,14 @@ export async function updatePassword(params: UpdatePasswordParams): Promise<Upda
 export async function getEncryptedPassword(publicKeyPem: string): Promise<string> {
   const res = await post<{ cipherText: string }>('/app/user/info', { publicKey: publicKeyPem })
   return res.data.cipherText
+}
+
+export async function getUserInfo(): Promise<Pick<UserInfo, 'nickName' | 'avatarUrl'>> {
+  const res = await get<{ nickname: string; avatar: string }>('/app/user/profile')
+  return {
+    nickName: res.data.nickname,
+    avatarUrl: res.data.avatar,
+  }
 }
 
 // ============ 收藏游戏 ============
