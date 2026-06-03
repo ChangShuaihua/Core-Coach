@@ -1,7 +1,8 @@
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, RichText } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import dayjs from 'dayjs'
 import { Message } from '@/types/chat'
+import { renderMarkdown } from '@/utils/markdown'
 
 // 格式化时间：今天显示时分，昨天显示"昨天 HH:mm"，更早显示完整日期
 function formatTime(timestamp: number): string {
@@ -64,17 +65,23 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
             <Text style={{ ...textStyle, color: '#9ca3af' }}>AI正在思考...</Text>
           )}
 
-          {/* streaming：打字机效果 */}
-          {!isUser && message.status === 'streaming' && (
-            <Text style={textStyle}>
-              {message.content}
-              <Text style={{ opacity: 0.5 }}>▍</Text>
-            </Text>
+          {/* streaming：打字机效果（Markdown 渲染） */}
+          {!isUser && message.status === 'streaming' && message.content && (
+            <RichText
+              nodes={renderMarkdown(message.content + '▍')}
+              style={{ ...textStyle, opacity: 0.85 }}
+            />
           )}
 
-          {/* success / error / user：显示内容 */}
-          {(isUser || message.status === 'success' || message.status === 'error') &&
-            message.content && <Text style={textStyle}>{message.content}</Text>}
+          {/* AI success：Markdown 渲染 */}
+          {!isUser && message.status === 'success' && message.content && (
+            <RichText nodes={renderMarkdown(message.content)} style={textStyle} />
+          )}
+
+          {/* AI error / user：纯文本 */}
+          {(isUser || message.status === 'error') && message.content && (
+            <Text style={textStyle}>{message.content}</Text>
+          )}
 
           {/* 图片列表（仅助手消息 success 状态） */}
           {!isUser && message.status === 'success' && message.images?.length && (
