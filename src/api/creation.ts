@@ -10,6 +10,8 @@ import type {
   ApiResponse,
   GenerateTaskResponse,
   GenerateTaskResult,
+  PendingTasksResponse,
+  StatusEventsResponse,
 } from '@/types/creation'
 import { post, get } from '../services/http'
 
@@ -148,5 +150,28 @@ export const startGenerateTask = async (
  */
 export const getTaskStatus = async (recordId: number): Promise<GenerateTaskResult> => {
   const res = await get<GenerateTaskResult>('/game/detail', { record_id: String(recordId) })
+  return res.data
+}
+
+/**
+ * 获取当前进行中的任务快照
+ * 接口: GET /game/pending
+ * 返回: { code, message, data: { tasks: PendingTaskItem[] } }
+ */
+export const getPendingTasks = async (): Promise<PendingTasksResponse> => {
+  const res = await get<PendingTasksResponse>('/game/pending')
+  return res.data
+}
+
+/**
+ * 补拉断线期间漏掉的状态事件
+ * 接口: GET /game/status/events
+ * 请求参数: { last_event_id: string }
+ * 返回: { code, message, data: { events: StatusEventItem[], last_event_id: string } }
+ */
+export const getStatusEvents = async (params: {
+  last_event_id: string
+}): Promise<StatusEventsResponse> => {
+  const res = await get<StatusEventsResponse>('/game/status/events', params)
   return res.data
 }

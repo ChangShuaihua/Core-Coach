@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { refreshTokenIfNeeded, getStoredState } from '@/services/http'
 import { ws } from '@/services/ws'
-import { initTaskWsHandlers } from '@/store/taskWsHandler'
+import { initTaskWsHandlers, syncPendingAndEvents } from '@/store/taskWsHandler'
 import 'dayjs/locale/zh-cn'
 import './app.scss'
 
@@ -46,6 +46,9 @@ function App({ children }) {
     if (accessToken && !ws.connected) {
       ws.connect(accessToken)
     }
+
+    // 同步进行中任务状态 + 补拉漏消息
+    syncPendingAndEvents()
   })
 
   return <View>{children}</View>
