@@ -114,7 +114,7 @@ export default function CreationWizardPage() {
       store.recordId === recordId &&
       (store.status === 'pending' || store.status === 'processing')
     ) {
-      // 同一个任务还在进行中，不重复提交
+      // 同一个任xuyao1务还在进行中，不重复提交
       Taro.showToast({ title: '任务已在进行中', icon: 'none' })
       setTimeout(() => {
         clearMode()
@@ -161,11 +161,7 @@ export default function CreationWizardPage() {
     <Layout
       title={skillName}
       showTabBar={false}
-      renderLeft={
-        <Text className="text-orange-600 text-base" onClick={handleCancel}>
-          取消
-        </Text>
-      }
+      renderLeft={<Text className="text-orange-600 text-base" onClick={handleCancel}></Text>}
     >
       <Wizard
         stepConfig={stepConfig}
