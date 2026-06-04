@@ -109,7 +109,20 @@ export default function CreationWizardPage() {
    * 任务提交成功，跳转回创作工坊
    */
   const handleTaskSubmitted = (recordId: number) => {
-    useTaskStore.getState().startTask(recordId, businessType)
+    const store = useTaskStore.getState()
+    if (
+      store.recordId === recordId &&
+      (store.status === 'pending' || store.status === 'processing')
+    ) {
+      // 同一个任务还在进行中，不重复提交
+      Taro.showToast({ title: '任务已在进行中', icon: 'none' })
+      setTimeout(() => {
+        clearMode()
+        navigateToCreation()
+      }, 1500)
+      return
+    }
+    store.startTask(recordId, businessType)
     Taro.showToast({ title: '任务已提交', icon: 'success' })
     setTimeout(() => {
       clearMode()
