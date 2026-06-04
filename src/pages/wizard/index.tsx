@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
 import { startGenerateTask } from '@/api/creation'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
@@ -161,7 +162,11 @@ export default function CreationWizardPage() {
     <Layout
       title={skillName}
       showTabBar={false}
-      renderLeft={<Text className="text-orange-600 text-base" onClick={handleCancel}></Text>}
+      renderLeft={
+        <View onClick={handleCancel}>
+          <ArrowLeft />
+        </View>
+      }
     >
       <Wizard
         stepConfig={stepConfig}

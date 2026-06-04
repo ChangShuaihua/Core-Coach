@@ -52,6 +52,7 @@ export const getSkillList = async (): Promise<Skill[]> => {
 function getDefaultIcon(skillId: number): string {
   switch (skillId) {
     case 1:
+    case 10:
       return gameIcon // 游戏生成
     case 4:
       return '📋' // 教案生成
