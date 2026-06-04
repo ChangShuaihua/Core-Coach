@@ -27,7 +27,10 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
 
   const initAudio = useCallback(() => {
     if (musicUrl && !audioRef.current) {
+      setCurrentTime(0)
+      setDuration(0)
       setLoading(true)
+
       const ctx = Taro.createInnerAudioContext()
       ctx.src = musicUrl
       ctx.loop = true
@@ -37,9 +40,8 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
       ctx.onTimeUpdate(() => {
         setCurrentTime(ctx.currentTime ?? 0)
       })
-      ctx.onCanplay(() => {
-        setDuration(ctx.duration ?? 0)
-        setLoading(false)
+      ctx.onDurationChange(() => {
+        if (ctx.duration) setDuration(ctx.duration)
       })
       ctx.onPlay(() => setLoading(false))
       ctx.onEnded(() => setIsPlaying(false))
