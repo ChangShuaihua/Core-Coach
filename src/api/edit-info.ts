@@ -1,5 +1,4 @@
-import Taro from '@tarojs/taro'
-import { put, getStoredState } from '@/services/http'
+import { put, upload } from '@/services/http'
 
 export interface UserInfo {
   nickname: string
@@ -48,32 +47,9 @@ export async function uploadAvatar(filePath: string): Promise<UploadAvatarRespon
     })
   }
 
-  const BASE_URL = process.env.TARO_APP_API_URL || 'http://192.168.10.7:8083/api/v1'
-  const { accessToken } = getStoredState()
-
-  return new Promise((resolve, reject) => {
-    Taro.uploadFile({
-      url: `${BASE_URL}/upload`,
-      filePath,
-      name: 'file',
-      header: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      success: (res) => {
-        try {
-          const data = JSON.parse(res.data)
-          if (data.code === 0 && data.data) {
-            resolve({ file_url: data.data.file_url })
-          } else {
-            reject(new Error(data.message || '上传头像失败'))
-          }
-        } catch {
-          reject(new Error('解析响应失败'))
-        }
-      },
-      fail: (err) => {
-        reject(new Error(err.errMsg || '上传头像失败'))
-      },
-    })
-  })
+  const result = await upload<UploadAvatarResponse>('/upload', filePath, 'file')
+  if (!result.data) {
+    throw new Error((result as any).message || '上传头像失败')
+  }
+  return result.data
 }
