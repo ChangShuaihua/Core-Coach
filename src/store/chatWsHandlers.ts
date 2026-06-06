@@ -415,5 +415,6 @@ export function initWsHandlers() {
 
   ws.on('disconnect', () => {
     get().setWsConnected(false)
+    processedChunkIndex.clear()
   })
 }
