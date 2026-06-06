@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { View, Text, Image, RichText } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import dayjs from 'dayjs'
@@ -31,6 +32,7 @@ interface MessageBubbleProps {
 
 const MessageBubble = ({ message }: MessageBubbleProps) => {
   const isUser = message.role === 'user'
+  const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set())
 
   const bubbleStyle: React.CSSProperties = {
     maxWidth: '75%',
@@ -46,6 +48,18 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
     lineHeight: '1.6',
     color: isUser ? '#ffffff' : message.status === 'error' ? '#dc2626' : '#1f2937',
     wordBreak: 'break-word',
+  }
+
+  const imageUrls = message.images?.map((img) => img.url) || []
+  const previewableImageUrls = imageUrls.filter((url) => !failedImageUrls.has(url))
+
+  const handleImageError = (url: string) => {
+    setFailedImageUrls((prev) => {
+      if (prev.has(url)) return prev
+      const next = new Set(prev)
+      next.add(url)
+      return next
+    })
   }
 
   return (
@@ -88,17 +102,40 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
             <View style={{ marginTop: '8px' }}>
               {message.images.map((img, index) => (
                 <View key={index} style={{ marginBottom: '8px' }}>
-                  <Image
-                    src={img.url}
-                    mode="widthFix"
-                    style={{ width: '100%', borderRadius: '8px' }}
-                    onClick={() => {
-                      Taro.previewImage({
-                        urls: message.images!.map((i) => i.url),
-                        current: img.url,
-                      })
-                    }}
-                  />
+                  {failedImageUrls.has(img.url) ? (
+                    <View
+                      style={{
+                        width: '100%',
+                        minHeight: '96px',
+                        borderRadius: '8px',
+                        backgroundColor: '#fff7ed',
+                        border: '1px solid #fed7aa',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '12px',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <Text style={{ fontSize: '12px', color: '#c2410c', textAlign: 'center' }}>
+                        图片加载失败，请稍后重试
+                      </Text>
+                    </View>
+                  ) : (
+                    <Image
+                      src={img.url}
+                      mode="widthFix"
+                      style={{ width: '100%', borderRadius: '8px' }}
+                      onError={() => handleImageError(img.url)}
+                      onClick={() => {
+                        if (!previewableImageUrls.length) return
+                        Taro.previewImage({
+                          urls: previewableImageUrls,
+                          current: img.url,
+                        })
+                      }}
+                    />
+                  )}
                   <Text
                     style={{
                       fontSize: '12px',

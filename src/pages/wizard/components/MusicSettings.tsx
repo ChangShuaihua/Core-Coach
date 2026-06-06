@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import { getMusicList, selectMusic } from '@/api/creation'
 import MusicPlayer from '@/components/MusicPlayer'
@@ -22,11 +22,7 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
-  useEffect(() => {
-    fetchMusicList()
-  }, [])
-
-  const fetchMusicList = async () => {
+  const fetchMusicList = useCallback(async () => {
     try {
       setLoading(true)
       const res = await getMusicList(recordId ? { record_id: recordId } : undefined)
@@ -37,7 +33,11 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
     } finally {
       setLoading(false)
     }
-  }
+  }, [recordId])
+
+  useEffect(() => {
+    fetchMusicList()
+  }, [fetchMusicList])
 
   const handleSelect = (id: number) => {
     setSelectedId(id)

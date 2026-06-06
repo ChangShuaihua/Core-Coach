@@ -68,7 +68,7 @@ export default function ChatPage() {
 
   // 监听键盘高度变化
   useEffect(() => {
-    Taro.onKeyboardHeightChange((res) => {
+    const handleKeyboardHeightChange = (res) => {
       setKeyboardHeight(res.height)
       // 键盘弹起时自动滚动到底部
       if (res.height > 0) {
@@ -76,9 +76,10 @@ export default function ChatPage() {
           scrollToBottomRef.current?.()
         }, 100)
       }
-    })
+    }
+    Taro.onKeyboardHeightChange(handleKeyboardHeightChange)
     return () => {
-      Taro.offKeyboardHeightChange(() => {})
+      Taro.offKeyboardHeightChange(handleKeyboardHeightChange)
     }
   }, [])
 
@@ -151,7 +152,7 @@ export default function ChatPage() {
 
         <View
           className="relative flex-shrink-0"
-          style={{ paddingBottom: `${keyboardHeight - 60}px` }}
+          style={{ paddingBottom: `${Math.max(keyboardHeight - 60, 0)}px` }}
         >
           <View className="absolute left-6" style={{ bottom: '140px' }}>
             <QuickActionsPopup
