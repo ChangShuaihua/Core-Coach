@@ -155,13 +155,13 @@ export const createMessageSlice: Slice<
     }
 
     const userMsg: import('@/types/chat').Message = {
-      id: 'u-' + Date.now(),
+      id: 'u-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       role: 'user',
       content,
       timestamp: Date.now(),
       status: 'success',
     }
-    const aiMsgId = 'a-' + Date.now()
+    const aiMsgId = 'a-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)
     const aiMsg: import('@/types/chat').Message = {
       id: aiMsgId,
       role: 'assistant',
