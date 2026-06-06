@@ -9,7 +9,10 @@ import type {
 } from '@/types/ws'
 import { getStoredState, refreshTokenIfNeeded } from './http'
 
-const WS_URL = 'wss://192.168.10.7:8083/api/v1/ws/connect'
+const WS_URL = process.env.TARO_APP_WS_URL || ''
+if (!WS_URL) {
+  console.warn('[WS] TARO_APP_WS_URL 未配置，请检查 .env 文件')
+}
 const PING_INTERVAL = 30_000
 const PONG_TIMEOUT = 10_000
 const RECONNECT_BASE_DELAY = 1_000
