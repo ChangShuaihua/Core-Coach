@@ -19,8 +19,6 @@ interface RequestOptions {
   withToken?: boolean
   // 失败重试次数，默认 0（不重试）
   retryCount?: number
-  // 是否为内部重试调用
-  _isRetry?: boolean
   // 是否为内部刷新重放调用，跳过 401 刷新逻辑
   _isRefreshRetry?: boolean
 }
@@ -245,7 +243,7 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
     if (retryCount > 0) {
       const retriedTimes = MAX_RETRY_COUNT - retryCount + 1
       log(`[Retry] ${url} - 第 ${retriedTimes} 次重试`)
-      return requestBase<T>({ ...options, retryCount: retryCount - 1, _isRetry: true })
+      return requestBase<T>({ ...options, retryCount: retryCount - 1 })
     }
 
     if (err.errMsg?.includes('timeout') || err.message?.includes('超时')) {
