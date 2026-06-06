@@ -101,7 +101,11 @@ const processedChunkIndex = new Map<string, number>()
 
 // ============ 事件处理注册 ============
 
+let initialized = false
+
 export function initWsHandlers() {
+  if (initialized) return
+  initialized = true
   const get = useChatStore.getState
 
   // ---- 新会话创建（主迁移路径：比 stream_chunk 更早到达） ----
