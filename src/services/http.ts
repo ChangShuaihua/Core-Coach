@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/store/useUserStore'
 
-const BASE_URL = process.env.TARO_APP_API_URL || 'https://192.168.10.7:8083/api/v1'
+const BASE_URL = process.env.TARO_APP_API_URL || 'http://47.95.112.67:8083/api/v1'
 const REQUEST_TIMEOUT = 10000
 const MAX_RETRY_COUNT = 2
 
