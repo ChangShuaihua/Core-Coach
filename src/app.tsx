@@ -9,12 +9,12 @@ import { initTaskWsHandlers } from '@/store/taskWsHandler'
 import 'dayjs/locale/zh-cn'
 import './app.scss'
 
+dayjs.locale('zh-cn')
+dayjs.extend(relativeTime)
+
 const HIDE_DISCONNECT_DELAY = 3000
 
 function App({ children }) {
-  dayjs.locale('zh-cn')
-  dayjs.extend(relativeTime)
-
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
