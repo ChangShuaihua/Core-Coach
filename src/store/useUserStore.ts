@@ -115,4 +115,4 @@ function manualHydrate() {
 manualHydrate()
 
 // 水合完成的 Promise（已同步完成）
-export const waitForHydration = Promise.resolve()
+// export const waitForHydration = Promise.resolve()

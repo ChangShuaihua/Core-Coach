@@ -1,7 +1,10 @@
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/store/useUserStore'
 
-const BASE_URL = process.env.TARO_APP_API_URL || 'http://192.168.10.7:8083/api/v1'
+const BASE_URL = process.env.TARO_APP_API_URL || ''
+if (!BASE_URL) {
+  console.warn('[HTTP] TARO_APP_API_URL 未配置，请检查 .env 文件')
+}
 const REQUEST_TIMEOUT = 10000
 const MAX_RETRY_COUNT = 2
 
@@ -16,8 +19,6 @@ interface RequestOptions {
   withToken?: boolean
   // 失败重试次数，默认 0（不重试）
   retryCount?: number
-  // 是否为内部重试调用
-  _isRetry?: boolean
   // 是否为内部刷新重放调用，跳过 401 刷新逻辑
   _isRefreshRetry?: boolean
 }
@@ -26,6 +27,10 @@ export interface ApiResponse<T = any> {
   code: number
   data: T
   message: string
+}
+
+function isBusinessSuccess(response: ApiResponse<any>): boolean {
+  return response.code === 0 || response.code === 200
 }
 
 function log(...args: any[]) {
@@ -37,7 +42,20 @@ function log(...args: any[]) {
 // ============ Token 刷新机制 ============
 
 let isRefreshing = false
-let pendingQueue: Array<(token: string) => void> = []
+let pendingQueue: Array<{
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}> = []
+
+function resolvePendingQueue(token: string) {
+  pendingQueue.forEach(({ resolve }) => resolve(token))
+  pendingQueue = []
+}
+
+function rejectPendingQueue(error: unknown) {
+  pendingQueue.forEach(({ reject }) => reject(error))
+  pendingQueue = []
+}
 
 // 提前 2 分钟视为即将过期
 const REFRESH_ADVANCE_MS = 2 * 60 * 1000
@@ -107,9 +125,10 @@ async function ensureTokenValid(): Promise<string | null> {
 
   if (isRefreshing) {
     // 已有刷新进行中，排队等待
-    return new Promise((resolve) => {
-      pendingQueue.push((newToken) => {
-        resolve(newToken)
+    return new Promise((resolve, reject) => {
+      pendingQueue.push({
+        resolve,
+        reject,
       })
     })
   }
@@ -117,12 +136,11 @@ async function ensureTokenValid(): Promise<string | null> {
   isRefreshing = true
   try {
     const newToken = await doRefreshToken()
-    pendingQueue.forEach((cb) => cb(newToken))
-    pendingQueue = []
+    resolvePendingQueue(newToken)
     return newToken
   } catch (err) {
     log('[Refresh] 刷新失败，执行登出')
-    pendingQueue = []
+    rejectPendingQueue(err)
     logoutAndRedirect()
     return null
   } finally {
@@ -141,12 +159,15 @@ export async function refreshTokenIfNeeded(): Promise<boolean> {
   return !!result
 }
 
-// 被动刷新（401 触发）
-async function handleTokenRefresh(failedOptions: RequestOptions): Promise<any> {
+// 被动刷新（401 触发）— 接受重试回调，request 和 upload 共用
+async function handleTokenRefresh(retryFn: (newToken: string) => Promise<any>): Promise<any> {
   if (isRefreshing) {
-    return new Promise((resolve) => {
-      pendingQueue.push((newToken) => {
-        resolve(executeWithToken(failedOptions, newToken))
+    return new Promise((resolve, reject) => {
+      pendingQueue.push({
+        resolve: (newToken) => {
+          retryFn(newToken).then(resolve).catch(reject)
+        },
+        reject,
       })
     })
   }
@@ -154,27 +175,16 @@ async function handleTokenRefresh(failedOptions: RequestOptions): Promise<any> {
   isRefreshing = true
   try {
     const newToken = await doRefreshToken()
-    pendingQueue.forEach((cb) => cb(newToken))
-    pendingQueue = []
-    return executeWithToken(failedOptions, newToken)
+    resolvePendingQueue(newToken)
+    return retryFn(newToken)
   } catch (err) {
     log('[Refresh] 401 刷新失败，执行登出')
-    pendingQueue = []
+    rejectPendingQueue(err)
     logoutAndRedirect()
     return Promise.reject(new Error('token 刷新失败'))
   } finally {
     isRefreshing = false
   }
-}
-
-function executeWithToken(options: RequestOptions, token: string): Promise<any> {
-  const header = { ...options.header, Authorization: `Bearer ${token}` }
-  return requestBase({
-    ...options,
-    header,
-    withToken: false,
-    _isRefreshRetry: true,
-  })
 }
 
 // ============ 核心请求函数 ============
@@ -230,10 +240,18 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
         return Promise.reject(new Error('未授权'))
       }
       // 尝试刷新 token
-      return handleTokenRefresh(options)
+      return handleTokenRefresh((newToken) => {
+        const retryHeader = { ...options.header, Authorization: `Bearer ${newToken}` }
+        return requestBase({
+          ...options,
+          header: retryHeader,
+          withToken: false,
+          _isRefreshRetry: true,
+        })
+      })
     }
 
-    if (statusCode >= 200 && statusCode < 300) {
+    if (statusCode >= 200 && statusCode < 300 && isBusinessSuccess(body)) {
       return body
     }
 
@@ -244,7 +262,7 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
     if (retryCount > 0) {
       const retriedTimes = MAX_RETRY_COUNT - retryCount + 1
       log(`[Retry] ${url} - 第 ${retriedTimes} 次重试`)
-      return requestBase<T>({ ...options, retryCount: retryCount - 1, _isRetry: true })
+      return requestBase<T>({ ...options, retryCount: retryCount - 1 })
     }
 
     if (err.errMsg?.includes('timeout') || err.message?.includes('超时')) {
@@ -290,4 +308,66 @@ export function del<T = any>(
   options?: Partial<RequestOptions>
 ) {
   return request<T>({ url, method: 'DELETE', data, ...options })
+}
+
+export async function upload<T = any>(
+  url: string,
+  filePath: string,
+  name: string = 'file'
+): Promise<ApiResponse<T>> {
+  const token = await ensureTokenValid()
+  if (!token) {
+    return Promise.reject(new Error('token 为空！'))
+  }
+
+  const header = { Authorization: `Bearer ${token}` }
+
+  const requestStartTime = Date.now()
+  log(`[UPLOAD] ${url}`, { filePath, name })
+
+  const doUpload = (hdr: Record<string, string>, isRefreshRetry = false): Promise<ApiResponse<T>> =>
+    new Promise((resolve, reject) => {
+      Taro.uploadFile({
+        url: `${BASE_URL}${url}`,
+        filePath,
+        name,
+        header: hdr,
+        success: (res) => {
+          const duration = Date.now() - requestStartTime
+          log(`[UPLOAD] ${url} - ${res.statusCode} (${duration}ms)`)
+
+          if (res.statusCode === 401) {
+            if (isRefreshRetry) {
+              logoutAndRedirect()
+              reject(new Error('未授权'))
+              return
+            }
+            handleTokenRefresh((newToken) => {
+              const newHeader = { ...hdr, Authorization: `Bearer ${newToken}` }
+              return doUpload(newHeader, true)
+            })
+              .then(resolve)
+              .catch(reject)
+            return
+          }
+
+          try {
+            const data = JSON.parse(res.data as string) as ApiResponse<T>
+            if (res.statusCode >= 200 && res.statusCode < 300 && isBusinessSuccess(data)) {
+              resolve(data)
+              return
+            }
+            reject(data)
+          } catch {
+            reject(new Error('解析响应失败'))
+          }
+        },
+        fail: (err) => {
+          log(`[UPLOAD] ${url} - Error:`, err.errMsg)
+          reject(new Error(err.errMsg || '上传失败'))
+        },
+      })
+    })
+
+  return doUpload(header)
 }

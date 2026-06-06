@@ -22,14 +22,17 @@ export default function AgeSelector({
   const unit = config?.unit ?? '岁'
 
   // 从 "8岁" 中提取数字部分
-  const extractNumber = (val?: string): number => {
-    if (!val) return min
-    const match = val.match(/\d+/)
-    if (!match) return min
-    const num = parseInt(match[0], 10)
-    if (Number.isNaN(num)) return min
-    return Math.min(max, Math.max(min, num))
-  }
+  const extractNumber = useCallback(
+    (val?: string): number => {
+      if (!val) return min
+      const match = val.match(/\d+/)
+      if (!match) return min
+      const num = parseInt(match[0], 10)
+      if (Number.isNaN(num)) return min
+      return Math.min(max, Math.max(min, num))
+    },
+    [max, min]
+  )
 
   const [currentValue, setCurrentValue] = useState<number>(() => extractNumber(value))
 
