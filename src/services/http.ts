@@ -29,6 +29,10 @@ export interface ApiResponse<T = any> {
   message: string
 }
 
+function isBusinessSuccess(response: ApiResponse<any>): boolean {
+  return response.code === 0 || response.code === 200
+}
+
 function log(...args: any[]) {
   if (isDev) {
     console.log('[HTTP]', ...args)
@@ -38,7 +42,20 @@ function log(...args: any[]) {
 // ============ Token 刷新机制 ============
 
 let isRefreshing = false
-let pendingQueue: Array<(token: string) => unknown> = []
+let pendingQueue: Array<{
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}> = []
+
+function resolvePendingQueue(token: string) {
+  pendingQueue.forEach(({ resolve }) => resolve(token))
+  pendingQueue = []
+}
+
+function rejectPendingQueue(error: unknown) {
+  pendingQueue.forEach(({ reject }) => reject(error))
+  pendingQueue = []
+}
 
 // 提前 2 分钟视为即将过期
 const REFRESH_ADVANCE_MS = 2 * 60 * 1000
@@ -108,9 +125,10 @@ async function ensureTokenValid(): Promise<string | null> {
 
   if (isRefreshing) {
     // 已有刷新进行中，排队等待
-    return new Promise((resolve) => {
-      pendingQueue.push((newToken) => {
-        resolve(newToken)
+    return new Promise((resolve, reject) => {
+      pendingQueue.push({
+        resolve,
+        reject,
       })
     })
   }
@@ -118,12 +136,11 @@ async function ensureTokenValid(): Promise<string | null> {
   isRefreshing = true
   try {
     const newToken = await doRefreshToken()
-    pendingQueue.forEach((cb) => cb(newToken))
-    pendingQueue = []
+    resolvePendingQueue(newToken)
     return newToken
   } catch (err) {
     log('[Refresh] 刷新失败，执行登出')
-    pendingQueue = []
+    rejectPendingQueue(err)
     logoutAndRedirect()
     return null
   } finally {
@@ -145,9 +162,12 @@ export async function refreshTokenIfNeeded(): Promise<boolean> {
 // 被动刷新（401 触发）— 接受重试回调，request 和 upload 共用
 async function handleTokenRefresh(retryFn: (newToken: string) => Promise<any>): Promise<any> {
   if (isRefreshing) {
-    return new Promise((resolve) => {
-      pendingQueue.push((newToken) => {
-        resolve(retryFn(newToken))
+    return new Promise((resolve, reject) => {
+      pendingQueue.push({
+        resolve: (newToken) => {
+          retryFn(newToken).then(resolve).catch(reject)
+        },
+        reject,
       })
     })
   }
@@ -155,12 +175,11 @@ async function handleTokenRefresh(retryFn: (newToken: string) => Promise<any>): 
   isRefreshing = true
   try {
     const newToken = await doRefreshToken()
-    pendingQueue.forEach((cb) => cb(newToken))
-    pendingQueue = []
+    resolvePendingQueue(newToken)
     return retryFn(newToken)
   } catch (err) {
     log('[Refresh] 401 刷新失败，执行登出')
-    pendingQueue = []
+    rejectPendingQueue(err)
     logoutAndRedirect()
     return Promise.reject(new Error('token 刷新失败'))
   } finally {
@@ -232,7 +251,7 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
       })
     }
 
-    if (statusCode >= 200 && statusCode < 300) {
+    if (statusCode >= 200 && statusCode < 300 && isBusinessSuccess(body)) {
       return body
     }
 
@@ -334,7 +353,11 @@ export async function upload<T = any>(
 
           try {
             const data = JSON.parse(res.data as string) as ApiResponse<T>
-            resolve(data)
+            if (res.statusCode >= 200 && res.statusCode < 300 && isBusinessSuccess(data)) {
+              resolve(data)
+              return
+            }
+            reject(data)
           } catch {
             reject(new Error('解析响应失败'))
           }

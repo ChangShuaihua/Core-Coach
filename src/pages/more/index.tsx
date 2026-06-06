@@ -85,7 +85,7 @@ export default function MorePage() {
         .map((t) => ({ key: t.name, label: t.name }))
       setGameTypeTabs([{ key: 'all', label: '全部' }, ...types])
     })
-  }, [])
+  }, [fetchData])
 
   // 筛选条件变化 → 清空 + page=1 重新请求
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function MorePage() {
     setTotal(0)
     pageRef.current = 1
     fetchData(1, false)
-  }, [gameTypeFilter, timeFilter, ageFilter])
+  }, [fetchData, gameTypeFilter, timeFilter, ageFilter])
 
   const handleLoadMore = useCallback(async () => {
     await fetchData(pageRef.current + 1, true)

@@ -38,7 +38,7 @@ export default function FavoriteGamesPage() {
 
   useEffect(() => {
     loadGames(1, false)
-  }, [])
+  }, [loadGames])
 
   const handleLoadMore = useCallback(async () => {
     await loadGames(pageRef.current + 1, true)

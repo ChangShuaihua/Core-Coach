@@ -36,7 +36,7 @@ export default function CreationPage() {
   const setSkillList = useCreationStore((state) => state.setSkillList)
   const [recentList, setRecentList] = useState<RecentCreation[]>([])
 
-  const fetchSkills = async () => {
+  const fetchSkills = useCallback(async () => {
     console.log('开始获取技能列表...')
     try {
       const data = await getSkillList()
@@ -45,7 +45,7 @@ export default function CreationPage() {
     } catch (error) {
       console.error('获取技能列表失败:', error)
     }
-  }
+  }, [setSkillList])
 
   const fetchRecent = useCallback(async () => {
     try {
@@ -68,7 +68,7 @@ export default function CreationPage() {
     if (!skillListLoaded) {
       fetchSkills()
     }
-  }, [])
+  }, [fetchSkills, skillListLoaded])
 
   // 订阅 WS 游戏生成状态，实时更新最近创作列表
   useEffect(() => {
@@ -270,10 +270,6 @@ export default function CreationPage() {
                   ) : (
                     <View className="flex items-center gap-2">
                       <View
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleToggleFavorite(item)
-                        }}
                         onTap={(e) => {
                           e.stopPropagation()
                           handleToggleFavorite(item)
