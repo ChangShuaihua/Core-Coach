@@ -33,7 +33,7 @@ export default function CreationPage() {
   useAuthCheck()
   const setMode = useCreationStore((state) => state.setMode)
   const skillList = useCreationStore((state) => state.skillList)
-  const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
+  // const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
   const setSkillList = useCreationStore((state) => state.setSkillList)
   const [recentList, setRecentList] = useState<RecentCreation[]>([])
 
