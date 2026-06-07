@@ -50,6 +50,18 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
     wordBreak: 'break-word',
   }
 
+  const handleLongPress = () => {
+    if (!message.content) return
+    Taro.showActionSheet({
+      itemList: ['复制文字'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          Taro.setClipboardData({ data: message.content })
+        }
+      },
+    })
+  }
+
   const imageUrls = message.images?.map((img) => img.url) || []
   const previewableImageUrls = imageUrls.filter((url) => !failedImageUrls.has(url))
 
@@ -73,7 +85,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
 
       {/* 气泡 */}
       <View className="flex" style={{ justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
-        <View style={bubbleStyle}>
+        <View style={bubbleStyle} onLongPress={handleLongPress}>
           {/* pending：打字指示器 */}
           {!isUser && message.status === 'pending' && (
             <Text style={{ ...textStyle, color: '#9ca3af' }}>AI正在思考...</Text>
