@@ -3,12 +3,14 @@ import { View, Text, Image } from '@tarojs/components'
 import { Star, StarFill } from '@nutui/icons-react-taro'
 import gameIcon from '@/assets/images/icon.png'
 import Card from '@/components/Card'
+import { STATUS_CONFIG } from '@/constants/creation'
 
 interface GameCardProps {
   title: string
   age?: number
   gameType?: string
   extra?: string
+  status?: number // 0=失败, 1=成功/默认, 2=排队中, 3=生成中
   favorited?: boolean
   onToggleFavorite?: () => void
   rightSlot?: ReactNode
@@ -21,12 +23,15 @@ export default function GameCard({
   age,
   gameType,
   extra,
+  status = 1,
   favorited,
   onToggleFavorite,
   rightSlot,
   onClick,
   className,
 }: GameCardProps) {
+  const hasStatusIcon = status !== undefined && status !== 1
+
   return (
     <Card className={className} onClick={onClick}>
       <View className="px-4 py-3">
@@ -35,7 +40,7 @@ export default function GameCard({
             style={{
               width: '48px',
               height: '48px',
-              backgroundColor: '#f97316',
+              backgroundColor: hasStatusIcon ? (status === 0 ? '#fecaca' : '#fed7aa') : '#f97316',
               borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
@@ -43,7 +48,11 @@ export default function GameCard({
               flexShrink: 0,
             }}
           >
-            <Image src={gameIcon} style={{ width: '48px', height: '48px' }} mode="aspectFit" />
+            {hasStatusIcon ? (
+              <Text style={{ fontSize: '24px' }}>{STATUS_CONFIG[status]?.icon || '✨'}</Text>
+            ) : (
+              <Image src={gameIcon} style={{ width: '48px', height: '48px' }} mode="aspectFit" />
+            )}
           </View>
           <View className="flex-1 min-w-0">
             <View className="flex items-center justify-between mb-2">

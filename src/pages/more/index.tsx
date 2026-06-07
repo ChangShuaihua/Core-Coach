@@ -3,7 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getCreationList } from '@/api/more'
-import { collectGame } from '@/api/profile'
+import { collectGame, removeFavoriteGame } from '@/api/profile'
 import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
 import PaginatedList from '@/components/PaginatedList'
@@ -100,14 +100,18 @@ export default function MorePage() {
   }, [fetchData])
 
   const handleToggleFavorite = useCallback(async (item: RecentCreation) => {
-    if (item.is_like === 1) {
-      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
-      return
-    }
     try {
-      const res = await collectGame(item.id)
-      setList((prev) => prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g)))
-      Taro.showToast({ title: '已收藏', icon: 'success' })
+      if (item.favorite_id) {
+        await removeFavoriteGame(item.favorite_id)
+        setList((prev) =>
+          prev.map((g) => (g.id === item.id ? { ...g, is_like: 0, favorite_id: undefined } : g))
+        )
+        Taro.showToast({ title: '已取消收藏', icon: 'success' })
+      } else {
+        const res = await collectGame(item.id)
+        setList((prev) => prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g)))
+        Taro.showToast({ title: '已收藏', icon: 'success' })
+      }
     } catch {
       Taro.showToast({ title: '操作失败', icon: 'none' })
     }
@@ -184,12 +188,17 @@ export default function MorePage() {
             age={item.age}
             gameType={item.game_type}
             extra={formatTime(item.created_at)}
+            status={item.status}
             className="mb-3"
-            onClick={() =>
-              Taro.navigateTo({
-                url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
-              })
-            }
+            onClick={() => {
+              if (item.status === 2 || item.status === 3) {
+                Taro.navigateTo({ url: `/pages/result/index?recordId=${item.id}` })
+              } else {
+                Taro.navigateTo({
+                  url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
+                })
+              }
+            }}
             favorited={item.is_like === 1}
             onToggleFavorite={() => handleToggleFavorite(item)}
             rightSlot={<Text style={{ fontSize: '14px', color: '#9ca3af' }}>›</Text>}

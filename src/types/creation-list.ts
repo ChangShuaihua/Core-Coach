@@ -7,6 +7,7 @@ export interface RecentCreation {
   age?: number
   game_type?: string
   is_like?: number
+  favorite_id?: number
 }
 
 export interface RecentListResponse {
