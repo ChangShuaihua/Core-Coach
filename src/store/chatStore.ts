@@ -31,12 +31,21 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const skills = all.filter((w) => w.type === 2)
 
     const { selectedSkill } = get()
-    if (selectedSkill && !all.some((w) => w.id === selectedSkill.id)) {
+    if (!selectedSkill) {
+      set({ defaultWorkflow: basic, skills })
+      return
+    }
+
+    const latestSelectedSkill = skills.find((w) => w.id === selectedSkill.id)
+
+    if (!latestSelectedSkill) {
       persistSkill(null)
       set({ defaultWorkflow: basic, skills, selectedSkill: null })
-    } else {
-      set({ defaultWorkflow: basic, skills })
+      return
     }
+
+    persistSkill(latestSelectedSkill)
+    set({ defaultWorkflow: basic, skills, selectedSkill: latestSelectedSkill })
   },
 
   toggleSkill: (skill) => {
