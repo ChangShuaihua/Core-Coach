@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
@@ -51,11 +51,14 @@ export default function ChatPage() {
     initWsHandlers()
   }, [])
 
-  // 页面挂载：拉取会话列表和技能列表，然后确保有临时会话
+  // 页面挂载：拉取会话列表，然后确保有临时会话
   useEffect(() => {
     loadConversations().then(() => ensurePendingConversation())
+  }, [loadConversations, ensurePendingConversation])
+
+  useDidShow(() => {
     loadWorkflows()
-  }, [loadConversations, ensurePendingConversation, loadWorkflows])
+  })
 
   // 切换会话时拉取消息 + 刷新会话列表 + 重置滚动按钮状态
   useEffect(() => {
