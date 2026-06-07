@@ -60,16 +60,12 @@ export default function CreationPage() {
     }
   }, [])
 
-  // 页面每次可见时刷新列表
+  // 页面每次可见时刷新创作列表和技能列表
+  // 页面每次可见时刷新创作列表和技能列表
   useDidShow(() => {
     fetchRecent()
+    fetchSkills()
   })
-
-  useEffect(() => {
-    if (!skillListLoaded) {
-      fetchSkills()
-    }
-  }, [fetchSkills, skillListLoaded])
 
   // 订阅 WS 游戏生成状态，实时更新最近创作列表
   useEffect(() => {
