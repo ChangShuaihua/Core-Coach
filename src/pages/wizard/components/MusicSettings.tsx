@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, ScrollView } from '@tarojs/components'
 import { getMusicList, selectMusic } from '@/api/creation'
 import MusicPlayer from '@/components/MusicPlayer'
 import type { MusicItem, CurrentMusic } from '@/types/creation'
@@ -223,7 +223,7 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
             <Text style={{ fontSize: '14px', color: '#9ca3af' }}>暂无可选音乐</Text>
           </View>
         ) : (
-          <View style={{ display: 'flex', flexDirection: 'column' }}>
+          <ScrollView scrollY style={{ maxHeight: '40vh' }}>
             {musicList.map((music) => {
               const isSelected = selectedId === music.id
               return (
@@ -291,7 +291,7 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
                 </View>
               )
             })}
-          </View>
+          </ScrollView>
         )}
 
         {/* 试听播放器 */}

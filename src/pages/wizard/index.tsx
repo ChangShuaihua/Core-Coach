@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
 import { startGenerateTask } from '@/api/creation'
 import Layout from '@/components/Layout'
 import Wizard from '@/components/Wizard'
@@ -109,7 +110,20 @@ export default function CreationWizardPage() {
    * 任务提交成功，跳转回创作工坊
    */
   const handleTaskSubmitted = (recordId: number) => {
-    useTaskStore.getState().startTask(recordId, businessType)
+    const store = useTaskStore.getState()
+    if (
+      store.recordId === recordId &&
+      (store.status === 'pending' || store.status === 'processing')
+    ) {
+      // 同一个任xuyao1务还在进行中，不重复提交
+      Taro.showToast({ title: '任务已在进行中', icon: 'none' })
+      setTimeout(() => {
+        clearMode()
+        navigateToCreation()
+      }, 1500)
+      return
+    }
+    store.startTask(recordId, businessType)
     Taro.showToast({ title: '任务已提交', icon: 'success' })
     setTimeout(() => {
       clearMode()
@@ -149,9 +163,9 @@ export default function CreationWizardPage() {
       title={skillName}
       showTabBar={false}
       renderLeft={
-        <Text className="text-orange-600 text-base" onClick={handleCancel}>
-          取消
-        </Text>
+        <View onClick={handleCancel}>
+          <ArrowLeft />
+        </View>
       }
     >
       <Wizard

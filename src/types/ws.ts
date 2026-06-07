@@ -214,6 +214,29 @@ export interface WsGameGenerateStatusData {
   estimated_seconds?: number
   result?: WsGameGenerateResult
   error?: string
+  status_version: number
+  event_id: string
+}
+
+export interface PendingTaskItem {
+  record_id: number
+  status: 'queued' | 'generating' | 'success' | 'failed'
+  message: string
+  status_version: number
+  event_id: string
+  estimated_seconds?: number
+}
+
+export interface StatusEventItem {
+  record_id: number
+  status: 'queued' | 'generating' | 'success' | 'failed'
+  message: string
+  status_version: number
+  event_id: string
+  estimated_seconds?: number
+  result?: WsGameGenerateResult
+  error?: string
+  create_time: number
 }
 
 // ============ 错误码常量 ============
