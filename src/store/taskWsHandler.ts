@@ -1,3 +1,4 @@
+import { getPendingTasks, getStatusEvents } from '@/api/creation'
 import { ws } from '@/services/ws'
 import type { WsGameGenerateStatusData } from '@/types/ws'
 import { useTaskStore } from './taskStore'
@@ -27,6 +28,36 @@ export function mapWsStatus(status: string): number | undefined {
   return wsStatusToNum[status]
 }
 
+/** 同步进行中任务 + 补拉漏掉的状态事件 */
+export async function syncPendingAndEvents(): Promise<void> {
+  const store = useTaskStore.getState()
+  if (store.recordId === null) return
+  if (store.status === 'completed' || store.status === 'failed' || store.status === 'idle') return
+
+  try {
+    // 1. 获取当前进行中任务快照
+    const pendingRes = await getPendingTasks()
+    if (pendingRes.tasks?.length) {
+      store.handlePendingTasks(pendingRes.tasks)
+    }
+
+    // 2. 如果有 lastEventId，补拉漏掉的状态事件
+    const { lastEventId } = useTaskStore.getState()
+    if (lastEventId) {
+      try {
+        const eventsRes = await getStatusEvents({ last_event_id: lastEventId })
+        if (eventsRes.events?.length) {
+          store.handleStatusEvents(eventsRes.events, eventsRes.last_event_id)
+        }
+      } catch (e) {
+        console.error('[TaskWS] sync status events failed:', e)
+      }
+    }
+  } catch (e) {
+    console.error('[TaskWS] sync pending tasks failed:', e)
+  }
+}
+
 /**
  * 注册游戏生成任务的 WS 事件处理
  * 在 app 初始化时调用一次即可，全局生效
@@ -47,12 +78,12 @@ export function initTaskWsHandlers() {
     })
   })
 
-  // 断线重连成功后，兜底查询一次进行中的任务状态
+  // 断线重连成功后，同步进行中任务 + 补拉漏消息
   ws.on('connected', () => {
-    const { status, fallbackQuery } = useTaskStore.getState()
+    const { status } = useTaskStore.getState()
     if (status === 'pending' || status === 'processing') {
-      console.log('[TaskWS] reconnected, fallback query for active task')
-      fallbackQuery()
+      console.log('[TaskWS] reconnected, syncing pending tasks and events')
+      syncPendingAndEvents()
     }
   })
 }

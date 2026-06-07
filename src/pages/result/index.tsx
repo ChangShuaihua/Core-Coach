@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getTaskStatus, startGenerateTask } from '@/api/creation'
 import { collectGame } from '@/api/profile'
 import ActionBar from '@/components/ActionBar'
@@ -99,7 +100,15 @@ export default function ResultPage() {
 
   if (status === 2 || status === 3) {
     return (
-      <Layout title="生成中" showTabBar>
+      <Layout
+        title="生成中"
+        showTabBar={false}
+        renderLeft={
+          <View onClick={() => Taro.navigateBack()}>
+            <ArrowLeft size={22} color="#333" />
+          </View>
+        }
+      >
         <WaitingPage title="游戏" />
       </Layout>
     )

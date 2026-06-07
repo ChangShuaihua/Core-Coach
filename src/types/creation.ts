@@ -1,3 +1,7 @@
+import type { PendingTaskItem, StatusEventItem } from './ws'
+
+export type { PendingTaskItem, StatusEventItem }
+
 // 技能/工坊卡片
 export interface Skill {
   id: number
@@ -44,6 +48,7 @@ export interface GenerateTaskResult {
   status: TaskStatusCode
   status_text: string
   is_like?: number
+  favorite_id?: number
   age?: number
   game_type?: string
   game_name?: string
@@ -147,4 +152,15 @@ export interface ApiResponse<T = { [key: string]: any }> {
   data: T
   message: string
   [property: string]: any
+}
+
+// 进行中任务快照响应
+export interface PendingTasksResponse {
+  tasks: PendingTaskItem[]
+}
+
+// 状态事件补拉响应
+export interface StatusEventsResponse {
+  events: StatusEventItem[]
+  last_event_id: string
 }

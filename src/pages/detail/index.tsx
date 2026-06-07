@@ -3,7 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getTaskStatus, startGenerateTask } from '@/api/creation'
-import { collectGame } from '@/api/profile'
+import { collectGame, removeFavoriteGame } from '@/api/profile'
 import ActionBar from '@/components/ActionBar'
 import type { ActionConfig } from '@/components/ActionBar'
 import Layout from '@/components/Layout'
@@ -22,6 +22,7 @@ export default function DetailPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<Record<string, any>>({})
   const [liked, setLiked] = useState(false)
+  const [favoriteId, setFavoriteId] = useState<number | null>(null)
   const [subPageActive, setSubPageActive] = useState(false)
 
   const genResult = data.generatedResults?.[0]
@@ -42,6 +43,7 @@ export default function DetailPage() {
       setLoading(true)
       const game = await getTaskStatus(Number(id))
       setLiked(game.is_like === 1)
+      setFavoriteId(game.favorite_id ?? null)
       setData({
         age: game.age,
         gameType: game.game_type,
@@ -95,7 +97,18 @@ export default function DetailPage() {
 
   const handleCollect = async () => {
     if (liked) {
-      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
+      if (!favoriteId) {
+        Taro.showToast({ title: '无法取消收藏', icon: 'none' })
+        return
+      }
+      try {
+        await removeFavoriteGame(favoriteId)
+        setLiked(false)
+        setFavoriteId(null)
+        Taro.showToast({ title: '已取消收藏', icon: 'success' })
+      } catch {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
       return
     }
     if (!genResult?.record_id) {
@@ -105,6 +118,11 @@ export default function DetailPage() {
     try {
       const res = await collectGame(genResult.record_id)
       setLiked(res.is_like === 1)
+      // 收藏后重新拉取详情获取 favorite_id
+      if (res.is_like === 1 && detailId) {
+        const detail = await getTaskStatus(Number(detailId))
+        setFavoriteId(detail.favorite_id ?? null)
+      }
       Taro.showToast({ title: '收藏成功', icon: 'success' })
     } catch {
       Taro.showToast({ title: '操作失败', icon: 'none' })

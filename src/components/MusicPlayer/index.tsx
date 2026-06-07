@@ -18,6 +18,7 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)
   const [loading, setLoading] = useState(false)
   const audioRef = useRef<Taro.InnerAudioContext | null>(null)
+  const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -27,7 +28,10 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
 
   const initAudio = useCallback(() => {
     if (musicUrl && !audioRef.current) {
+      setCurrentTime(0)
+      setDuration(0)
       setLoading(true)
+
       const ctx = Taro.createInnerAudioContext()
       ctx.src = musicUrl
       ctx.loop = true
@@ -38,7 +42,21 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
         setCurrentTime(ctx.currentTime ?? 0)
       })
       ctx.onCanplay(() => {
-        setDuration(ctx.duration ?? 0)
+        if (ctx.duration) {
+          setDuration(ctx.duration)
+        } else {
+          // 小程序 onCanplay 时 duration 可能还是 0，轮询获取
+          let retry = 0
+          durationTimerRef.current = setInterval(() => {
+            if (ctx.duration || retry++ > 20) {
+              if (ctx.duration) setDuration(ctx.duration)
+              if (durationTimerRef.current) {
+                clearInterval(durationTimerRef.current)
+                durationTimerRef.current = null
+              }
+            }
+          }, 200)
+        }
         setLoading(false)
       })
       ctx.onPlay(() => setLoading(false))
@@ -55,6 +73,10 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
   useEffect(() => {
     initAudio()
     return () => {
+      if (durationTimerRef.current) {
+        clearInterval(durationTimerRef.current)
+        durationTimerRef.current = null
+      }
       if (audioRef.current) {
         audioRef.current.stop()
         audioRef.current.destroy()

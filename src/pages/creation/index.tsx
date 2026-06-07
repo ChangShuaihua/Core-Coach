@@ -4,10 +4,11 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { StarFill, Star } from '@nutui/icons-react-taro'
 import { getSkillList } from '@/api/creation'
 import { getRecentCreations } from '@/api/more'
-import { collectGame } from '@/api/profile'
+import { collectGame, removeFavoriteGame } from '@/api/profile'
 import gameIcon from '@/assets/images/icon.png'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
+import { STATUS_CONFIG } from '@/constants/creation'
 import { useAuthCheck } from '@/hooks'
 import { useCreationStore } from '@/store'
 import { onGameGenerateStatus, mapWsStatus } from '@/store/taskWsHandler'
@@ -21,11 +22,11 @@ const typeIconMap: Record<string, string> = {
   lesson: '📋',
 }
 
-const statusConfig: Record<number, { text: string; color: string; icon: string }> = {
-  0: { text: '生成失败', color: 'text-red-500', icon: '😢' },
-  1: { text: '', color: '', icon: '' },
-  2: { text: '排队中', color: 'text-orange-500', icon: '⏳' },
-  3: { text: '生成中', color: 'text-orange-500', icon: '✨' },
+// 状态对应的 Tailwind 文本颜色
+const statusColorMap: Record<number, string> = {
+  0: 'text-red-500',
+  2: 'text-orange-500',
+  3: 'text-orange-500',
 }
 
 export default function CreationPage() {
@@ -59,16 +60,12 @@ export default function CreationPage() {
     }
   }, [])
 
-  // 页面每次可见时刷新列表
+  // 页面每次可见时刷新创作列表和技能列表
+  // 页面每次可见时刷新创作列表和技能列表
   useDidShow(() => {
     fetchRecent()
+    fetchSkills()
   })
-
-  useEffect(() => {
-    if (!skillListLoaded) {
-      fetchSkills()
-    }
-  }, [fetchSkills, skillListLoaded])
 
   // 订阅 WS 游戏生成状态，实时更新最近创作列表
   useEffect(() => {
@@ -93,16 +90,20 @@ export default function CreationPage() {
   }, [])
 
   const handleToggleFavorite = useCallback(async (item: RecentCreation) => {
-    if (item.is_like === 1) {
-      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
-      return
-    }
     try {
-      const res = await collectGame(item.id)
-      setRecentList((prev) =>
-        prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g))
-      )
-      Taro.showToast({ title: '已收藏', icon: 'success' })
+      if (item.favorite_id) {
+        await removeFavoriteGame(item.favorite_id)
+        setRecentList((prev) =>
+          prev.map((g) => (g.id === item.id ? { ...g, is_like: 0, favorite_id: undefined } : g))
+        )
+        Taro.showToast({ title: '已取消收藏', icon: 'success' })
+      } else {
+        const res = await collectGame(item.id)
+        setRecentList((prev) =>
+          prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g))
+        )
+        Taro.showToast({ title: '已收藏', icon: 'success' })
+      }
     } catch {
       Taro.showToast({ title: '操作失败', icon: 'none' })
     }
@@ -146,15 +147,17 @@ export default function CreationPage() {
           <View key={rowIndex} className="flex gap-4">
             {row.map((skill) => {
               const isActive = skill.status === 1
+              const isLastAlone = rowIndex === skillRows.length - 1 && row.length === 1
 
               return (
                 <Card
                   key={skill.id}
-                  className={`flex-1 p-6 border-2 ${
+                  className={`${isLastAlone ? 'flex-2' : 'flex-1'} p-6 border-2 ${
                     isActive
                       ? 'border-orange-600 bg-white'
                       : 'border-gray-200 bg-gray-100 opacity-60'
                   }`}
+                  style={isLastAlone ? { width: '35%' } : undefined}
                 >
                   <View
                     className="flex flex-col items-center gap-3 text-center"
@@ -212,7 +215,8 @@ export default function CreationPage() {
             {recentList.map((item) => {
               const isProcessing = item.status === 2 || item.status === 3
               const isFailed = item.status === 0
-              const config = item.status !== undefined ? statusConfig[item.status] : null
+              const safeStatus = item.status as number
+              const config = item.status !== undefined ? STATUS_CONFIG[safeStatus] : null
 
               return (
                 <View
@@ -256,7 +260,7 @@ export default function CreationPage() {
                     <View className="flex items-center gap-2">
                       <Text className="text-xs text-gray-500">{formatTime(item.created_at)}</Text>
                       {isProcessing && (
-                        <Text className={`text-xs font-medium ${config?.color}`}>
+                        <Text className={`text-xs font-medium ${statusColorMap[safeStatus] || ''}`}>
                           {config?.text}
                         </Text>
                       )}
