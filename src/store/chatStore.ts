@@ -27,7 +27,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   loadWorkflows: async () => {
     const all = await chatApi.getWorkflows()
-    const basic = all.find((w) => w.type === 1) || null
+    const basic =
+      all.find((w) => w.type === 1 && w.title.includes('基础问答')) ||
+      all.find((w) => w.type === 1) ||
+      null
     const skills = all.filter((w) => w.type === 2)
 
     const { selectedSkill } = get()
