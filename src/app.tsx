@@ -12,7 +12,7 @@ import './app.scss'
 dayjs.locale('zh-cn')
 dayjs.extend(relativeTime)
 
-const HIDE_DISCONNECT_DELAY = 3000
+const HIDE_DISCONNECT_DELAY = 5000
 
 function App({ children }) {
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -22,7 +22,7 @@ function App({ children }) {
     initTaskWsHandlers()
   }, [])
 
-  // 后台时延迟断开（避免 previewImage 等原生组件触发误断开）
+  // 切后台时延迟断开（避免 previewImage 等原生组件触发误断开）
   useDidHide(() => {
     hideTimer.current = setTimeout(() => {
       hideTimer.current = null

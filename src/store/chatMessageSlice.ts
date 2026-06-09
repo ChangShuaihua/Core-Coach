@@ -154,6 +154,13 @@ export const createMessageSlice: Slice<
       return
     }
 
+    // 断连时不做本地乐观插入，避免出现未入库的“假消息”
+    if (!ws.canSend()) {
+      ws.tryReconnect()
+      Taro.showToast({ title: '连接断开，正在重连，请稍后再发', icon: 'none' })
+      return
+    }
+
     const userMsg: import('@/types/chat').Message = {
       id: 'u-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       role: 'user',
@@ -185,15 +192,6 @@ export const createMessageSlice: Slice<
         [requestId]: targetSessionId,
       },
     }))
-
-    // 检查连接状态
-    if (!ws.canSend()) {
-      ws.tryReconnect()
-      Taro.showToast({ title: '连接断开，正在重连...', icon: 'none' })
-      get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '连接断开，请稍后重试')
-      clearRuntime(targetSessionId)
-      return
-    }
 
     ws.send('chat', {
       output_type: currentWorkflow?.outputType === 0 ? 'sync' : 'stream',
