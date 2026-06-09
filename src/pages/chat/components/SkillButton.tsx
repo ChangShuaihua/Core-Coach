@@ -13,10 +13,10 @@ const SkillButton = ({ onClick, selectedSkillName }: SkillButtonProps) => {
   return (
     <View
       onClick={onClick}
-      className="ml-6 w-fit flex flex-row items-center px-2 py-1 shadow rounded-lg"
+      className="w-fit flex flex-row items-center px-2 py-1 shadow rounded-lg"
       style={{
         border: `1px solid ${isActive ? '#f97316' : '#d1d5db'}`,
-        backgroundColor: isActive ? '#fff7ed' : undefined,
+        backgroundColor: isActive ? '#fff7ed' : '#fff',
       }}
     >
       <Text className="text-sm" style={{ color: isActive ? '#f97316' : '#111827' }}>

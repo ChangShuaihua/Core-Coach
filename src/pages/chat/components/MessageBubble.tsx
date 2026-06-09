@@ -35,10 +35,10 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set())
 
   const bubbleStyle: React.CSSProperties = {
-    maxWidth: '75%',
+    maxWidth: '80%',
     borderRadius: '12px',
     padding: '10px 14px',
-    backgroundColor: isUser ? '#fe8329' : message.status === 'error' ? '#fef2f2' : '#f3f4f6',
+    backgroundColor: isUser ? '#fe8329' : message.status === 'error' ? '#fef2f2' : '#fafafab6',
     boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
     border: message.status === 'error' ? '1px solid #fca5a5' : 'none',
   }

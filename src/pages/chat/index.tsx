@@ -50,13 +50,11 @@ export default function ChatPage() {
   )
   const isViewer = currentConversationId ? sessionRoles[currentConversationId] === 'viewer' : false
 
-  // 初始化 WebSocket 事件处理（只执行一次）
   useEffect(() => {
     initWsHandlers()
     setWsConnected(ws.connected)
   }, [setWsConnected])
 
-  // 页面挂载：拉取会话列表，然后确保有临时会话
   useEffect(() => {
     loadConversations().then(() => ensurePendingConversation())
   }, [loadConversations, ensurePendingConversation])
@@ -65,7 +63,6 @@ export default function ChatPage() {
     loadWorkflows()
   })
 
-  // 切换会话时拉取消息 + 刷新会话列表 + 重置滚动按钮状态
   useEffect(() => {
     setShowScrollToBottom(false)
     if (currentConversationId && !sendingRef.current) {
@@ -74,11 +71,9 @@ export default function ChatPage() {
     }
   }, [currentConversationId, loadMessages, loadConversations])
 
-  // 监听键盘高度变化
   useEffect(() => {
     const handleKeyboardHeightChange = (res) => {
       setKeyboardHeight(res.height)
-      // 键盘弹起时自动滚动到底部
       if (res.height > 0) {
         setTimeout(() => {
           scrollToBottomRef.current?.()
@@ -95,7 +90,6 @@ export default function ChatPage() {
     async (content: string) => {
       if (isResponding) return
       sendingRef.current = true
-      // 先触发滚动到底部
       setScrollToBottomTrigger((prev) => prev + 1)
       try {
         await sendMessage(content)
@@ -167,7 +161,13 @@ export default function ChatPage() {
           className="relative flex-shrink-0"
           style={{ paddingBottom: `${Math.max(keyboardHeight - 60, 0)}px` }}
         >
-          <View className="absolute left-6" style={{ bottom: '140px' }}>
+          <View
+            className="absolute left-4"
+            style={{
+              bottom: 'calc(100% + 8px)',
+              zIndex: 110,
+            }}
+          >
             <QuickActionsPopup
               visible={showPopup}
               skills={skills}
@@ -176,11 +176,12 @@ export default function ChatPage() {
               onSelect={handleSelectSkill}
             />
           </View>
+
           {showScrollToBottom && (
             <View
               className="absolute"
               style={{
-                bottom: '100px',
+                bottom: 'calc(100% + 10px)',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: '36px',
@@ -195,17 +196,10 @@ export default function ChatPage() {
               }}
               onClick={() => scrollToBottomRef.current?.()}
             >
-              <Text style={{ fontSize: '16px', color: '#333' }}>⬇</Text>
+              <Text style={{ fontSize: '16px', color: '#333' }}>↓</Text>
             </View>
           )}
-          {isViewer && (
-            <View
-              className="mx-4 mb-2 px-4 py-2 rounded-lg text-center"
-              style={{ backgroundColor: '#fef3c7', color: '#92400e', fontSize: '13px' }}
-            >
-              你当前是浏览模式，无法发送消息
-            </View>
-          )}
+
           <ChatInput
             onSend={handleSend}
             onStop={handleStop}
