@@ -117,6 +117,10 @@ async function doRefreshToken(): Promise<string> {
   return result.accessToken
 }
 
+export async function forceRefreshToken(): Promise<string> {
+  return doRefreshToken()
+}
+
 // 主动刷新（请求前检查到即将过期时调用）
 async function ensureTokenValid(): Promise<string | null> {
   if (!isTokenExpiringSoon()) {

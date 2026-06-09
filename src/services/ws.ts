@@ -7,7 +7,7 @@ import type {
   WsDisconnectData,
   WsPingData,
 } from '@/types/ws'
-import { getStoredState, refreshTokenIfNeeded } from './http'
+import { forceRefreshToken, getStoredState, refreshTokenIfNeeded } from './http'
 
 const WS_URL = process.env.TARO_APP_WS_URL || ''
 if (!WS_URL) {
@@ -176,23 +176,6 @@ class WsManager {
     this.send('auth', { token })
   }
 
-  private async forceRefreshAccessToken(): Promise<string> {
-    const { refreshToken: refreshTokenStr } = getStoredState()
-    if (!refreshTokenStr) throw new Error('refreshToken 不存在')
-
-    const [{ refreshToken: refreshFn }, { useUserStore }] = await Promise.all([
-      import('@/api/login'),
-      import('@/store/useUserStore'),
-    ])
-    const result = await refreshFn(refreshTokenStr)
-    const store = useUserStore.getState()
-    store.setAccessToken(result.accessToken)
-    store.setRefreshToken(result.refreshToken)
-    store.setAccessExpireTime(result.accessExpire)
-    store.setRefreshExpireTime(result.refreshExpire)
-    return result.accessToken
-  }
-
   private async resolveLatestToken(fallbackToken = ''): Promise<string> {
     try {
       await refreshTokenIfNeeded()
@@ -241,9 +224,7 @@ class WsManager {
     try {
       const storedToken = getStoredState().accessToken
       const latestToken =
-        storedToken && storedToken !== this.token
-          ? storedToken
-          : await this.forceRefreshAccessToken()
+        storedToken && storedToken !== this.token ? storedToken : await forceRefreshToken()
 
       this.token = latestToken
       this.authFailed = false
