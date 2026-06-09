@@ -10,6 +10,7 @@ interface ChatInputProps {
   isResponding?: boolean
   selectedSkillName?: string | null
   disabled?: boolean
+  disabledReason?: string
 }
 
 const ChatInput = ({
@@ -19,6 +20,7 @@ const ChatInput = ({
   isResponding,
   selectedSkillName,
   disabled,
+  disabledReason,
 }: ChatInputProps) => {
   const [value, setValue] = useState('')
 
@@ -52,7 +54,7 @@ const ChatInput = ({
           <Textarea
             value={value}
             onInput={(e) => setValue(e.detail.value)}
-            placeholder={disabled ? '该会话正在其他设备使用中' : '发送消息...'}
+            placeholder={disabledReason || (disabled ? '暂时无法发送消息' : '发送消息...')}
             placeholderClass="text-gray-400"
             disabled={disabled}
             adjustPosition={false}
@@ -68,10 +70,10 @@ const ChatInput = ({
           onClick={handleAction}
           className="shadow w-7 rounded-xl flex items-center justify-center"
           style={{
-            backgroundColor: disabled
-              ? '#e5e7eb'
-              : isResponding
-                ? '#ef4444'
+            backgroundColor: isResponding
+              ? '#ef4444'
+              : disabled
+                ? '#e5e7eb'
                 : value.trim()
                   ? '#f97316'
                   : '#d1d5db',
@@ -83,6 +85,12 @@ const ChatInput = ({
           </Text>
         </View>
       </View>
+
+      {disabledReason && !isResponding && (
+        <View className="px-4 pb-3 bg-white">
+          <Text style={{ fontSize: '12px', color: '#9ca3af' }}>{disabledReason}</Text>
+        </View>
+      )}
     </View>
   )
 }

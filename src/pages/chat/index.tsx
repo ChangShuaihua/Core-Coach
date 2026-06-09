@@ -5,6 +5,7 @@ import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
+import { ws } from '@/services/ws'
 import { useChatStore } from '@/store/chatStore'
 import { initWsHandlers } from '@/store/chatWsHandlers'
 import { Skill } from '@/types/chat'
@@ -41,6 +42,8 @@ export default function ChatPage() {
   const toggleSkill = useChatStore((s) => s.toggleSkill)
   const selectedSkill = useChatStore((s) => s.selectedSkill)
   const sessionRoles = useChatStore((s) => s.sessionRoles)
+  const wsConnected = useChatStore((s) => s.wsConnected)
+  const setWsConnected = useChatStore((s) => s.setWsConnected)
 
   const isResponding = messages.some(
     (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
@@ -50,7 +53,8 @@ export default function ChatPage() {
   // 初始化 WebSocket 事件处理（只执行一次）
   useEffect(() => {
     initWsHandlers()
-  }, [])
+    setWsConnected(ws.connected)
+  }, [setWsConnected])
 
   // 页面挂载：拉取会话列表，然后确保有临时会话
   useEffect(() => {
@@ -119,6 +123,11 @@ export default function ChatPage() {
   }, [ensurePendingConversation])
 
   const showWelcome = messages.length === 0
+  const disabledReason = !wsConnected
+    ? '连接中，请稍后再发'
+    : isViewer
+      ? '当前为浏览模式，无法发送消息'
+      : ''
 
   return (
     <Layout
@@ -203,7 +212,8 @@ export default function ChatPage() {
             onSkillClick={() => setShowPopup((prev) => !prev)}
             isResponding={isResponding}
             selectedSkillName={selectedSkill?.title}
-            disabled={isViewer}
+            disabled={!!disabledReason}
+            disabledReason={disabledReason}
           />
         </View>
       </View>
