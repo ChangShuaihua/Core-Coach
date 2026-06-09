@@ -67,7 +67,7 @@ const ChatInput = ({
           className="flex-1 px-3 py-2"
           style={{
             minHeight: '40px',
-            borderRadius: '16px',
+            borderRadius: '12px',
             border: '1px solid #b8b8b8',
             backgroundColor: '#fff',
             boxShadow: '0 4px 8px rgba(15,23,42,0.08)',
@@ -99,7 +99,7 @@ const ChatInput = ({
           style={{
             width: '40px',
             height: '40px',
-            borderRadius: '50px',
+            borderRadius: '12px',
             backgroundColor: isResponding ? '#ef4444' : canSend ? '#f97316' : '#e5e7eb',
             flexShrink: 0,
           }}
