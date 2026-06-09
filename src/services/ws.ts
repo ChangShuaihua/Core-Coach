@@ -46,6 +46,7 @@ class WsManager {
   private token = ''
   private intentionalClose = false
   private authFailed = false
+  private authRecovering = false
   private connectionId = 0
   private isOnline = true
 
@@ -175,6 +176,90 @@ class WsManager {
     this.send('auth', { token })
   }
 
+  private async forceRefreshAccessToken(): Promise<string> {
+    const { refreshToken: refreshTokenStr } = getStoredState()
+    if (!refreshTokenStr) throw new Error('refreshToken 不存在')
+
+    const [{ refreshToken: refreshFn }, { useUserStore }] = await Promise.all([
+      import('@/api/login'),
+      import('@/store/useUserStore'),
+    ])
+    const result = await refreshFn(refreshTokenStr)
+    const store = useUserStore.getState()
+    store.setAccessToken(result.accessToken)
+    store.setRefreshToken(result.refreshToken)
+    store.setAccessExpireTime(result.accessExpire)
+    store.setRefreshExpireTime(result.refreshExpire)
+    return result.accessToken
+  }
+
+  private async resolveLatestToken(fallbackToken = ''): Promise<string> {
+    try {
+      await refreshTokenIfNeeded()
+    } catch {
+      console.warn('[WS] token refresh check failed, using latest stored token if available')
+    }
+
+    const { accessToken } = getStoredState()
+    return accessToken || fallbackToken || this.token
+  }
+
+  private async reconnectWithLatestToken(fallbackToken = ''): Promise<void> {
+    if (!this.isOnline) {
+      console.log('[WS] offline, skip reconnectWithLatestToken')
+      return
+    }
+
+    const latestToken = await this.resolveLatestToken(fallbackToken)
+    if (!latestToken) {
+      console.warn('[WS] cannot reconnect: no token')
+      return
+    }
+
+    this.token = latestToken
+    this.authFailed = false
+    this.intentionalClose = false
+    this.doConnect(latestToken)
+  }
+
+  private async recoverFromAuthExpired(data: { retry_after?: number } | undefined): Promise<void> {
+    if (this.authRecovering) return
+    this.authRecovering = true
+    this.authFailed = true
+    this._state = 'disconnected'
+    this.stopHeartbeat()
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+
+    try {
+      this.socketTask?.close({})
+    } catch {}
+
+    try {
+      const storedToken = getStoredState().accessToken
+      const latestToken =
+        storedToken && storedToken !== this.token
+          ? storedToken
+          : await this.forceRefreshAccessToken()
+
+      this.token = latestToken
+      this.authFailed = false
+      this.reconnectAttempts = 0
+      this.doConnect(latestToken)
+    } catch (err) {
+      console.warn('[WS] auth token recovery failed:', err)
+      const retryAfter = Number(data?.retry_after)
+      if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        this.scheduleReconnect(this.token, retryAfter * 1000)
+      }
+    } finally {
+      this.authRecovering = false
+    }
+  }
+
   // ============ 心跳 ============
 
   private startHeartbeat(): void {
@@ -244,21 +329,20 @@ class WsManager {
     this.scheduleReconnect(latestToken)
   }
 
-  private scheduleReconnect(token: string): void {
+  private scheduleReconnect(token: string, delayOverride?: number): void {
     if (this.reconnectTimer) return
     if (!this.isOnline) {
       console.log('[WS] offline, skip scheduleReconnect')
       return
     }
-    const delay = Math.min(
-      RECONNECT_BASE_DELAY * Math.pow(2, this.reconnectAttempts),
-      RECONNECT_MAX_DELAY
-    )
+    const delay =
+      delayOverride ??
+      Math.min(RECONNECT_BASE_DELAY * Math.pow(2, this.reconnectAttempts), RECONNECT_MAX_DELAY)
     this.reconnectAttempts++
     console.log(`[WS] reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
-      this.doConnect(token)
+      this.reconnectWithLatestToken(token)
     }, delay)
   }
 
@@ -284,6 +368,7 @@ class WsManager {
       case 'connected':
         this._state = 'authenticated'
         this.reconnectAttempts = 0
+        this.authFailed = false
         this.startHeartbeat()
         console.log('[WS] authenticated')
         // 有活跃 stream 时发送重连恢复
@@ -297,6 +382,10 @@ class WsManager {
 
       case 'auth_failed':
         console.error('[WS] auth_failed:', data)
+        if (data?.code === 401) {
+          this.recoverFromAuthExpired(data)
+          break
+        }
         this.authFailed = true
         this._state = 'disconnected'
         this.socketTask?.close({})
@@ -391,7 +480,7 @@ class WsManager {
         console.log('[WS] network restored, checking connection...')
         if (this._state === 'disconnected' && this.token) {
           this.reconnectAttempts = 0
-          this.doConnect(this.token)
+          this.reconnectWithLatestToken(this.token)
         }
       } else if (!res.isConnected) {
         console.log('[WS] network lost')

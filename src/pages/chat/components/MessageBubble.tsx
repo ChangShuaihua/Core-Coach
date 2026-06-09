@@ -94,7 +94,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
           {/* streaming：打字机效果（Markdown 渲染） */}
           {!isUser && message.status === 'streaming' && message.content && (
             <RichText
-              nodes={renderMarkdown(message.content + '▍')}
+              nodes={renderMarkdown(message.content + '|')}
               style={{ ...textStyle, opacity: 0.85 }}
             />
           )}

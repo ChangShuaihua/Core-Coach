@@ -16,6 +16,7 @@ import WelcomeScreen from './components/WelcomeScreen'
 
 export default function ChatPage() {
   useAuthCheck()
+
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
