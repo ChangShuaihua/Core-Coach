@@ -6,6 +6,7 @@ import { getUserInfo } from '@/api/profile'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
+import { isRefreshTokenExpired } from '@/services/http'
 import { useUserStore } from '@/store/useUserStore'
 import MenuList from './components/MenuList'
 import UserInfoCard from './components/UserInfoCard'
@@ -37,11 +38,18 @@ export default function ProfilePage() {
       content: '确定要退出登录吗？',
       success: async (res) => {
         if (res.confirm) {
+          let shouldClearAuth = false
           try {
             await logout()
+            shouldClearAuth = true
           } catch {
-            Taro.showToast({ title: '登出失败', icon: 'none' })
+            if (!isRefreshTokenExpired()) {
+              Taro.showToast({ title: '登出失败，请重试', icon: 'none' })
+              return
+            }
+            shouldClearAuth = true
           }
+          if (!shouldClearAuth) return
           clearAuth()
           Taro.reLaunch({
             url: '/pages/login/index',
