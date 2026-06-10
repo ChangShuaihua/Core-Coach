@@ -57,6 +57,7 @@ export async function getMessages(
     role: m.role,
     content: m.content,
     images: m.images ?? undefined,
+    options: m.options?.length ? m.options : undefined,
     timestamp: dayjs(m.created_at).valueOf(),
     status: m.result === 'failure' ? 'error' : 'success',
   }))

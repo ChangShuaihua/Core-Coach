@@ -28,14 +28,17 @@ function formatTime(timestamp: number): string {
 
 interface MessageBubbleProps {
   message: Message
+  onOptionClick?: (content: string) => void
+  optionDisabled?: boolean
 }
 
-const MessageBubble = ({ message }: MessageBubbleProps) => {
+const MessageBubble = ({ message, onOptionClick, optionDisabled }: MessageBubbleProps) => {
   const isUser = message.role === 'user'
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set())
+  const hasOptions = !isUser && message.status === 'success' && !!message.options?.length
 
   const bubbleStyle: React.CSSProperties = {
-    maxWidth: '80%',
+    maxWidth: '85%',
     borderRadius: '12px',
     padding: '10px 14px',
     backgroundColor: isUser ? '#fe8329' : message.status === 'error' ? '#fef2f2' : '#fafafab6',
@@ -102,6 +105,65 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
           {/* AI success：Markdown 渲染 */}
           {!isUser && message.status === 'success' && message.content && (
             <RichText nodes={renderMarkdown(message.content)} style={textStyle} />
+          )}
+
+          {hasOptions && (
+            <View style={{ marginTop: message.content ? '10px' : 0 }}>
+              {message.options!.map((option, index) => (
+                <View
+                  key={`${option}-${index}`}
+                  onClick={() => {
+                    if (optionDisabled) return
+                    onOptionClick?.(option)
+                  }}
+                  style={{
+                    marginTop: index === 0 ? 0 : '10px',
+                    padding: '8px 10px',
+                    borderRadius: '10px',
+                    border: '1px solid #d9d9d9',
+                    backgroundColor: '#ffffff',
+                    opacity: optionDisabled ? 0.6 : 1,
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: '14px',
+                      lineHeight: '18px',
+                      color: optionDisabled ? '#9ca3af' : '#1f2937',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {option}
+                  </Text>
+                  <View
+                    style={{
+                      flexShrink: 0,
+                      width: '14px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderTop: `2px solid ${optionDisabled ? '#d1d5db' : '#fe6601'}`,
+                        borderRight: `2px solid ${optionDisabled ? '#d1d5db' : '#fe6601'}`,
+                        transform: 'rotate(45deg)',
+                      }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
           )}
 
           {/* AI error / user：纯文本 */}

@@ -122,6 +122,7 @@ export default function ChatPage() {
     : isViewer
       ? '当前为浏览模式，无法发送消息'
       : ''
+  const optionDisabled = isResponding || isViewer || !wsConnected
 
   return (
     <Layout
@@ -150,6 +151,8 @@ export default function ChatPage() {
               hasMoreMessages={hasMoreMessages}
               isLoadingMore={isLoadingMore}
               onLoadMore={loadMoreMessages}
+              onOptionClick={handleSend}
+              optionDisabled={optionDisabled}
               scrollToBottomTrigger={scrollToBottomTrigger}
               onScrollToBottomStateChange={setShowScrollToBottom}
               scrollToBottomRef={scrollToBottomRef}

@@ -9,6 +9,8 @@ interface MessageListProps {
   hasMoreMessages: boolean
   isLoadingMore: boolean
   onLoadMore: () => void
+  onOptionClick?: (content: string) => void
+  optionDisabled?: boolean
   scrollToBottomTrigger?: number
   onScrollToBottomStateChange?: (show: boolean) => void
   scrollToBottomRef?: React.MutableRefObject<(() => void) | null>
@@ -19,6 +21,8 @@ const MessageList = ({
   hasMoreMessages,
   isLoadingMore,
   onLoadMore,
+  onOptionClick,
+  optionDisabled,
   scrollToBottomTrigger,
   onScrollToBottomStateChange,
   scrollToBottomRef,
@@ -97,7 +101,12 @@ const MessageList = ({
     >
       <View style={{ padding: '16px 0' }}>
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            onOptionClick={onOptionClick}
+            optionDisabled={optionDisabled}
+          />
         ))}
 
         <View

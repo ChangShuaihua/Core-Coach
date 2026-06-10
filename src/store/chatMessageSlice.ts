@@ -31,6 +31,7 @@ export const createMessageSlice: Slice<
     | 'appendMessage'
     | 'updateMessageStatus'
     | 'updateMessageImages'
+    | 'updateMessageOptions'
     | 'sendMessage'
     | 'stopResponding'
     | 'setWsConnected'
@@ -137,6 +138,15 @@ export const createMessageSlice: Slice<
     set((state: ChatStore) => {
       const messages = state.messagesBySession[sessionId] || []
       const updated = messages.map((m) => (m.id === msgId ? { ...m, images } : m))
+      return { messagesBySession: { ...state.messagesBySession, [sessionId]: updated } }
+    })
+  },
+
+  updateMessageOptions: (sessionId, msgId, options) => {
+    set((state: ChatStore) => {
+      const messages = state.messagesBySession[sessionId] || []
+      const nextOptions = options?.length ? options : undefined
+      const updated = messages.map((m) => (m.id === msgId ? { ...m, options: nextOptions } : m))
       return { messagesBySession: { ...state.messagesBySession, [sessionId]: updated } }
     })
   },
