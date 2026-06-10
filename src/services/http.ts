@@ -29,6 +29,15 @@ export interface ApiResponse<T = any> {
   message: string
 }
 
+export type TokenRefreshStatus = 'ok' | 'missing-auth' | 'refresh-expired' | 'temporary-failed'
+
+export interface TokenRefreshCheckResult {
+  ok: boolean
+  status: TokenRefreshStatus
+  token?: string
+  error?: unknown
+}
+
 function isBusinessSuccess(response: ApiResponse<any>): boolean {
   return response.code === 0 || response.code === 200
 }
@@ -195,13 +204,28 @@ async function ensureTokenValid(): Promise<string | null> {
  * 复用内部 ensureTokenValid，全局锁只有一套
  */
 export async function refreshTokenIfNeeded(): Promise<boolean> {
+  const result = await checkAndRefreshToken()
+  return result.ok
+}
+
+export async function checkAndRefreshToken(): Promise<TokenRefreshCheckResult> {
   const { accessToken, refreshToken } = getStoredState()
-  if (!accessToken || !refreshToken) return false
+  if (!accessToken || !refreshToken) {
+    return { ok: false, status: 'missing-auth' }
+  }
+  if (isRefreshTokenExpired()) {
+    return { ok: false, status: 'refresh-expired' }
+  }
   try {
-    const result = await ensureTokenValid()
-    return !!result
-  } catch {
-    return false
+    const token = await ensureTokenValid()
+    if (!token) return { ok: false, status: 'missing-auth' }
+    return { ok: true, status: 'ok', token }
+  } catch (error) {
+    return {
+      ok: false,
+      status: isAuthExpiredError(error) ? 'refresh-expired' : 'temporary-failed',
+      error,
+    }
   }
 }
 
