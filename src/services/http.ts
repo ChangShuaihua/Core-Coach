@@ -29,6 +29,15 @@ export interface ApiResponse<T = any> {
   message: string
 }
 
+export type TokenRefreshStatus = 'ok' | 'missing-auth' | 'refresh-expired' | 'temporary-failed'
+
+export interface TokenRefreshCheckResult {
+  ok: boolean
+  status: TokenRefreshStatus
+  token?: string
+  error?: unknown
+}
+
 function isBusinessSuccess(response: ApiResponse<any>): boolean {
   return response.code === 0 || response.code === 200
 }
@@ -65,11 +74,20 @@ export function getStoredState(): {
   accessToken: string
   refreshToken: string
   accessExpireTime: number
+  refreshExpireTime: number
   userInfo: { account: string; nickname: string; avatar: string } | null
 } {
   try {
     const raw = Taro.getStorageSync('user-storage')
-    if (!raw) return { accessToken: '', refreshToken: '', accessExpireTime: 0, userInfo: null }
+    if (!raw) {
+      return {
+        accessToken: '',
+        refreshToken: '',
+        accessExpireTime: 0,
+        refreshExpireTime: 0,
+        userInfo: null,
+      }
+    }
     const str = typeof raw === 'string' ? raw : JSON.stringify(raw)
     const parsed = JSON.parse(str)
     const s = parsed?.state || {}
@@ -77,10 +95,17 @@ export function getStoredState(): {
       accessToken: s.accessToken || '',
       refreshToken: s.refreshToken || '',
       accessExpireTime: s.accessExpireTime || 0,
+      refreshExpireTime: s.refreshExpireTime || 0,
       userInfo: s.userInfo || null,
     }
   } catch {
-    return { accessToken: '', refreshToken: '', accessExpireTime: 0, userInfo: null }
+    return {
+      accessToken: '',
+      refreshToken: '',
+      accessExpireTime: 0,
+      refreshExpireTime: 0,
+      userInfo: null,
+    }
   }
 }
 
@@ -88,6 +113,19 @@ function isTokenExpiringSoon(): boolean {
   const { accessExpireTime, accessToken } = getStoredState()
   if (!accessToken || !accessExpireTime) return false
   return Date.now() + REFRESH_ADVANCE_MS >= accessExpireTime
+}
+
+export function isRefreshTokenExpired(): boolean {
+  const { refreshToken, refreshExpireTime } = getStoredState()
+  if (!refreshToken || !refreshExpireTime) return true
+  return Date.now() >= refreshExpireTime
+}
+
+function isAuthExpiredError(err: any): boolean {
+  if (isRefreshTokenExpired()) return true
+  const statusCode = Number(err?.statusCode ?? err?.status)
+  const code = Number(err?.code)
+  return statusCode === 401 || code === 401
 }
 
 // 统一登出 + 跳转登录页（防重复执行）
@@ -104,7 +142,10 @@ export function logoutAndRedirect() {
 }
 
 async function doRefreshToken(): Promise<string> {
-  const refreshTokenStr = getStoredState().refreshToken
+  const { refreshToken: refreshTokenStr, refreshExpireTime } = getStoredState()
+  if (!refreshExpireTime || Date.now() >= refreshExpireTime) {
+    throw Object.assign(new Error('refreshToken expired'), { code: 401 })
+  }
   if (!refreshTokenStr) throw new Error('refreshToken 不存在')
   log('[Refresh] 开始刷新 token')
   const { refreshToken: refreshFn } = await import('@/api/login')
@@ -118,17 +159,11 @@ async function doRefreshToken(): Promise<string> {
 }
 
 export async function forceRefreshToken(): Promise<string> {
-  return doRefreshToken()
+  return refreshTokenWithLock()
 }
 
-// 主动刷新（请求前检查到即将过期时调用）
-async function ensureTokenValid(): Promise<string | null> {
-  if (!isTokenExpiringSoon()) {
-    return getStoredState().accessToken
-  }
-
+async function refreshTokenWithLock(): Promise<string> {
   if (isRefreshing) {
-    // 已有刷新进行中，排队等待
     return new Promise((resolve, reject) => {
       pendingQueue.push({
         resolve,
@@ -143,13 +178,25 @@ async function ensureTokenValid(): Promise<string | null> {
     resolvePendingQueue(newToken)
     return newToken
   } catch (err) {
-    log('[Refresh] 刷新失败，执行登出')
     rejectPendingQueue(err)
-    logoutAndRedirect()
-    return null
+    if (isAuthExpiredError(err)) {
+      log('[Refresh] auth expired, logout')
+      logoutAndRedirect()
+    } else {
+      log('[Refresh] refresh failed, keep local auth for retry', err)
+    }
+    throw err
   } finally {
     isRefreshing = false
   }
+}
+
+// 主动刷新（请求前检查到即将过期时调用）
+async function ensureTokenValid(): Promise<string | null> {
+  if (!isTokenExpiringSoon()) {
+    return getStoredState().accessToken
+  }
+  return refreshTokenWithLock()
 }
 
 /**
@@ -157,37 +204,38 @@ async function ensureTokenValid(): Promise<string | null> {
  * 复用内部 ensureTokenValid，全局锁只有一套
  */
 export async function refreshTokenIfNeeded(): Promise<boolean> {
+  const result = await checkAndRefreshToken()
+  return result.ok
+}
+
+export async function checkAndRefreshToken(): Promise<TokenRefreshCheckResult> {
   const { accessToken, refreshToken } = getStoredState()
-  if (!accessToken || !refreshToken) return false
-  const result = await ensureTokenValid()
-  return !!result
+  if (!accessToken || !refreshToken) {
+    return { ok: false, status: 'missing-auth' }
+  }
+  if (isRefreshTokenExpired()) {
+    return { ok: false, status: 'refresh-expired' }
+  }
+  try {
+    const token = await ensureTokenValid()
+    if (!token) return { ok: false, status: 'missing-auth' }
+    return { ok: true, status: 'ok', token }
+  } catch (error) {
+    return {
+      ok: false,
+      status: isAuthExpiredError(error) ? 'refresh-expired' : 'temporary-failed',
+      error,
+    }
+  }
 }
 
 // 被动刷新（401 触发）— 接受重试回调，request 和 upload 共用
 async function handleTokenRefresh(retryFn: (newToken: string) => Promise<any>): Promise<any> {
-  if (isRefreshing) {
-    return new Promise((resolve, reject) => {
-      pendingQueue.push({
-        resolve: (newToken) => {
-          retryFn(newToken).then(resolve).catch(reject)
-        },
-        reject,
-      })
-    })
-  }
-
-  isRefreshing = true
   try {
-    const newToken = await doRefreshToken()
-    resolvePendingQueue(newToken)
+    const newToken = await refreshTokenWithLock()
     return retryFn(newToken)
-  } catch (err) {
-    log('[Refresh] 401 刷新失败，执行登出')
-    rejectPendingQueue(err)
-    logoutAndRedirect()
-    return Promise.reject(new Error('token 刷新失败'))
-  } finally {
-    isRefreshing = false
+  } catch {
+    return Promise.reject(new Error('token refresh failed'))
   }
 }
 
@@ -236,7 +284,7 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
     if (statusCode === 401) {
       // withToken: false 的请求（如登录、刷新 token）返回 401，直接拒绝，不触发刷新
       if (!withToken) {
-        return Promise.reject(body)
+        return Promise.reject({ ...body, statusCode })
       }
       // 刷新重试的请求也 401，直接登出
       if (_isRefreshRetry) {
@@ -259,7 +307,7 @@ async function requestBase<T = any>(options: RequestOptions): Promise<ApiRespons
       return body
     }
 
-    return Promise.reject(body)
+    return Promise.reject({ ...body, statusCode })
   } catch (err: any) {
     log(`[${method}] ${url} - Error:`, err.message)
 
