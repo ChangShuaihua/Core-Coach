@@ -63,7 +63,7 @@ export const useUserStore = create<UserState>()(
         set({ refreshExpireTime: Date.now() + refreshExpire * 1000 }),
       setUserInfo: (userInfo) => set({ userInfo }),
       clearAuth: () => {
-        ws.disconnect()
+        ws.disconnect({ clearToken: true })
         clearSkillStorage()
         set({
           accessToken: '',

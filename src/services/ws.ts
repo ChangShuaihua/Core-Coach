@@ -20,6 +20,10 @@ const RECONNECT_MAX_DELAY = 30_000
 
 type EventHandler = (data: any) => void
 
+interface DisconnectOptions {
+  clearToken?: boolean
+}
+
 export interface ReconnectSession {
   sessionId: string
   lastStreamId: string
@@ -92,6 +96,22 @@ class WsManager {
     })
   }
 
+  private hasLocalAuth(): boolean {
+    const { accessToken, refreshToken } = getStoredState()
+    return !!accessToken && !!refreshToken
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+  }
+
+  private canReconnect(token = this.token): boolean {
+    return this.isOnline && !!token && this.hasLocalAuth()
+  }
+
   /** 将错过的消息重新注入事件系统，复用已有 handler */
   reemit(messages: Array<{ event_type: WsEventType; data: any }>): void {
     for (const msg of messages) {
@@ -102,12 +122,10 @@ class WsManager {
   // ============ 连接 ============
 
   connect(token: string): void {
+    if (!token || !this.hasLocalAuth()) return
     if (this._state === 'authenticated') return
 
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
+    this.clearReconnectTimer()
 
     this.token = token
     this.intentionalClose = false
@@ -118,6 +136,7 @@ class WsManager {
   }
 
   private doConnect(token: string): void {
+    if (!token || !this.hasLocalAuth()) return
     const connId = ++this.connectionId
     console.log('[WS] connecting...', `conn#${connId}`)
 
@@ -158,7 +177,7 @@ class WsManager {
         if (disconnected) return
         disconnected = true
         console.log(`[WS] ${reason}`, `conn#${connId}`)
-        this.handleDisconnect(token)
+        this.handleDisconnect()
       }
 
       task.onClose((res) => {
@@ -177,6 +196,7 @@ class WsManager {
   }
 
   private async resolveLatestToken(fallbackToken = ''): Promise<string> {
+    if (!this.hasLocalAuth()) return ''
     try {
       await refreshTokenIfNeeded()
     } catch {
@@ -188,7 +208,7 @@ class WsManager {
   }
 
   private async reconnectWithLatestToken(fallbackToken = ''): Promise<void> {
-    if (!this.isOnline) {
+    if (!this.canReconnect(fallbackToken || this.token)) {
       console.log('[WS] offline, skip reconnectWithLatestToken')
       return
     }
@@ -232,6 +252,7 @@ class WsManager {
       this.doConnect(latestToken)
     } catch (err) {
       console.warn('[WS] auth token recovery failed:', err)
+      if (!this.hasLocalAuth()) return
       const retryAfter = Number(data?.retry_after)
       if (Number.isFinite(retryAfter) && retryAfter > 0) {
         this.scheduleReconnect(this.token, retryAfter * 1000)
@@ -275,7 +296,7 @@ class WsManager {
 
   // ============ 断线重连 ============
 
-  private async handleDisconnect(token: string): Promise<void> {
+  private async handleDisconnect(): Promise<void> {
     this.stopHeartbeat()
     this._state = 'disconnected'
     if (this.authFailed) {
@@ -297,13 +318,14 @@ class WsManager {
 
     this.emit('disconnect', { reason: 'connection_lost' })
 
-    try {
-      await refreshTokenIfNeeded()
-    } catch {
-      console.warn('[WS] token refresh failed, retry with current token')
+    const refreshOk = await refreshTokenIfNeeded()
+    if (!refreshOk || !this.hasLocalAuth()) {
+      console.warn('[WS] token refresh failed, stop reconnect')
+      return
     }
     const { accessToken } = getStoredState()
-    const latestToken = accessToken || token
+    const latestToken = accessToken
+    if (!latestToken) return
     if (latestToken !== this.token) {
       this.token = latestToken
     }
@@ -312,7 +334,7 @@ class WsManager {
 
   private scheduleReconnect(token: string, delayOverride?: number): void {
     if (this.reconnectTimer) return
-    if (!this.isOnline) {
+    if (!this.canReconnect(token)) {
       console.log('[WS] offline, skip scheduleReconnect')
       return
     }
@@ -405,7 +427,7 @@ class WsManager {
   tryReconnect(): void {
     if (this._state === 'connecting' || this._state === 'authenticated') return
     const { accessToken } = getStoredState()
-    const token = accessToken || this.token
+    const token = accessToken
     if (!token) {
       console.warn('[WS] cannot reconnect: no token')
       return
@@ -414,7 +436,7 @@ class WsManager {
     this.scheduleReconnect(token)
   }
 
-  disconnect(): void {
+  disconnect(options: DisconnectOptions = {}): void {
     this.intentionalClose = true
     const data: WsDisconnectData = {
       reason: 'user_leaving',
@@ -422,15 +444,17 @@ class WsManager {
     }
     this.send('disconnect', data)
     this.stopHeartbeat()
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
+    this.clearReconnectTimer()
     this.socketTask?.close({})
     this.socketTask = null
     this._state = 'disconnected'
     this.reconnectAttempts = 0
     this.authFailed = false
+    if (options.clearToken) {
+      this.token = ''
+      this.authRecovering = false
+      this.connectionId++
+    }
   }
 
   private sendReconnect(ctx: ReconnectContext): void {
@@ -459,7 +483,7 @@ class WsManager {
 
       if (!wasOnline && res.isConnected) {
         console.log('[WS] network restored, checking connection...')
-        if (this._state === 'disconnected' && this.token) {
+        if (this._state === 'disconnected' && this.canReconnect()) {
           this.reconnectAttempts = 0
           this.reconnectWithLatestToken(this.token)
         }
