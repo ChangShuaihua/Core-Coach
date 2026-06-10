@@ -6,6 +6,7 @@ import type {
   WsStreamChunkData,
   WsStreamDoneData,
   WsReplyData,
+  WsOptionTabsData,
   WsErrorData,
   WsAbortResultData,
   WsReconnectResultData,
@@ -251,6 +252,34 @@ export function initWsHandlers() {
     }
 
     clearRuntime(runtimeKey)
+    useChatStore.setState((state) => {
+      const { [data.session_id]: _, ...rest } = state.lastStreamIds
+      return { lastStreamIds: rest }
+    })
+  })
+
+  // ---- 选项推荐回复（无法准确回答时返回 tip + options） ----
+  ws.on('option_tabs', (data: WsOptionTabsData) => {
+    const { sessionRuntimes } = get()
+    const runtimeKey =
+      (sessionRuntimes[data.session_id] ? data.session_id : null) ||
+      findSessionByRequestId(data.request_id)
+    if (!runtimeKey) return
+
+    clearSendTimeout(runtimeKey)
+    processedChunkIndex.delete(data.request_id)
+
+    const runtime = sessionRuntimes[runtimeKey]
+    const content = data.tip || ''
+    get().updateMessageStatus(runtimeKey, runtime.assistantMsgId, 'success', content)
+    get().updateMessageOptions(runtimeKey, runtime.assistantMsgId, data.options)
+
+    const sourcePending = findSourcePending(data.request_id)
+    if (sourcePending) {
+      migratePendingSession(sourcePending, data.session_id, content.slice(0, 10) || '新对话')
+    }
+
+    clearRuntime(sourcePending ? data.session_id : runtimeKey)
     useChatStore.setState((state) => {
       const { [data.session_id]: _, ...rest } = state.lastStreamIds
       return { lastStreamIds: rest }

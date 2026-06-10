@@ -9,6 +9,7 @@ export type WsEventType =
   | 'chat'
   | 'chat_session_created'
   | 'reply'
+  | 'option_tabs'
   | 'stream_chunk'
   | 'stream_done'
   | 'error'
@@ -121,6 +122,14 @@ export interface WsReplyData {
   images?: Array<{ name: string; url: string }>
   create_time: number
   finished: boolean
+}
+
+export interface WsOptionTabsData {
+  request_id: string
+  session_id: string
+  tip: string
+  options?: string[]
+  create_time: number
 }
 
 export interface WsStreamChunkData {

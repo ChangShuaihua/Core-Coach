@@ -16,6 +16,7 @@ export interface Message {
   role: MessageRole
   content: string
   images?: MessageImage[]
+  options?: string[]
   timestamp: number
   status: MessageStatus
 }
@@ -53,7 +54,8 @@ export interface ApiMessage {
   role: 'user' | 'assistant'
   content: string
   images?: { name: string; url: string }[] | null
-  result?: 'success' | 'failure'
+  options?: string[] | null
+  result?: 'success' | 'failure' | 'options'
   created_at: string
 }
 
@@ -111,6 +113,7 @@ export interface ChatStore {
     content?: string
   ) => void
   updateMessageImages: (sessionId: string, msgId: string, images: MessageImage[]) => void
+  updateMessageOptions: (sessionId: string, msgId: string, options?: string[]) => void
 
   sendMessage: (content: string) => Promise<string | undefined>
   stopResponding: () => void
