@@ -138,8 +138,9 @@ function ensureRemotePendingIfLastMessageIsUser(sessionId: string) {
 function createRemoteRuntimeForChunk(data: WsStreamChunkData): boolean {
   const sessionId = data.session_id
   const messages = useChatStore.getState().messagesBySession[sessionId] || []
-  const lastMessage = messages[messages.length - 1]
-  if (lastMessage?.role !== 'user' || data.chunk_index > 0) {
+  const lastUserIndex = messages.map((m) => m.role).lastIndexOf('user')
+  const hasUserContext = lastUserIndex >= 0
+  if (!hasUserContext || data.chunk_index > 0) {
     markRemoteDirty(sessionId)
     ensureRemotePendingIfLastMessageIsUser(sessionId)
     return false
