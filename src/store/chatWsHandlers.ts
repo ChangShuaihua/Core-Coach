@@ -130,12 +130,37 @@ function ensureRemotePendingIfLastMessageIsUser(sessionId: string) {
   })
 }
 
+function getRemoteChunkAssistantTarget(messages: import('@/types/chat').Message[]): {
+  canAcceptChunk: boolean
+  assistantMsgId?: string
+} {
+  const lastUserIndex = messages.map((m) => m.role).lastIndexOf('user')
+  if (lastUserIndex < 0) return { canAcceptChunk: false }
+
+  const messagesAfterLastUser = messages.slice(lastUserIndex + 1)
+  const openAssistant = messagesAfterLastUser.find(
+    (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
+  )
+
+  if (openAssistant) {
+    const hasClosedAssistantAfterLastUser = messagesAfterLastUser.some(
+      (m) => m.role === 'assistant' && m.status !== 'pending' && m.status !== 'streaming'
+    )
+    return {
+      canAcceptChunk: !hasClosedAssistantAfterLastUser,
+      assistantMsgId: openAssistant.id,
+    }
+  }
+
+  const lastMessage = messages[messages.length - 1]
+  return { canAcceptChunk: lastMessage?.role === 'user' }
+}
+
 function createRemoteRuntimeForChunk(data: WsStreamChunkData): boolean {
   const sessionId = data.session_id
   const messages = useChatStore.getState().messagesBySession[sessionId] || []
-  const lastUserIndex = messages.map((m) => m.role).lastIndexOf('user')
-  const hasUserContext = lastUserIndex >= 0
-  if (!hasUserContext || data.chunk_index > 0) {
+  const target = getRemoteChunkAssistantTarget(messages)
+  if (!target.canAcceptChunk || data.chunk_index > 0) {
     markRemoteDirty(sessionId)
     ensureRemotePendingIfLastMessageIsUser(sessionId)
     return false
@@ -144,13 +169,13 @@ function createRemoteRuntimeForChunk(data: WsStreamChunkData): boolean {
   const assistantMsgId = `a-${data.request_id}`
   useChatStore.setState((state) => {
     const currentMessages = state.messagesBySession[sessionId] || []
-    const lastAssistant = [...currentMessages]
-      .reverse()
-      .find((m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming'))
-    const messageId = lastAssistant?.id || assistantMsgId
+    const currentTarget = getRemoteChunkAssistantTarget(currentMessages)
+    if (!currentTarget.canAcceptChunk) return state
+
+    const messageId = currentTarget.assistantMsgId || assistantMsgId
 
     return {
-      messagesBySession: lastAssistant
+      messagesBySession: currentTarget.assistantMsgId
         ? state.messagesBySession
         : {
             ...state.messagesBySession,
