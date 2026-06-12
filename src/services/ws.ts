@@ -111,6 +111,15 @@ class WsManager {
     }
   }
 
+  private closeSocketTask(task: Taro.SocketTask | null = this.socketTask): void {
+    if (!task) return
+    try {
+      task.close({
+        fail: () => {},
+      })
+    } catch {}
+  }
+
   private canReconnect(token = this.token): boolean {
     return this.isOnline && !!token && this.hasLocalAuth()
   }
@@ -136,7 +145,7 @@ class WsManager {
 
   connect(token: string): void {
     if (!token || !this.hasLocalAuth()) return
-    if (this._state === 'authenticated') return
+    if (this._state === 'connecting' || this._state === 'authenticated') return
 
     this.clearReconnectTimer()
 
@@ -151,16 +160,18 @@ class WsManager {
 
   private doConnect(token: string): void {
     if (!token || !this.hasLocalAuth()) return
+    if (this._state === 'connecting' && this.socketTask) return
+    if (this._state === 'authenticated') return
+
     const connId = ++this.connectionId
     console.log('[WS] connecting...', `conn#${connId}`)
 
     if (this.socketTask) {
-      try {
-        this.socketTask.close({})
-      } catch {}
+      this.closeSocketTask()
       this.socketTask = null
     }
 
+    this._state = 'connecting'
     Taro.connectSocket({
       url: WS_URL,
       success: () => console.log('[WS] connectSocket success', `conn#${connId}`),
@@ -171,7 +182,10 @@ class WsManager {
         this.scheduleReconnect(token)
       },
     }).then((task) => {
-      if (connId !== this.connectionId) return
+      if (connId !== this.connectionId) {
+        this.closeSocketTask(task)
+        return
+      }
       this.socketTask = task
 
       task.onOpen(() => {
@@ -190,6 +204,9 @@ class WsManager {
         if (connId !== this.connectionId) return
         if (disconnected) return
         disconnected = true
+        if (this.socketTask === task) {
+          this.socketTask = null
+        }
         console.log(`[WS] ${reason}`, `conn#${connId}`)
         this.handleDisconnect()
       }
@@ -224,6 +241,7 @@ class WsManager {
   }
 
   private async reconnectWithLatestToken(fallbackToken = ''): Promise<void> {
+    if (this._state === 'connecting' || this._state === 'authenticated') return
     if (!this.canReconnect(fallbackToken || this.token)) {
       console.log('[WS] offline, skip reconnectWithLatestToken')
       return
@@ -253,9 +271,8 @@ class WsManager {
       this.reconnectTimer = null
     }
 
-    try {
-      this.socketTask?.close({})
-    } catch {}
+    this.closeSocketTask()
+    this.socketTask = null
 
     try {
       const storedToken = getStoredState().accessToken
@@ -420,13 +437,13 @@ class WsManager {
           } else {
             this.scheduleReconnect(this.token)
           }
-          this.socketTask?.close({})
+          this.closeSocketTask()
           break
         }
         this.authFailed = true
         this._state = 'disconnected'
         this.stopReconnectTemporarily(`auth_failed:${data?.code ?? 'unknown'}`)
-        this.socketTask?.close({})
+        this.closeSocketTask()
         break
 
       case 'pong':
@@ -482,7 +499,7 @@ class WsManager {
     this.send('disconnect', data)
     this.stopHeartbeat()
     this.clearReconnectTimer()
-    this.socketTask?.close({})
+    this.closeSocketTask()
     this.socketTask = null
     this._state = 'disconnected'
     this.reconnectAttempts = 0
