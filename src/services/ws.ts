@@ -26,6 +26,12 @@ interface DisconnectOptions {
   clearToken?: boolean
 }
 
+interface SendOptions {
+  requireAuth?: boolean
+  quiet?: boolean
+  reconnectOnFail?: boolean
+}
+
 export interface ReconnectSession {
   sessionId: string
   lastStreamId: string
@@ -223,7 +229,7 @@ class WsManager {
   // ============ 认证 ============
 
   private sendAuth(token: string): void {
-    this.send('auth', { token })
+    this.send('auth', { token }, { requireAuth: false })
   }
 
   private async resolveLatestToken(fallbackToken = ''): Promise<string> {
@@ -460,16 +466,48 @@ class WsManager {
 
   // ============ 发送消息 ============
 
-  send(event_type: WsEventType, data: any): void {
-    if (!this.socketTask) {
-      console.warn('[WS] no socket task, cannot send')
-      return
+  send(event_type: WsEventType, data: any, options: SendOptions = {}): boolean {
+    const { requireAuth = true, quiet = false, reconnectOnFail = true } = options
+
+    if (!this.socketTask || (requireAuth && !this.canSend())) {
+      if (!quiet) {
+        console.warn(`[WS] skip ${event_type}: socket is not ready`, {
+          state: this._state,
+          hasSocketTask: !!this.socketTask,
+        })
+      }
+      if (reconnectOnFail && this._state === 'disconnected') {
+        this.tryReconnect()
+      } else if (reconnectOnFail && this._state === 'authenticated' && !this.socketTask) {
+        this._state = 'disconnected'
+        this.tryReconnect()
+      }
+      return false
     }
+
+    if (!this.socketTask) {
+      return false
+    }
+
     const msg: WsMessage = { event_type, data }
     this.socketTask.send({
       data: JSON.stringify(msg),
-      fail: (err) => console.error(`[WS] send ${event_type} failed:`, err),
+      fail: (err) => this.handleSendFail(event_type, err, { quiet, reconnectOnFail }),
     })
+    return true
+  }
+
+  private handleSendFail(eventType: WsEventType, err: unknown, options: SendOptions): void {
+    if (!options.quiet) {
+      console.error(`[WS] send ${eventType} failed:`, err)
+    }
+    if (this.intentionalClose || options.reconnectOnFail === false) return
+
+    this.stopHeartbeat()
+    this.closeSocketTask()
+    this.socketTask = null
+    this._state = 'disconnected'
+    this.tryReconnect()
   }
 
   canSend(): boolean {
@@ -496,7 +534,7 @@ class WsManager {
       reason: 'user_leaving',
       create_time: Math.floor(Date.now() / 1000),
     }
-    this.send('disconnect', data)
+    this.send('disconnect', data, { requireAuth: false, quiet: true, reconnectOnFail: false })
     this.stopHeartbeat()
     this.clearReconnectTimer()
     this.closeSocketTask()

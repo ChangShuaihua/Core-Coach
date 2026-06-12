@@ -1,6 +1,6 @@
 import * as chatApi from '@/api/chat'
-import { ws } from '@/services/ws'
 import type { ChatStore, Conversation } from '@/types/chat'
+import { enterChatSession, leaveChatSession } from './chat-ws/sessionHandlers'
 
 type Slice<T> = (set: (...args: any[]) => void, get: () => ChatStore) => T
 
@@ -99,10 +99,7 @@ export const createConversationSlice: Slice<
     // 离开旧会话
     if (currentConversationId) {
       if (!currentConversationId.startsWith('pending-')) {
-        ws.send('session_leave', {
-          session_id: currentConversationId,
-          create_time: Math.floor(Date.now() / 1000),
-        })
+        leaveChatSession(currentConversationId)
       }
     }
 
@@ -134,10 +131,7 @@ export const createConversationSlice: Slice<
 
     // 离开旧会话（pending 不用通知服务端）
     if (currentConversationId && !currentConversationId.startsWith('pending-')) {
-      ws.send('session_leave', {
-        session_id: currentConversationId,
-        create_time: Math.floor(Date.now() / 1000),
-      })
+      leaveChatSession(currentConversationId)
     }
 
     // 前端状态切换
@@ -151,10 +145,7 @@ export const createConversationSlice: Slice<
     // 进入新会话（pending 不用通知服务端）
     if (id.startsWith('pending-')) return
 
-    ws.send('session_enter', {
-      session_id: id,
-      create_time: Math.floor(Date.now() / 1000),
-    })
+    enterChatSession(id)
 
     // 加载消息（如果未缓存）
     const { messagesBySession, remoteDirtySessions } = get()

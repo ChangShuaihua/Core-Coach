@@ -14,6 +14,7 @@ import type {
   WsSessionRoleChangeData,
 } from '@/types/ws'
 import { WS_ERROR_CODES } from '@/types/ws'
+import { enterChatSession, leaveChatSession } from './chat-ws/sessionHandlers'
 import { useChatStore, clearSendTimeout, clearRuntime, clearAbortFallbackTimer } from './chatStore'
 
 // ============ 辅助函数 ============
@@ -87,14 +88,8 @@ function migratePendingSession(pendingId: string, realSessionId: string, title?:
   })
 
   // 通知后端：先 leave 再 enter，确保拿到 chatter 角色
-  ws.send('session_leave', {
-    session_id: realSessionId,
-    create_time: Math.floor(Date.now() / 1000),
-  })
-  ws.send('session_enter', {
-    session_id: realSessionId,
-    create_time: Math.floor(Date.now() / 1000),
-  })
+  leaveChatSession(realSessionId)
+  enterChatSession(realSessionId)
 }
 
 // chunk 幂等：记录每个 request 已处理的最大 chunk_index（requestId 维度）
@@ -559,12 +554,7 @@ export function initWsHandlers() {
   ws.on('connected', () => {
     get().setWsConnected(true)
     const { currentConversationId } = get()
-    if (currentConversationId && !currentConversationId.startsWith('pending-')) {
-      ws.send('session_enter', {
-        session_id: currentConversationId,
-        create_time: Math.floor(Date.now() / 1000),
-      })
-    }
+    enterChatSession(currentConversationId)
   })
 
   ws.on('disconnect', () => {
