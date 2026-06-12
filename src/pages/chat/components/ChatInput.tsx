@@ -8,6 +8,7 @@ interface ChatInputProps {
   onStop?: () => void
   onSkillClick?: () => void
   isResponding?: boolean
+  stopDisabled?: boolean
   selectedSkillName?: string | null
   disabled?: boolean
   disabledReason?: string
@@ -18,13 +19,15 @@ const ChatInput = ({
   onStop,
   onSkillClick,
   isResponding,
+  stopDisabled,
   selectedSkillName,
   disabled,
   disabledReason,
 }: ChatInputProps) => {
   const [value, setValue] = useState('')
-  const canSend = !!value.trim() && !disabled
-  const canStop = !!isResponding && !disabled
+  const showStop = !!isResponding && !disabled
+  const canSend = !!value.trim() && !disabled && !isResponding
+  const canStop = showStop && !stopDisabled
 
   const handleSend = () => {
     if (!value.trim() || isResponding || disabled) return
@@ -33,7 +36,8 @@ const ChatInput = ({
   }
 
   const handleAction = () => {
-    if (canStop) {
+    if (showStop) {
+      if (!canStop) return
       onStop?.()
     } else {
       handleSend()
@@ -45,7 +49,7 @@ const ChatInput = ({
       {onSkillClick && (
         <View className="ml-2 px-4 pt-2 pb-2 flex flex-row items-center">
           <SkillButton onClick={onSkillClick} selectedSkillName={selectedSkillName} />
-          {disabledReason && !canStop && (
+          {disabledReason && !showStop && (
             <Text
               style={{
                 marginLeft: '12px',
@@ -101,7 +105,8 @@ const ChatInput = ({
             width: '40px',
             height: '40px',
             borderRadius: '12px',
-            backgroundColor: canStop ? '#ef4444' : canSend ? '#f97316' : '#e5e7eb',
+            backgroundColor: showStop ? '#ef4444' : canSend ? '#f97316' : '#e5e7eb',
+            opacity: showStop && stopDisabled ? 0.6 : 1,
             flexShrink: 0,
           }}
         >
@@ -113,7 +118,7 @@ const ChatInput = ({
               lineHeight: '22px',
             }}
           >
-            {canStop ? <Close size={18} color="#fff" /> : '↑'}
+            {showStop ? <Close size={18} color="#fff" /> : '↑'}
           </Text>
         </View>
       </View>

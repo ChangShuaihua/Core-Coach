@@ -1,6 +1,5 @@
 import Taro from '@tarojs/taro'
 import { ws } from '@/services/ws'
-import type { Conversation } from '@/types/chat'
 import type {
   WsChatSessionCreatedData,
   WsStreamChunkData,
@@ -14,174 +13,15 @@ import type {
   WsSessionRoleChangeData,
 } from '@/types/ws'
 import { WS_ERROR_CODES } from '@/types/ws'
+import { clearLastStreamId, markRemoteSessionNeedsReload } from './chat-ws/cleanup'
+import { migratePendingSession } from './chat-ws/pendingSession'
+import { createRemoteRuntimeForChunk } from './chat-ws/remoteRuntime'
+import { findSessionByRequestId, findSourcePending } from './chat-ws/runtimeResolver'
+import { enterChatSession } from './chat-ws/sessionHandlers'
 import { useChatStore, clearSendTimeout, clearRuntime, clearAbortFallbackTimer } from './chatStore'
-
-// ============ 辅助函数 ============
-
-/** 按 request_id 通过 requestToSession 索引查找 sessionId */
-function findSessionByRequestId(requestId: string): string | undefined {
-  return useChatStore.getState().requestToSession[requestId]
-}
-
-/** 通过 requestId 查找发起请求的 pending session */
-function findSourcePending(requestId: string): string | undefined {
-  const sessionId = useChatStore.getState().requestToSession[requestId]
-  if (sessionId?.startsWith('pending-')) return sessionId
-  return undefined
-}
-
-/**
- * 执行 pending -> real session 迁移（状态 + 运行时 + 会话通知）
- * - 原子更新：conversations / messagesBySession / sessionRuntimes / requestToSession / currentConversationId
- * - 迁移后发送 session_leave + session_enter，确保用户拿到 chatter 角色
- * - 若 realSession 已存在于 conversations（并发场景），合并而非覆盖
- */
-function migratePendingSession(pendingId: string, realSessionId: string, title?: string) {
-  const wasViewing = useChatStore.getState().currentConversationId === pendingId
-
-  useChatStore.setState((state) => {
-    const { [pendingId]: pendingConv, ...restConvs } = state.conversations
-    const { [pendingId]: pendingMsgs, ...restMsgs } = state.messagesBySession
-
-    // 迁移 runtime：pending → real session
-    const runtime = state.sessionRuntimes[pendingId]
-    let newRuntimes = state.sessionRuntimes
-    let newRequestToSession = state.requestToSession
-    if (runtime) {
-      const { [pendingId]: _, ...restRuntimes } = state.sessionRuntimes
-      newRuntimes = { ...restRuntimes, [realSessionId]: runtime }
-      const { [runtime.requestId]: __, ...restMapping } = state.requestToSession
-      newRequestToSession = { ...restMapping, [runtime.requestId]: realSessionId }
-    }
-
-    // realSession 已存在（并发场景：多个 pending 迁移到同一 session）
-    if (state.conversations[realSessionId]) {
-      const existingConv = state.conversations[realSessionId]
-      const existingMsgs = state.messagesBySession[realSessionId] || []
-      const mergedMsgs = [...existingMsgs, ...(pendingMsgs || [])]
-      return {
-        conversations: {
-          ...restConvs,
-          [realSessionId]: { ...existingConv, messageCount: mergedMsgs.length },
-        },
-        messagesBySession: { ...restMsgs, [realSessionId]: mergedMsgs },
-        sessionRuntimes: newRuntimes,
-        requestToSession: newRequestToSession,
-        ...(wasViewing ? { currentConversationId: realSessionId } : {}),
-      }
-    }
-
-    const newConv: Conversation = {
-      ...(pendingConv as Conversation),
-      id: realSessionId,
-      title: title || '新对话',
-    }
-
-    return {
-      conversations: { [realSessionId]: newConv, ...restConvs },
-      messagesBySession: { [realSessionId]: pendingMsgs || [], ...restMsgs },
-      sessionRuntimes: newRuntimes,
-      requestToSession: newRequestToSession,
-      ...(wasViewing ? { currentConversationId: realSessionId } : {}),
-    }
-  })
-
-  // 通知后端：先 leave 再 enter，确保拿到 chatter 角色
-  ws.send('session_leave', {
-    session_id: realSessionId,
-    create_time: Math.floor(Date.now() / 1000),
-  })
-  ws.send('session_enter', {
-    session_id: realSessionId,
-    create_time: Math.floor(Date.now() / 1000),
-  })
-}
 
 // chunk 幂等：记录每个 request 已处理的最大 chunk_index（requestId 维度）
 const processedChunkIndex = new Map<string, number>()
-
-function markRemoteDirty(sessionId: string) {
-  const state = useChatStore.getState()
-  state.markRemoteStreaming(sessionId)
-  state.markRemoteDirty(sessionId)
-}
-
-function ensureRemotePendingIfLastMessageIsUser(sessionId: string) {
-  useChatStore.setState((state) => {
-    const messages = state.messagesBySession[sessionId] || []
-    const lastMessage = messages[messages.length - 1]
-    if (lastMessage?.role !== 'user') return state
-
-    const hasOpenAssistant = messages.some(
-      (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
-    )
-    if (hasOpenAssistant) return state
-
-    return {
-      messagesBySession: {
-        ...state.messagesBySession,
-        [sessionId]: [
-          ...messages,
-          {
-            id: `remote-pending-${sessionId}-${lastMessage.id}`,
-            role: 'assistant',
-            content: '',
-            timestamp: Date.now(),
-            status: 'pending',
-          },
-        ],
-      },
-    }
-  })
-}
-
-function createRemoteRuntimeForChunk(data: WsStreamChunkData): boolean {
-  const sessionId = data.session_id
-  const messages = useChatStore.getState().messagesBySession[sessionId] || []
-  const lastUserIndex = messages.map((m) => m.role).lastIndexOf('user')
-  const hasUserContext = lastUserIndex >= 0
-  if (!hasUserContext || data.chunk_index > 0) {
-    markRemoteDirty(sessionId)
-    ensureRemotePendingIfLastMessageIsUser(sessionId)
-    return false
-  }
-
-  const assistantMsgId = `a-${data.request_id}`
-  useChatStore.setState((state) => {
-    const currentMessages = state.messagesBySession[sessionId] || []
-    const lastAssistant = [...currentMessages]
-      .reverse()
-      .find((m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming'))
-    const messageId = lastAssistant?.id || assistantMsgId
-
-    return {
-      messagesBySession: lastAssistant
-        ? state.messagesBySession
-        : {
-            ...state.messagesBySession,
-            [sessionId]: [
-              ...currentMessages,
-              {
-                id: messageId,
-                role: 'assistant',
-                content: '',
-                timestamp: Date.now(),
-                status: 'pending',
-              },
-            ],
-          },
-      sessionRuntimes: {
-        ...state.sessionRuntimes,
-        [sessionId]: { requestId: data.request_id, assistantMsgId: messageId, status: 'pending' },
-      },
-      requestToSession: {
-        ...state.requestToSession,
-        [data.request_id]: sessionId,
-      },
-    }
-  })
-  return true
-}
 
 // ============ 事件处理注册 ============
 
@@ -294,11 +134,7 @@ export function initWsHandlers() {
     })
     if (!runtimeKey) {
       if (data.session_id) {
-        get().markRemoteDirty(data.session_id)
-        get().clearRemoteStreaming(data.session_id)
-        if (get().currentConversationId === data.session_id) {
-          void get().loadMessages(data.session_id, { force: true })
-        }
+        markRemoteSessionNeedsReload(data.session_id)
       }
       return
     }
@@ -321,10 +157,7 @@ export function initWsHandlers() {
 
     clearRuntime(runtimeKey)
     // 清理 lastStreamId
-    useChatStore.setState((state) => {
-      const { [data.session_id]: _, ...rest } = state.lastStreamIds
-      return { lastStreamIds: rest }
-    })
+    clearLastStreamId(data.session_id)
     get().clearRemoteStreaming(data.session_id)
     get().clearRemoteDirty(data.session_id)
   })
@@ -337,11 +170,7 @@ export function initWsHandlers() {
       findSessionByRequestId(data.request_id)
     if (!runtimeKey) {
       if (data.session_id) {
-        get().markRemoteDirty(data.session_id)
-        get().clearRemoteStreaming(data.session_id)
-        if (get().currentConversationId === data.session_id) {
-          void get().loadMessages(data.session_id, { force: true })
-        }
+        markRemoteSessionNeedsReload(data.session_id)
       }
       return
     }
@@ -363,10 +192,7 @@ export function initWsHandlers() {
     }
 
     clearRuntime(runtimeKey)
-    useChatStore.setState((state) => {
-      const { [data.session_id]: _, ...rest } = state.lastStreamIds
-      return { lastStreamIds: rest }
-    })
+    clearLastStreamId(data.session_id)
   })
 
   // ---- 选项推荐回复（无法准确回答时返回 tip + options） ----
@@ -377,11 +203,7 @@ export function initWsHandlers() {
       findSessionByRequestId(data.request_id)
     if (!runtimeKey) {
       if (data.session_id) {
-        get().markRemoteDirty(data.session_id)
-        get().clearRemoteStreaming(data.session_id)
-        if (get().currentConversationId === data.session_id) {
-          void get().loadMessages(data.session_id, { force: true })
-        }
+        markRemoteSessionNeedsReload(data.session_id)
       }
       return
     }
@@ -401,10 +223,7 @@ export function initWsHandlers() {
     }
 
     clearRuntime(sourcePending ? data.session_id : runtimeKey)
-    useChatStore.setState((state) => {
-      const { [data.session_id]: _, ...rest } = state.lastStreamIds
-      return { lastStreamIds: rest }
-    })
+    clearLastStreamId(data.session_id)
   })
 
   // ---- 错误处理（优先 session_id，兜底 request_id，兜底当前会话，含 pending 迁移） ----
@@ -456,12 +275,7 @@ export function initWsHandlers() {
 
         clearRuntime(targetSessionId)
         // 清理 lastStreamId
-        if (data.session_id) {
-          useChatStore.setState((state) => {
-            const { [data.session_id!]: _, ...rest } = state.lastStreamIds
-            return { lastStreamIds: rest }
-          })
-        }
+        clearLastStreamId(data.session_id)
       }
     }
 
@@ -504,12 +318,7 @@ export function initWsHandlers() {
 
     clearRuntime(runtimeKey)
     // 清理 lastStreamId
-    if (data.session_id) {
-      useChatStore.setState((state) => {
-        const { [data.session_id!]: _, ...rest } = state.lastStreamIds
-        return { lastStreamIds: rest }
-      })
-    }
+    clearLastStreamId(data.session_id)
   })
 
   // ---- 重连结果（按 session_id 路由，missed_messages 复用已有 handler） ----
@@ -533,10 +342,7 @@ export function initWsHandlers() {
     // 服务端没有活跃流且本地还有 runtime，清理
     if (!data.has_active_stream && runtime) {
       clearRuntime(sessionId)
-      useChatStore.setState((state) => {
-        const { [sessionId]: _, ...rest } = state.lastStreamIds
-        return { lastStreamIds: rest }
-      })
+      clearLastStreamId(sessionId)
     }
   })
 
@@ -559,12 +365,7 @@ export function initWsHandlers() {
   ws.on('connected', () => {
     get().setWsConnected(true)
     const { currentConversationId } = get()
-    if (currentConversationId && !currentConversationId.startsWith('pending-')) {
-      ws.send('session_enter', {
-        session_id: currentConversationId,
-        create_time: Math.floor(Date.now() / 1000),
-      })
-    }
+    enterChatSession(currentConversationId)
   })
 
   ws.on('disconnect', () => {
