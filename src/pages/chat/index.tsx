@@ -15,6 +15,8 @@ import MessageList from './components/MessageList'
 import QuickActionsPopup from './components/QuickActions'
 import WelcomeScreen from './components/WelcomeScreen'
 
+const STOP_CLICK_DEBOUNCE_MS = 800
+
 export default function ChatPage() {
   useAuthCheck()
 
@@ -23,8 +25,11 @@ export default function ChatPage() {
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [scrollToBottomTrigger, setScrollToBottomTrigger] = useState(0)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+  const [stopClickLocked, setStopClickLocked] = useState(false)
   const scrollToBottomRef = useRef<(() => void) | null>(null)
   const sendingRef = useRef(false)
+  const stopClickLockedRef = useRef(false)
+  const stopClickUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const messagesBySession = useChatStore((s) => s.messagesBySession)
@@ -86,6 +91,14 @@ export default function ChatPage() {
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (stopClickUnlockTimerRef.current) {
+        clearTimeout(stopClickUnlockTimerRef.current)
+      }
+    }
+  }, [])
+
   const handleSend = useCallback(
     async (content: string) => {
       if (isResponding) return
@@ -101,6 +114,20 @@ export default function ChatPage() {
   )
 
   const handleStop = useCallback(() => {
+    if (stopClickLockedRef.current) return
+
+    stopClickLockedRef.current = true
+    setStopClickLocked(true)
+
+    if (stopClickUnlockTimerRef.current) {
+      clearTimeout(stopClickUnlockTimerRef.current)
+    }
+    stopClickUnlockTimerRef.current = setTimeout(() => {
+      stopClickLockedRef.current = false
+      stopClickUnlockTimerRef.current = null
+      setStopClickLocked(false)
+    }, STOP_CLICK_DEBOUNCE_MS)
+
     stopResponding()
   }, [stopResponding])
 
@@ -208,6 +235,7 @@ export default function ChatPage() {
             onStop={handleStop}
             onSkillClick={() => setShowPopup((prev) => !prev)}
             isResponding={isResponding}
+            stopDisabled={stopClickLocked}
             selectedSkillName={selectedSkill?.title}
             disabled={!!disabledReason}
             disabledReason={disabledReason}
