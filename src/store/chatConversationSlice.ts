@@ -157,17 +157,10 @@ export const createConversationSlice: Slice<
     })
 
     // 加载消息（如果未缓存）
-    const { messagesBySession } = get()
-    if (messagesBySession[id]) return
+    const { messagesBySession, remoteDirtySessions } = get()
+    if (messagesBySession[id] && !remoteDirtySessions[id]) return
 
-    const result = await chatApi.getMessages(id)
-    if (get().currentConversationId === id) {
-      set((state: ChatStore) => ({
-        messagesBySession: { ...state.messagesBySession, [id]: result.messages },
-        messageCursor: result.nextCursor,
-        hasMoreMessages: result.hasMore,
-      }))
-    }
+    await get().loadMessages(id, { force: !!remoteDirtySessions[id] })
   },
 
   deleteConversation: async (id: string) => {

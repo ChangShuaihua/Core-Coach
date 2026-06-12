@@ -24,6 +24,8 @@ export const createMessageSlice: Slice<
     | 'sessionRuntimes'
     | 'requestToSession'
     | 'lastStreamIds'
+    | 'remoteStreamingSessions'
+    | 'remoteDirtySessions'
     | 'wsConnected'
     | 'sessionRoles'
     | 'loadMessages'
@@ -37,6 +39,10 @@ export const createMessageSlice: Slice<
     | 'setWsConnected'
     | 'setSessionRole'
     | 'setLastStreamId'
+    | 'markRemoteStreaming'
+    | 'clearRemoteStreaming'
+    | 'markRemoteDirty'
+    | 'clearRemoteDirty'
   >
 > = (set, get) => ({
   // ====== State ======
@@ -47,21 +53,27 @@ export const createMessageSlice: Slice<
   sessionRuntimes: {},
   requestToSession: {},
   lastStreamIds: {},
+  remoteStreamingSessions: {},
+  remoteDirtySessions: {},
   wsConnected: false,
   sessionRoles: {},
 
   // ====== 消息 Actions ======
 
-  loadMessages: async (sessionId: string) => {
+  loadMessages: async (sessionId: string, options?: { force?: boolean }) => {
     if (sessionId.startsWith('pending-')) return
-    if (get().sessionRuntimes[sessionId]) return
+    if (!options?.force && get().sessionRuntimes[sessionId]) return
 
     const result = await chatApi.getMessages(sessionId)
     if (get().currentConversationId === sessionId) {
       set((state: ChatStore) => ({
-        messagesBySession: { ...state.messagesBySession, [sessionId]: result.messages },
+        messagesBySession: {
+          ...state.messagesBySession,
+          [sessionId]: withRemotePendingIfNeeded(sessionId, result.messages, state),
+        },
         messageCursor: result.nextCursor,
         hasMoreMessages: result.hasMore,
+        remoteDirtySessions: omitSession(state.remoteDirtySessions, sessionId),
       }))
     }
   },
@@ -292,4 +304,72 @@ export const createMessageSlice: Slice<
       lastStreamIds: { ...state.lastStreamIds, [sessionId]: streamId },
     }))
   },
+
+  markRemoteStreaming: (sessionId) => {
+    set((state: ChatStore) => ({
+      remoteStreamingSessions: { ...state.remoteStreamingSessions, [sessionId]: true },
+    }))
+  },
+
+  clearRemoteStreaming: (sessionId) => {
+    set((state: ChatStore) => {
+      const { [sessionId]: _, ...rest } = state.remoteStreamingSessions
+      return { remoteStreamingSessions: rest }
+    })
+  },
+
+  markRemoteDirty: (sessionId) => {
+    set((state: ChatStore) => ({
+      remoteDirtySessions: { ...state.remoteDirtySessions, [sessionId]: true },
+    }))
+  },
+
+  clearRemoteDirty: (sessionId) => {
+    set((state: ChatStore) => {
+      const { [sessionId]: _, ...rest } = state.remoteDirtySessions
+      return { remoteDirtySessions: rest }
+    })
+  },
 })
+
+function withRemotePendingIfNeeded(
+  sessionId: string,
+  messages: import('@/types/chat').Message[],
+  state: ChatStore
+) {
+  if (!messages.length) return messages
+
+  const hasActiveAssistant = messages.some(
+    (m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')
+  )
+  if (hasActiveAssistant) return messages
+
+  const lastMessage = messages[messages.length - 1]
+  if (lastMessage?.role !== 'user') return messages
+
+  const isRecent = Date.now() - lastMessage.timestamp < 3 * 60 * 1000
+  const shouldShowPending =
+    isRecent &&
+    (state.remoteStreamingSessions[sessionId] ||
+      state.remoteDirtySessions[sessionId] ||
+      state.sessionRoles[sessionId] === 'viewer' ||
+      state.conversations[sessionId]?.hasOtherDevice)
+
+  if (!shouldShowPending) return messages
+
+  return [
+    ...messages,
+    {
+      id: `remote-pending-${sessionId}-${lastMessage.id}`,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      status: 'pending',
+    } satisfies import('@/types/chat').Message,
+  ]
+}
+
+function omitSession(record: Record<string, boolean>, sessionId: string) {
+  const { [sessionId]: _, ...rest } = record
+  return rest
+}

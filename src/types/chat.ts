@@ -92,6 +92,8 @@ export interface ChatStore {
   sessionRuntimes: Record<string, SessionRuntime>
   requestToSession: Record<string, string> // requestId -> sessionId 辅助索引
   lastStreamIds: Record<string, string>
+  remoteStreamingSessions: Record<string, boolean>
+  remoteDirtySessions: Record<string, boolean>
 
   // ====== Actions ======
 
@@ -103,7 +105,7 @@ export interface ChatStore {
   addConversation: (conv: Conversation) => void
   updateConversation: (id: string, updates: Partial<Conversation>) => void
 
-  loadMessages: (sessionId: string) => Promise<void>
+  loadMessages: (sessionId: string, options?: { force?: boolean }) => Promise<void>
   loadMoreMessages: () => Promise<void>
   appendMessage: (sessionId: string, message: Message) => void
   updateMessageStatus: (
@@ -125,4 +127,8 @@ export interface ChatStore {
   setWsConnected: (connected: boolean) => void
   setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => void
   setLastStreamId: (sessionId: string, streamId: string) => void
+  markRemoteStreaming: (sessionId: string) => void
+  clearRemoteStreaming: (sessionId: string) => void
+  markRemoteDirty: (sessionId: string) => void
+  clearRemoteDirty: (sessionId: string) => void
 }
