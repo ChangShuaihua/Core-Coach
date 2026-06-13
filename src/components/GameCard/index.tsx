@@ -64,10 +64,6 @@ export default function GameCard({
                       e.stopPropagation()
                       onToggleFavorite?.()
                     }}
-                    onTap={(e) => {
-                      e.stopPropagation()
-                      onToggleFavorite?.()
-                    }}
                   >
                     {favorited ? (
                       <StarFill size="18" color="#ff9500" />
