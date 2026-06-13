@@ -246,7 +246,10 @@ export const createMessageSlice: Slice<
     if (!currentConversationId) return
 
     const runtime = sessionRuntimes[currentConversationId]
-    if (!runtime) return
+    if (!runtime?.requestId) {
+      Taro.showToast({ title: '只有发起该问题的设备才能中断', icon: 'none' })
+      return
+    }
 
     clearSendTimeout(currentConversationId)
 
