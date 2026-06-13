@@ -71,9 +71,9 @@ export default function AccountSettingsPage() {
         setShowPassword(false)
         timerRef.current = null
       }, 5000)
-    } catch {
+    } catch (err: any) {
       Taro.hideLoading()
-      Taro.showToast({ title: '获取密码失败', icon: 'none' })
+      Taro.showToast({ title: err?.message || '获取密码失败', icon: 'none' })
     }
   }
 
@@ -103,10 +103,10 @@ export default function AccountSettingsPage() {
       Taro.hideLoading()
       Taro.showToast({ title: '修改成功', icon: 'success' })
       closePopup()
-    } catch (error) {
+    } catch (err: any) {
       Taro.hideLoading()
-      Taro.showToast({ title: '修改失败', icon: 'none' })
-      console.error('修改密码失败:', error)
+      Taro.showToast({ title: err?.message || '修改失败', icon: 'none' })
+      console.error('修改密码失败:', err)
     }
   }
 

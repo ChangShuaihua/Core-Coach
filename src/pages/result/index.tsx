@@ -68,8 +68,8 @@ export default function ResultPage() {
         } else if (res.status === 0) {
           setError(res.user_message || '生成失败')
         }
-      } catch (e) {
-        setError('加载失败，请重试')
+      } catch (e: any) {
+        setError(e?.message || '加载失败，请重试')
       } finally {
         setLoading(false)
       }
@@ -127,8 +127,8 @@ export default function ResultPage() {
       setTimeout(() => {
         Taro.redirectTo({ url: `/pages/result/index?recordId=${res.record_id}` })
       }, 1500)
-    } catch {
-      Taro.showToast({ title: '重新生成失败', icon: 'none' })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
     }
   }
 
@@ -147,8 +147,8 @@ export default function ResultPage() {
       const res = await collectGame(Number(rid))
       setLiked(res.is_like === 1)
       Taro.showToast({ title: '收藏成功', icon: 'success' })
-    } catch {
-      Taro.showToast({ title: '操作失败', icon: 'none' })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
     }
   }
 

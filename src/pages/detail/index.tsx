@@ -49,9 +49,9 @@ export default function DetailPage() {
         gameType: game.game_type,
         generatedResults: [game],
       })
-    } catch (error) {
-      console.error('加载详情失败:', error)
-      Taro.showToast({ title: '加载失败', icon: 'none' })
+    } catch (err: any) {
+      console.error('加载详情失败:', err)
+      Taro.showToast({ title: err?.message || '加载失败', icon: 'none' })
     } finally {
       setLoading(false)
     }
@@ -90,8 +90,8 @@ export default function DetailPage() {
       setTimeout(() => {
         Taro.redirectTo({ url: `/pages/result/index?recordId=${res.record_id}` })
       }, 1500)
-    } catch {
-      Taro.showToast({ title: '重新生成失败', icon: 'none' })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
     }
   }
 
@@ -106,8 +106,8 @@ export default function DetailPage() {
         setLiked(false)
         setFavoriteId(null)
         Taro.showToast({ title: '已取消收藏', icon: 'success' })
-      } catch {
-        Taro.showToast({ title: '操作失败', icon: 'none' })
+      } catch (err: any) {
+        Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
       }
       return
     }
@@ -124,8 +124,8 @@ export default function DetailPage() {
         setFavoriteId(detail.favorite_id ?? null)
       }
       Taro.showToast({ title: '收藏成功', icon: 'success' })
-    } catch {
-      Taro.showToast({ title: '操作失败', icon: 'none' })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
     }
   }
 

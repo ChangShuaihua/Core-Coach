@@ -60,9 +60,9 @@ export default function Login() {
       const result = await uploadAvatar(tempFilePath)
       setAvatar(result.file_url)
       Taro.hideLoading()
-    } catch {
+    } catch (err: any) {
       Taro.hideLoading()
-      Taro.showToast({ title: '头像上传失败', icon: 'none' })
+      Taro.showToast({ title: err?.message || '头像上传失败', icon: 'none' })
     }
   }
 
@@ -83,9 +83,9 @@ export default function Login() {
       Taro.hideLoading()
       setShowProfilePopup(false)
       Taro.switchTab({ url: '/pages/chat/index' })
-    } catch {
+    } catch (err: any) {
       Taro.hideLoading()
-      Taro.showToast({ title: '保存失败', icon: 'none' })
+      Taro.showToast({ title: err?.message || '保存失败', icon: 'none' })
     }
   }
 
