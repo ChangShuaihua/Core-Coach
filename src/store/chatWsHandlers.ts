@@ -228,6 +228,11 @@ export function initWsHandlers() {
 
   // ---- 错误处理（优先 session_id，兜底 request_id，兜底当前会话，含 pending 迁移） ----
   ws.on('error', (data: WsErrorData) => {
+    if (data.code === WS_ERROR_CODES.ROLE) {
+      Taro.showToast({ title: data.message || '当前设备无权执行该操作', icon: 'none' })
+      return
+    }
+
     if (data.code === WS_ERROR_CODES.SESSION_OCCUPIED && data.session_id) {
       get().setSessionRole(data.session_id, 'viewer')
       Taro.showToast({ title: '该会话正在其他设备使用，仅可浏览', icon: 'none' })
