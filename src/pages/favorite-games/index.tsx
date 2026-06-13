@@ -75,8 +75,8 @@ export default function FavoriteGamesPage() {
             setIsManageMode(false)
             pageRef.current = 1
             loadGames(1, false)
-          } catch {
-            Taro.showToast({ title: '操作失败', icon: 'none' })
+          } catch (err: any) {
+            Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
           }
         }
       },
@@ -93,8 +93,8 @@ export default function FavoriteGamesPage() {
             await removeFavoriteGame(id)
             setGames(games.filter((g) => g.id !== id))
             Taro.showToast({ title: '已取消', icon: 'success' })
-          } catch {
-            Taro.showToast({ title: '操作失败', icon: 'none' })
+          } catch (err: any) {
+            Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
           }
         }
       },
