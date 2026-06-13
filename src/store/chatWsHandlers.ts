@@ -228,6 +228,11 @@ export function initWsHandlers() {
 
   // ---- 错误处理（优先 session_id，兜底 request_id，兜底当前会话，含 pending 迁移） ----
   ws.on('error', (data: WsErrorData) => {
+    if (data.code === WS_ERROR_CODES.ROLE) {
+      Taro.showToast({ title: data.message || '当前设备无权执行该操作', icon: 'none' })
+      return
+    }
+
     if (data.code === WS_ERROR_CODES.SESSION_OCCUPIED && data.session_id) {
       get().setSessionRole(data.session_id, 'viewer')
       Taro.showToast({ title: '该会话正在其他设备使用，仅可浏览', icon: 'none' })
@@ -285,40 +290,50 @@ export function initWsHandlers() {
   // ---- 中断确认（清理 runtime + pending 迁移） ----
   ws.on('abort_result', (data: WsAbortResultData) => {
     const { sessionRuntimes } = get()
+    const sourcePending = data.session_id ? findSourcePending(data.request_id) : undefined
     const runtimeKey =
       (data.session_id && sessionRuntimes[data.session_id] ? data.session_id : null) ||
-      findSessionByRequestId(data.request_id)
+      findSessionByRequestId(data.request_id) ||
+      data.session_id
 
     if (!runtimeKey) return
 
     clearSendTimeout(runtimeKey)
+    if (data.session_id && data.session_id !== runtimeKey) {
+      clearSendTimeout(data.session_id)
+    }
     processedChunkIndex.delete(data.request_id)
     // 取消 abort 兜底定时器
     clearAbortFallbackTimer(data.request_id)
 
     // 用服务端返回的消息标记 error
-    const messages = get().messagesBySession[runtimeKey] || []
-    messages.forEach((m) => {
-      if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
-        get().updateMessageStatus(runtimeKey, m.id, 'error', data.message || '已停止生成')
-      }
+    const sessionsToUpdate = Array.from(
+      new Set([runtimeKey, data.session_id].filter(Boolean) as string[])
+    )
+    sessionsToUpdate.forEach((sessionId) => {
+      const messages = get().messagesBySession[sessionId] || []
+      messages.forEach((m) => {
+        if (m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming')) {
+          get().updateMessageStatus(sessionId, m.id, 'error', data.message || '已停止生成')
+        }
+      })
     })
 
     // 通过 requestId 找到发起请求的 pending session 迁移
-    if (data.session_id) {
-      const sourcePending = findSourcePending(data.request_id)
-      if (sourcePending) {
-        migratePendingSession(
-          sourcePending,
-          data.session_id,
-          data.message?.slice(0, 10) || '新对话'
-        )
-      }
+    if (data.session_id && sourcePending) {
+      migratePendingSession(sourcePending, data.session_id, data.message?.slice(0, 10) || '新对话')
     }
 
     clearRuntime(runtimeKey)
+    if (data.session_id && data.session_id !== runtimeKey) {
+      clearRuntime(data.session_id)
+    }
     // 清理 lastStreamId
     clearLastStreamId(data.session_id)
+    if (data.session_id) {
+      get().clearRemoteStreaming(data.session_id)
+      get().clearRemoteDirty(data.session_id)
+    }
   })
 
   // ---- 重连结果（按 session_id 路由，missed_messages 复用已有 handler） ----
