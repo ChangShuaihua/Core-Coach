@@ -239,6 +239,12 @@ export function initWsHandlers() {
       return
     }
 
+    if (!data.session_id && !data.request_id) {
+      console.warn('[WS] ignore unscoped error event', data)
+      Taro.showToast({ title: data.message || '请求失败', icon: 'none' })
+      return
+    }
+
     const { sessionRuntimes, currentConversationId, messagesBySession } = get()
     const targetSessionId =
       (data.session_id && sessionRuntimes[data.session_id] ? data.session_id : null) ||
