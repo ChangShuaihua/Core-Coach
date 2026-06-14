@@ -14,6 +14,10 @@ let lastRoute: {
   timestamp: number
 } | null = null
 
+function normalizeRoute(url: string) {
+  return url.split('?')[0].replace(/^\//, '')
+}
+
 function getPageStack() {
   try {
     return Taro.getCurrentPages().map((page) => ({
@@ -35,20 +39,22 @@ function logRouteFail(method: RouteMethod, options: RouteOptions, error: unknown
   })
 }
 
-function logDuplicateRoute(method: RouteMethod, options: RouteOptions) {
+function shouldSkipRoute(method: RouteMethod, options: RouteOptions) {
   const now = Date.now()
+  const pages = getPageStack()
+  const currentRoute = pages[pages.length - 1]?.route
+  const targetRoute = normalizeRoute(options.url)
+
+  if (currentRoute === targetRoute) {
+    return true
+  }
+
   if (
     lastRoute &&
-    lastRoute.method === method &&
     lastRoute.url === options.url &&
     now - lastRoute.timestamp < DUPLICATE_ROUTE_WINDOW
   ) {
-    console.warn('[Route] duplicate route request', {
-      method,
-      url: options.url,
-      source: options.source,
-      pages: getPageStack(),
-    })
+    return true
   }
 
   lastRoute = {
@@ -56,10 +62,12 @@ function logDuplicateRoute(method: RouteMethod, options: RouteOptions) {
     url: options.url,
     timestamp: now,
   }
+
+  return false
 }
 
 export function safeRedirectTo(options: RouteOptions) {
-  logDuplicateRoute('redirectTo', options)
+  if (shouldSkipRoute('redirectTo', options)) return Promise.resolve()
 
   return Taro.redirectTo({
     url: options.url,
@@ -68,7 +76,7 @@ export function safeRedirectTo(options: RouteOptions) {
 }
 
 export function safeReLaunch(options: RouteOptions) {
-  logDuplicateRoute('reLaunch', options)
+  if (shouldSkipRoute('reLaunch', options)) return Promise.resolve()
 
   return Taro.reLaunch({
     url: options.url,
