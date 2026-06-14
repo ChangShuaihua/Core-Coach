@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowRight } from '@nutui/icons-react-taro'
@@ -8,6 +9,7 @@ import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
 import { isRefreshTokenExpired } from '@/services/http'
 import { useUserStore } from '@/store/useUserStore'
+import { safeReLaunch } from '@/utils/route'
 import MenuList from './components/MenuList'
 import UserInfoCard from './components/UserInfoCard'
 import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
@@ -15,6 +17,7 @@ import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
 export default function ProfilePage() {
   useAuthCheck()
   const { clearAuth, userInfo: storeUserInfo, setUserInfo } = useUserStore()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const userInfo = storeUserInfo ?? {
     account: '',
@@ -33,27 +36,35 @@ export default function ProfilePage() {
   })
 
   const handleLogout = async () => {
+    if (isLoggingOut) return
+
     Taro.showModal({
       title: '提示',
       content: '确定要退出登录吗？',
       success: async (res) => {
         if (res.confirm) {
+          setIsLoggingOut(true)
+          Taro.showLoading({ title: '正在退出...', mask: true })
           let shouldClearAuth = false
           try {
             await logout()
             shouldClearAuth = true
           } catch {
             if (!isRefreshTokenExpired()) {
+              Taro.hideLoading()
               Taro.showToast({ title: '登出失败，请重试', icon: 'none' })
+              setIsLoggingOut(false)
               return
             }
             shouldClearAuth = true
           }
           if (!shouldClearAuth) return
-          clearAuth()
-          Taro.reLaunch({
-            url: '/pages/login/index',
-          })
+          Taro.hideLoading()
+          Taro.showToast({ title: '退出成功', icon: 'success', duration: 600 })
+          setTimeout(() => {
+            clearAuth()
+            safeReLaunch({ url: '/pages/login/index', source: 'profile.logout' })
+          }, 600)
         }
       },
     })
@@ -75,15 +86,17 @@ export default function ProfilePage() {
         {/* 退出登录 */}
         <Card>
           <View
-            className="flex flex-row items-center justify-between px-4 py-4"
-            hoverClass="bg-gray-50"
+            className={`flex flex-row items-center justify-between px-4 py-4 ${
+              isLoggingOut ? 'opacity-60' : ''
+            }`}
+            hoverClass={isLoggingOut ? 'none' : 'bg-gray-50'}
             hoverStayTime={100}
             onClick={handleLogout}
           >
             <View className="flex flex-row items-center">
               <View className="mr-3 flex">{LOGOUT_MENU_ITEM.icon}</View>
               <Text className="text-sm" style={{ color: '#ee0a24' }}>
-                {LOGOUT_MENU_ITEM.title}
+                {isLoggingOut ? '正在退出...' : LOGOUT_MENU_ITEM.title}
               </Text>
             </View>
 

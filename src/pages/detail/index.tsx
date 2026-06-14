@@ -9,6 +9,7 @@ import type { ActionConfig } from '@/components/ActionBar'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
+import { safeRedirectTo } from '@/utils/route'
 import { useShare } from '@/utils/share'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
@@ -88,7 +89,10 @@ export default function DetailPage() {
       const res = await startGenerateTask(retryParams)
       Taro.showToast({ title: '任务已提交', icon: 'success' })
       setTimeout(() => {
-        Taro.redirectTo({ url: `/pages/result/index?recordId=${res.record_id}` })
+        safeRedirectTo({
+          url: `/pages/result/index?recordId=${res.record_id}`,
+          source: 'detail.regenerate',
+        })
       }, 1500)
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })

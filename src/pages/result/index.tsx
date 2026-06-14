@@ -12,6 +12,7 @@ import type { ResultPreviewConfig } from '@/components/ResultPreview'
 import WaitingPage from '@/components/WaitingPage'
 import { useCreationStore } from '@/store'
 import type { TaskStatusCode } from '@/types/creation'
+import { safeRedirectTo } from '@/utils/route'
 import { useShare } from '@/utils/share'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
@@ -125,7 +126,10 @@ export default function ResultPage() {
       const res = await startGenerateTask(retryParams)
       Taro.showToast({ title: '任务已提交', icon: 'success' })
       setTimeout(() => {
-        Taro.redirectTo({ url: `/pages/result/index?recordId=${res.record_id}` })
+        safeRedirectTo({
+          url: `/pages/result/index?recordId=${res.record_id}`,
+          source: 'result.regenerate',
+        })
       }, 1500)
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
@@ -154,7 +158,7 @@ export default function ResultPage() {
 
   const handlePrev = () => {
     setMode('game')
-    Taro.redirectTo({ url: '/pages/wizard/index' })
+    safeRedirectTo({ url: '/pages/wizard/index', source: 'result.prev' })
   }
 
   const actions: ActionConfig[] = [

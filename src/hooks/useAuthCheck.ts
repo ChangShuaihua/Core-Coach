@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/store/useUserStore'
+import { safeReLaunch } from '@/utils/route'
 
 /**
  * 页面登录守卫：token 为空时跳转登录页
@@ -14,7 +15,7 @@ export function useAuthCheck() {
       const pages = Taro.getCurrentPages()
       const currentRoute = pages[pages.length - 1]?.route || ''
       if (currentRoute !== 'pages/login/index') {
-        Taro.redirectTo({ url: '/pages/login/index' })
+        safeReLaunch({ url: '/pages/login/index', source: 'useAuthCheck' })
       }
     }
   }, [accessToken])
