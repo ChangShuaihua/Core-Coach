@@ -3,7 +3,12 @@ import * as chatApi from '@/api/chat'
 import { ws } from '@/services/ws'
 import type { ChatStore } from '@/types/chat'
 import { createConversationSlice } from './chatConversationSlice'
-import { loadPersistedSkill, persistSkill } from './chatHelpers'
+import {
+  clearAbortFallbackTimer,
+  clearSendTimeout,
+  loadPersistedSkill,
+  persistSkill,
+} from './chatHelpers'
 import { createMessageSlice } from './chatMessageSlice'
 
 export {
@@ -61,6 +66,36 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   getCurrentWorkflowId: () => {
     const { selectedSkill, defaultWorkflow } = get()
     return selectedSkill?.id || defaultWorkflow?.id || ''
+  },
+
+  resetChat: () => {
+    const { sessionRuntimes } = get()
+    Object.entries(sessionRuntimes).forEach(([sessionId, runtime]) => {
+      clearSendTimeout(sessionId)
+      clearAbortFallbackTimer(runtime.requestId)
+    })
+    persistSkill(null)
+    set({
+      conversations: {},
+      messagesBySession: {},
+      currentConversationId: null,
+      skills: [],
+      defaultWorkflow: null,
+      selectedSkill: null,
+      messageCursor: null,
+      hasMoreMessages: true,
+      isLoadingMore: false,
+      conversationCursor: null,
+      hasMoreConversations: true,
+      isLoadingMoreConversations: false,
+      wsConnected: false,
+      sessionRoles: {},
+      sessionRuntimes: {},
+      requestToSession: {},
+      lastStreamIds: {},
+      remoteStreamingSessions: {},
+      remoteDirtySessions: {},
+    })
   },
 }))
 

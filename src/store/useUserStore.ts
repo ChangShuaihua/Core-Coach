@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ws } from '@/services/ws'
 import type { UserInfo } from '@/types/profile'
-import { clearSkillStorage } from './chatStore'
+import { clearSkillStorage, useChatStore } from './chatStore'
 
 interface UserState {
   accessToken: string
@@ -65,6 +65,7 @@ export const useUserStore = create<UserState>()(
       clearAuth: () => {
         ws.disconnect({ clearToken: true })
         clearSkillStorage()
+        useChatStore.getState().resetChat()
         set({
           accessToken: '',
           refreshToken: '',
