@@ -41,7 +41,7 @@ export const createConversationSlice: Slice<
 
     const merged: Record<string, Conversation> = {}
     Object.values(conversations).forEach((conv) => {
-      if (conv.id.startsWith('pending-') && sessionRuntimes[conv.id]) {
+      if (conv.id.startsWith('pending-')) {
         merged[conv.id] = conv
       }
     })
