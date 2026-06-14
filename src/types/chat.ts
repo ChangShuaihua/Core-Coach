@@ -123,6 +123,7 @@ export interface ChatStore {
   loadWorkflows: () => Promise<void>
   toggleSkill: (skill: Skill) => void
   getCurrentWorkflowId: () => string
+  resetChat: () => void
 
   setWsConnected: (connected: boolean) => void
   setSessionRole: (sessionId: string, role: 'chatter' | 'viewer') => void

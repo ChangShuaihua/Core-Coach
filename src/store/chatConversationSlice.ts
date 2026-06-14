@@ -39,7 +39,13 @@ export const createConversationSlice: Slice<
       (id) => id.startsWith('pending-') && sessionRuntimes[id]
     )
 
-    const merged: Record<string, Conversation> = { ...conversations }
+    const merged: Record<string, Conversation> = {}
+    Object.values(conversations).forEach((conv) => {
+      if (conv.id.startsWith('pending-') && sessionRuntimes[conv.id]) {
+        merged[conv.id] = conv
+      }
+    })
+
     result.conversations.forEach((conv) => {
       if (!merged[conv.id]) {
         if (hasPendingWithRuntime) return

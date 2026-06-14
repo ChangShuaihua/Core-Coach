@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/store/useUserStore'
+import { safeReLaunch } from '@/utils/route'
 
 const BASE_URL = process.env.TARO_APP_API_URL || ''
 if (!BASE_URL) {
@@ -136,7 +137,7 @@ export function logoutAndRedirect() {
   useUserStore.getState().clearAuth()
   Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
   setTimeout(() => {
-    Taro.reLaunch({ url: '/pages/login/index' })
+    safeReLaunch({ url: '/pages/login/index', source: 'http.logoutAndRedirect' })
     isLoggingOut = false
   }, 1500)
 }
