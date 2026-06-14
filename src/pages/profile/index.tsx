@@ -8,6 +8,7 @@ import Layout from '@/components/Layout'
 import { useAuthCheck } from '@/hooks'
 import { isRefreshTokenExpired } from '@/services/http'
 import { useUserStore } from '@/store/useUserStore'
+import { safeReLaunch } from '@/utils/route'
 import MenuList from './components/MenuList'
 import UserInfoCard from './components/UserInfoCard'
 import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
@@ -51,9 +52,7 @@ export default function ProfilePage() {
           }
           if (!shouldClearAuth) return
           clearAuth()
-          Taro.reLaunch({
-            url: '/pages/login/index',
-          })
+          safeReLaunch({ url: '/pages/login/index', source: 'profile.logout' })
         }
       },
     })
