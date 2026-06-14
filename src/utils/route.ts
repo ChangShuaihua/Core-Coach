@@ -13,6 +13,10 @@ let lastRoute: {
   url: string
   timestamp: number
 } | null = null
+let pendingRoute: {
+  method: RouteMethod
+  url: string
+} | null = null
 
 function normalizeRoute(url: string) {
   return url.split('?')[0].replace(/^\//, '')
@@ -49,6 +53,10 @@ function shouldSkipRoute(method: RouteMethod, options: RouteOptions) {
     return true
   }
 
+  if (pendingRoute?.method === method && pendingRoute.url === options.url) {
+    return true
+  }
+
   if (
     lastRoute &&
     lastRoute.url === options.url &&
@@ -62,8 +70,18 @@ function shouldSkipRoute(method: RouteMethod, options: RouteOptions) {
     url: options.url,
     timestamp: now,
   }
+  pendingRoute = {
+    method,
+    url: options.url,
+  }
 
   return false
+}
+
+function clearPendingRoute(method: RouteMethod, options: RouteOptions) {
+  if (pendingRoute?.method === method && pendingRoute.url === options.url) {
+    pendingRoute = null
+  }
 }
 
 export function safeRedirectTo(options: RouteOptions) {
@@ -71,7 +89,11 @@ export function safeRedirectTo(options: RouteOptions) {
 
   return Taro.redirectTo({
     url: options.url,
-    fail: (error) => logRouteFail('redirectTo', options, error),
+    success: () => clearPendingRoute('redirectTo', options),
+    fail: (error) => {
+      clearPendingRoute('redirectTo', options)
+      logRouteFail('redirectTo', options, error)
+    },
   })
 }
 
@@ -80,6 +102,10 @@ export function safeReLaunch(options: RouteOptions) {
 
   return Taro.reLaunch({
     url: options.url,
-    fail: (error) => logRouteFail('reLaunch', options, error),
+    success: () => clearPendingRoute('reLaunch', options),
+    fail: (error) => {
+      clearPendingRoute('reLaunch', options)
+      logRouteFail('reLaunch', options, error)
+    },
   })
 }
