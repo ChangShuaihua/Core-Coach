@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import Taro from '@tarojs/taro'
+import { isLogoutRedirecting } from '@/services/http'
 import { useUserStore } from '@/store/useUserStore'
 import { safeReLaunch } from '@/utils/route'
 
@@ -11,7 +12,7 @@ export function useAuthCheck() {
   const accessToken = useUserStore((state) => state.accessToken)
 
   useEffect(() => {
-    if (!accessToken) {
+    if (!accessToken && !isLogoutRedirecting()) {
       const pages = Taro.getCurrentPages()
       const currentRoute = pages[pages.length - 1]?.route || ''
       if (currentRoute !== 'pages/login/index') {
