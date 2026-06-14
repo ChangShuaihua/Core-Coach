@@ -131,11 +131,15 @@ function isAuthExpiredError(err: any): boolean {
 
 // 统一登出 + 跳转登录页（防重复执行）
 let isLoggingOut = false
+export function isLogoutRedirecting() {
+  return isLoggingOut
+}
+
 export function logoutAndRedirect() {
   if (isLoggingOut) return
   isLoggingOut = true
   useUserStore.getState().clearAuth()
-  Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
+  Taro.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
   setTimeout(() => {
     safeReLaunch({ url: '/pages/login/index', source: 'http.logoutAndRedirect' })
     isLoggingOut = false
