@@ -350,10 +350,15 @@ function withRemotePendingIfNeeded(
   const lastMessage = messages[messages.length - 1]
   if (lastMessage?.role !== 'user') return messages
 
+  const hasUnansweredUserMessage = !messages.some(
+    (m) => m.role === 'assistant' && (m.status === 'success' || m.status === 'error')
+  )
+
   const isRecent = Date.now() - lastMessage.timestamp < 3 * 60 * 1000
   const shouldShowPending =
     isRecent &&
-    (state.remoteStreamingSessions[sessionId] ||
+    (hasUnansweredUserMessage ||
+      state.remoteStreamingSessions[sessionId] ||
       state.remoteDirtySessions[sessionId] ||
       state.sessionRoles[sessionId] === 'viewer' ||
       state.conversations[sessionId]?.hasOtherDevice)
