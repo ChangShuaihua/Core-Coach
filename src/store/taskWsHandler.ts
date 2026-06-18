@@ -1,4 +1,5 @@
 import { getPendingTasks, getStatusEvents } from '@/api/creation'
+import { WS_STATUS_TO_NUM } from '@/constants/creation'
 import { ws } from '@/services/ws'
 import type { WsGameGenerateStatusData } from '@/types/ws'
 import { useTaskStore } from './taskStore'
@@ -15,17 +16,9 @@ export function onGameGenerateStatus(listener: StatusListener): () => void {
   }
 }
 
-// WS status → RecentCreation.status 数字映射
-const wsStatusToNum: Record<string, number> = {
-  queued: 2,
-  generating: 3,
-  success: 1,
-  failed: 0,
-}
-
 /** 将 WS 推送状态转为 RecentCreation 的 status 数字 */
 export function mapWsStatus(status: string): number | undefined {
-  return wsStatusToNum[status]
+  return WS_STATUS_TO_NUM[status]
 }
 
 /** 同步进行中任务 + 补拉漏掉的状态事件 */
