@@ -5,7 +5,6 @@ import { Refresh } from '@nutui/icons-react-taro'
 import StepIndicator from '@/components/Step'
 import StepRenderer from '@/pages/wizard/components/StepRenderer'
 import type { StepConfig } from '@/pages/wizard/components/StepRenderer'
-import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 export interface SkillStepConfig {
   steps: StepConfig[]
@@ -21,8 +20,8 @@ export interface WizardProps {
   onFinish?: (data: Record<string, any>) => void
   onGenerate?: (
     data: Record<string, any>
-  ) => Promise<{ recordId: number; businessType: string } | null>
-  onTaskSubmitted?: (recordId: number) => void
+  ) => Promise<{ recordId: number; businessType: string; isNewlyCreated: boolean } | null>
+  onTaskSubmitted?: (recordId: number, isNewlyCreated: boolean) => void
 }
 
 export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitted }: WizardProps) {
@@ -157,8 +156,7 @@ export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitt
                   if (onGenerate) {
                     onGenerate(data).then((genResult) => {
                       if (genResult) {
-                        requestTaskCompleteSubscribe()
-                        onTaskSubmitted?.(genResult.recordId)
+                        onTaskSubmitted?.(genResult.recordId, genResult.isNewlyCreated)
                       }
                     })
                   }

@@ -79,7 +79,6 @@ export default function DetailPage() {
   }
 
   const handleRegenerate = async () => {
-    requestTaskCompleteSubscribe()
     const retryParams = genResult?.retry_params
     if (!retryParams) {
       Taro.showToast({ title: '缺少生成参数', icon: 'none' })
@@ -87,13 +86,19 @@ export default function DetailPage() {
     }
     try {
       const res = await startGenerateTask(retryParams)
-      Taro.showToast({ title: '任务已提交', icon: 'success' })
-      setTimeout(() => {
-        safeRedirectTo({
-          url: `/pages/result/index?recordId=${res.record_id}`,
-          source: 'detail.regenerate',
-        })
-      }, 1500)
+      Taro.showToast({ title: '任务已提交', icon: 'success', duration: 1500 })
+      await new Promise((r) => setTimeout(r, 1500))
+      if (!res.message?.includes('已有')) {
+        try {
+          await requestTaskCompleteSubscribe()
+        } catch (e) {
+          // 用户拒绝或关闭，忽略
+        }
+      }
+      safeRedirectTo({
+        url: `/pages/result/index?recordId=${res.record_id}`,
+        source: 'detail.regenerate',
+      })
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
     }
