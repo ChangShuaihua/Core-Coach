@@ -438,13 +438,9 @@ export class WsManager {
         if (data?.code === 429) {
           this.authFailed = true
           this._state = 'disconnected'
-          const retryAfter = Number(data?.retry_after)
-          if (Number.isFinite(retryAfter) && retryAfter > 0) {
-            this.scheduleReconnect(this.token, retryAfter * 1000)
-          } else {
-            this.scheduleReconnect(this.token)
-          }
+          this.stopHeartbeat()
           this.closeSocketTask()
+          // 不自动重连，由业务层处理登出
           break
         }
         this.authFailed = true

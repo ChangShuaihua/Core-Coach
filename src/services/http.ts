@@ -135,11 +135,11 @@ export function isLogoutRedirecting() {
   return isLoggingOut
 }
 
-export function logoutAndRedirect() {
+export function logoutAndRedirect(message = '登录已失效，请重新登录') {
   if (isLoggingOut) return
   isLoggingOut = true
   useUserStore.getState().clearAuth()
-  Taro.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
+  Taro.showToast({ title: message, icon: 'none' })
   setTimeout(() => {
     safeReLaunch({ url: '/pages/login/index', source: 'http.logoutAndRedirect' })
     isLoggingOut = false
