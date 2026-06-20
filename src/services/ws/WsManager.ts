@@ -319,6 +319,25 @@ export class WsManager {
     }
   }
 
+  /** 后台 ping 探活，超时则触发重连。不阻塞调用方。 */
+  ensureAlive(): void {
+    if (this._state !== 'authenticated' || !this.socketTask) return
+
+    this.send('ping', { timestamp: Math.floor(Date.now() / 1000) })
+
+    const onPong = () => {
+      this.off('pong', onPong)
+      clearTimeout(timer)
+    }
+    this.on('pong', onPong)
+
+    const timer = setTimeout(() => {
+      this.off('pong', onPong)
+      console.warn('[WS] ensureAlive: no pong, closing stale connection')
+      this.socketTask?.close({})
+    }, PONG_TIMEOUT)
+  }
+
   // ============ 断线重连 ============
 
   private async handleDisconnect(): Promise<void> {
@@ -557,7 +576,7 @@ export class WsManager {
 
       if (!wasOnline && res.isConnected) {
         console.log('[WS] network restored, checking connection...')
-        if (this._state === 'disconnected' && this.canReconnect()) {
+        if (!this.connected && this.canReconnect()) {
           this.reconnectAttempts = 0
           this.reconnectStoppedUntil = 0
           this.reconnectWithLatestToken(this.token)
