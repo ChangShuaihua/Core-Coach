@@ -414,7 +414,8 @@ export async function upload<T = any>(
               resolve(data)
               return
             }
-            reject(data)
+            // 附加 statusCode 到错误对象，便于业务层区分错误类型
+            reject({ ...data, statusCode: res.statusCode })
           } catch {
             reject(new Error('解析响应失败'))
           }
