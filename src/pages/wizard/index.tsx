@@ -9,6 +9,7 @@ import type { SkillStepConfig } from '@/components/Wizard'
 import { useCreationStore } from '@/store'
 import { useTaskStore } from '@/store/taskStore'
 import type { GenerateGameParams } from '@/types/creation'
+import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 import { getConfigByType } from './constants/skillConfig'
 
 /**
@@ -33,7 +34,6 @@ export default function CreationWizardPage() {
   // 初始化：验证 mode 并加载配置
   useEffect(() => {
     if (!isValid()) {
-      showInvalidModeToast()
       navigateToCreation()
       return
     }
@@ -52,13 +52,14 @@ export default function CreationWizardPage() {
    */
   const handleGenerate = async (
     data: Record<string, any>
-  ): Promise<{ recordId: number; businessType: string } | null> => {
+  ): Promise<{ recordId: number; businessType: string; isNewlyCreated: boolean } | null> => {
     try {
       const params = buildGenerateParams(businessType, data)
       const result = await startGenerateTask(params)
       return {
         recordId: result.record_id,
         businessType,
+        isNewlyCreated: !result.message?.includes('已有'),
       }
     } catch (error: any) {
       console.error('❌ 生成失败:', error)
@@ -100,28 +101,33 @@ export default function CreationWizardPage() {
   }
 
   /**
-   * 任务提交成功，跳转回创作工坊
+   * 任务提交成功：toast 提示 → 等待 → 弹订阅（仅新建任务）→ 跳转
    */
-  const handleTaskSubmitted = (recordId: number) => {
+  const handleTaskSubmitted = async (recordId: number, isNewlyCreated: boolean) => {
     const store = useTaskStore.getState()
     if (
       store.recordId === recordId &&
       (store.status === 'pending' || store.status === 'processing')
     ) {
-      // 同一个任xuyao1务还在进行中，不重复提交
-      Taro.showToast({ title: '任务已在进行中', icon: 'none' })
-      setTimeout(() => {
-        clearMode()
-        navigateToCreation()
-      }, 1500)
+      // 同一个任务还在进行中，不重复提交
+      Taro.showToast({ title: '任务已在进行中', icon: 'none', duration: 1500 })
+      await new Promise((r) => setTimeout(r, 1500))
+      navigateToCreation()
+      clearMode()
       return
     }
     store.startTask(recordId, businessType)
-    Taro.showToast({ title: '任务已提交', icon: 'success' })
-    setTimeout(() => {
-      clearMode()
-      navigateToCreation()
-    }, 1500)
+    Taro.showToast({ title: '任务已提交', icon: 'success', duration: 1500 })
+    await new Promise((r) => setTimeout(r, 1500))
+    if (isNewlyCreated) {
+      try {
+        await requestTaskCompleteSubscribe()
+      } catch (e) {
+        // 用户拒绝或关闭，忽略
+      }
+    }
+    navigateToCreation()
+    clearMode()
   }
 
   // 无效的 mode，不渲染
@@ -202,17 +208,6 @@ function getDefaultSkillName(mode: string | null): string {
     default:
       return '创作向导'
   }
-}
-
-/**
- * 显示无效 mode 的提示
- */
-function showInvalidModeToast() {
-  Taro.showToast({
-    title: '请先选择创作类型',
-    icon: 'none',
-    duration: 2000,
-  })
 }
 
 /**

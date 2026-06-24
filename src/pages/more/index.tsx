@@ -112,8 +112,8 @@ export default function MorePage() {
         setList((prev) => prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g)))
         Taro.showToast({ title: '已收藏', icon: 'success' })
       }
-    } catch {
-      Taro.showToast({ title: '操作失败', icon: 'none' })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
     }
   }, [])
 

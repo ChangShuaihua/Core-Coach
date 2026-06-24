@@ -1,9 +1,8 @@
 import { create } from 'zustand'
 import { getTaskStatus } from '@/api/creation'
-import type { GenerateTaskResult } from '@/types/creation'
+import { WS_STATUS_TO_TASK_STATUS, TASK_STATUS_CODE_TO_TASK_STATUS } from '@/constants/creation'
+import type { GenerateTaskResult, TaskStatus } from '@/types/creation'
 import type { WsGameGenerateStatusData, PendingTaskItem, StatusEventItem } from '@/types/ws'
-
-export type TaskStatus = 'idle' | 'pending' | 'processing' | 'completed' | 'failed'
 
 interface TaskState {
   recordId: number | null
@@ -22,14 +21,6 @@ interface TaskState {
   fallbackQuery: () => Promise<void>
   stopTask: () => void
   reset: () => void
-}
-
-// WS status → TaskStatus 映射
-const wsStatusMap: Record<string, TaskStatus> = {
-  queued: 'pending',
-  generating: 'processing',
-  success: 'completed',
-  failed: 'failed',
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -62,7 +53,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     // 版本过滤：丢弃旧消息
     if (data.status_version && data.status_version <= statusVersion) return
 
-    const mapped = wsStatusMap[data.status]
+    const mapped = WS_STATUS_TO_TASK_STATUS[data.status]
     if (!mapped) return
 
     const updates: Partial<TaskState> = {
@@ -105,7 +96,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     // 版本过滤
     if (task.status_version && task.status_version <= statusVersion) return
 
-    const mapped = wsStatusMap[task.status]
+    const mapped = WS_STATUS_TO_TASK_STATUS[task.status]
     if (!mapped) return
 
     const updates: Partial<TaskState> = {
@@ -140,7 +131,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const { statusVersion } = get()
       if (event.status_version && event.status_version <= statusVersion) continue
 
-      const mapped = wsStatusMap[event.status]
+      const mapped = WS_STATUS_TO_TASK_STATUS[event.status]
       if (!mapped) continue
 
       const updates: Partial<TaskState> = {
@@ -183,13 +174,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     try {
       const res = await getTaskStatus(recordId)
-      const statusMap: Record<number, TaskStatus> = {
-        0: 'failed',
-        1: 'completed',
-        2: 'pending',
-        3: 'processing',
-      }
-      const mapped = statusMap[res.status] || 'processing'
+      const mapped = TASK_STATUS_CODE_TO_TASK_STATUS[res.status] || 'processing'
 
       if (mapped === 'completed') {
         set({ status: 'completed', statusText: res.status_text || '生成成功', result: res })

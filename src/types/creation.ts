@@ -42,6 +42,9 @@ export interface GenerateTaskResponse {
 // 任务状态：0=失败, 1=成功, 2=排队中, 3=生成中
 export type TaskStatusCode = 0 | 1 | 2 | 3
 
+// 前端任务状态机：WS 字符串 / HTTP 数字经映射后统一为此类型
+export type TaskStatus = 'idle' | 'pending' | 'processing' | 'completed' | 'failed'
+
 // 查询任务结果
 export interface GenerateTaskResult {
   record_id: number
