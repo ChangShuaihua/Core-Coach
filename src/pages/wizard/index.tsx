@@ -54,13 +54,8 @@ export default function CreationWizardPage() {
     data: Record<string, any>
   ): Promise<{ recordId: number; businessType: string } | null> => {
     try {
-      console.log(`🎮 调用生成接口 [${businessType}]:`, data)
-
       const params = buildGenerateParams(businessType, data)
       const result = await startGenerateTask(params)
-
-      console.log('✅ 任务已提交:', result)
-
       return {
         recordId: result.record_id,
         businessType,
@@ -78,9 +73,7 @@ export default function CreationWizardPage() {
   /**
    * 处理向导完成
    */
-  const handleWizardFinish = (data: Record<string, any>) => {
-    console.log(`${mode} 创作完成:`, data)
-
+  const handleWizardFinish = () => {
     clearMode()
     showSuccessToast('生成成功')
 

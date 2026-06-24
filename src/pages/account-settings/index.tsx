@@ -48,8 +48,6 @@ export default function AccountSettingsPage() {
 
     try {
       Taro.showLoading({ title: '获取中...' })
-
-      console.log('[RSA] 请求体:', { publicKey: publicKeyPem })
       const cipherText = await getEncryptedPassword(publicKeyPem)
       const plainPassword = decryptWithPrivateKey(cipherText, privateKeyPem)
 
