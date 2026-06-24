@@ -14,6 +14,8 @@ export default function EditInfoPage() {
   const [nickname, setNickname] = useState(userInfo?.nickName ?? '')
   const [avatar, setAvatar] = useState(userInfo?.avatarUrl ?? '')
 
+  const MAX_AVATAR_SIZE = 2 * 1024 * 1024 // 2MB
+
   const handleChooseAvatar = () => {
     Taro.chooseImage({
       count: 1,
@@ -21,16 +23,41 @@ export default function EditInfoPage() {
       sourceType: ['album', 'camera'],
       success: async (res) => {
         const tempFilePath = res.tempFilePaths[0]
+
+        // 前端预检查文件大小
+        try {
+          const fileInfo = await Taro.getFileInfo({ filePath: tempFilePath })
+          if ('size' in fileInfo && fileInfo.size > MAX_AVATAR_SIZE) {
+            Taro.showToast({
+              title: '图片过大，请压缩后重试（最大2MB）',
+              icon: 'none',
+              duration: 2000,
+            })
+            return
+          }
+        } catch {
+          // 获取文件信息失败，继续上传让后端处理
+        }
+
         try {
           Taro.showLoading({ title: '上传中...' })
           const result = await uploadAvatar(tempFilePath)
           setAvatar(result.file_url)
           Taro.hideLoading()
           Taro.showToast({ title: '上传成功', icon: 'success' })
-        } catch (err: any) {
+        } catch (error: any) {
           Taro.hideLoading()
-          Taro.showToast({ title: err?.message || '上传失败', icon: 'none' })
-          console.error('上传头像失败:', err)
+          // 捕获 413 错误并给出具体提示
+          if (error?.statusCode === 413) {
+            Taro.showToast({
+              title: '图片过大，请压缩后重试（最大2MB）',
+              icon: 'none',
+              duration: 2000,
+            })
+          } else {
+            Taro.showToast({ title: '上传失败', icon: 'none' })
+          }
+          console.error('上传头像失败:', error)
         }
       },
     })
