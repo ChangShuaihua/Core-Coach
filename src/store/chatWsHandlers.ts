@@ -37,12 +37,6 @@ export function initWsHandlers() {
     const sourcePending = findSourcePending(data.request_id)
     if (!sourcePending) return
 
-    console.log('[chat_session_created]', {
-      pendingId: sourcePending,
-      realSessionId: data.session_id,
-      title: data.title,
-    })
-
     // 更新会话标题（服务端生成的标题比 content.slice 更准确）
     get().updateConversation(sourcePending, { title: data.title || '新对话' })
 
@@ -96,15 +90,6 @@ export function initWsHandlers() {
     const messages = get().messagesBySession[msgSessionId] || []
     const msg = messages.find((m) => m.id === runtime.assistantMsgId)
 
-    console.log('[chunk] 更新消息', {
-      runtimeKey,
-      msgSessionId,
-      assistantMsgId: runtime.assistantMsgId,
-      messagesLen: messages.length,
-      msgFound: !!msg,
-      content: data.content,
-      currentConversationId: get().currentConversationId,
-    })
     if (!msg) return
 
     const newContent = msg.content + data.content
@@ -125,13 +110,6 @@ export function initWsHandlers() {
       (sessionRuntimes[data.session_id] ? data.session_id : null) ||
       findSessionByRequestId(data.request_id)
 
-    console.log('[stream_done]', {
-      requestId: data.request_id,
-      sessionId: data.session_id,
-      runtimeKey,
-      currentConversationId: get().currentConversationId,
-      contentLen: data.content?.length,
-    })
     if (!runtimeKey) {
       if (data.session_id) {
         markRemoteSessionNeedsReload(data.session_id)

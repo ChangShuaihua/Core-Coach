@@ -67,7 +67,6 @@ export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitt
     if (!validateCurrentStep()) return
 
     if (isLastStep) {
-      console.log('📊 最终提交数据:', data)
       onFinish?.(data)
     } else {
       setCurrentStepIndex((prev) => prev + 1)

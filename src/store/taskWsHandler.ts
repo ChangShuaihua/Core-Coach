@@ -58,7 +58,6 @@ export async function syncPendingAndEvents(): Promise<void> {
 export function initTaskWsHandlers() {
   // 接收服务端推送的游戏生成状态
   ws.on('game_generate_status', (data: WsGameGenerateStatusData) => {
-    console.log('[TaskWS] game_generate_status:', data.record_id, data.status)
     useTaskStore.getState().handleWsStatus(data)
 
     // 通知所有外部订阅者
@@ -75,7 +74,6 @@ export function initTaskWsHandlers() {
   ws.on('connected', () => {
     const { status } = useTaskStore.getState()
     if (status === 'pending' || status === 'processing') {
-      console.log('[TaskWS] reconnected, syncing pending tasks and events')
       syncPendingAndEvents()
     }
   })

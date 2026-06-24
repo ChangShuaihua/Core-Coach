@@ -24,6 +24,7 @@ export type WsEventType =
   | 'reconnect'
   | 'reconnect_result'
   | 'disconnect'
+  | 'app_hide'
   | 'game_generate_status'
 
 // ============ 连接状态 ============
