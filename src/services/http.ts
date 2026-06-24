@@ -143,7 +143,7 @@ export function logoutAndRedirect(message = '登录已失效，请重新登录')
   setTimeout(() => {
     safeReLaunch({ url: '/pages/login/index', source: 'http.logoutAndRedirect' })
     isLoggingOut = false
-  }, 1500)
+  }, 1000)
 }
 
 async function doRefreshToken(): Promise<string> {

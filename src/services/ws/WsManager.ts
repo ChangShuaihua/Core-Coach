@@ -156,7 +156,6 @@ export class WsManager {
     if (this._state === 'authenticated') return
 
     const connId = ++this.connectionId
-    console.log('[WS] connecting...', `conn#${connId}`)
 
     if (this.socketTask) {
       this.closeSocketTask()
@@ -166,7 +165,6 @@ export class WsManager {
     this._state = 'connecting'
     Taro.connectSocket({
       url: WS_URL,
-      success: () => console.log('[WS] connectSocket success', `conn#${connId}`),
       fail: (err) => {
         console.error('[WS] connectSocket fail:', err)
         if (connId !== this.connectionId) return
@@ -182,7 +180,6 @@ export class WsManager {
 
       task.onOpen(() => {
         if (connId !== this.connectionId) return
-        console.log('[WS] onOpen', `conn#${connId}`)
         this._state = 'connected'
         this.sendAuth(token)
       })
@@ -192,22 +189,21 @@ export class WsManager {
       })
 
       let disconnected = false
-      const onDisconnect = (reason: string) => {
+      const onDisconnect = () => {
         if (connId !== this.connectionId) return
         if (disconnected) return
         disconnected = true
         if (this.socketTask === task) {
           this.socketTask = null
         }
-        console.log(`[WS] ${reason}`, `conn#${connId}`)
         this.handleDisconnect()
       }
 
-      task.onClose((res) => {
-        onDisconnect(`onClose: ${res?.code} ${res?.reason}`)
+      task.onClose(() => {
+        onDisconnect()
       })
-      task.onError((err) => {
-        onDisconnect(`onError: ${JSON.stringify(err)}`)
+      task.onError(() => {
+        onDisconnect()
       })
     })
   }
@@ -235,7 +231,6 @@ export class WsManager {
   private async reconnectWithLatestToken(fallbackToken = ''): Promise<void> {
     if (this._state === 'connecting' || this._state === 'authenticated') return
     if (!this.canReconnect(fallbackToken || this.token)) {
-      console.log('[WS] offline, skip reconnectWithLatestToken')
       return
     }
 
@@ -345,17 +340,14 @@ export class WsManager {
     this._state = 'disconnected'
     if (this.authFailed) {
       this.authFailed = false
-      console.log('[WS] auth failed, skip reconnect')
       return
     }
     if (this.intentionalClose) {
       this.intentionalClose = false
-      console.log('[WS] intentional close, skip reconnect')
       return
     }
 
     if (!this.isOnline) {
-      console.log('[WS] offline, skip reconnect')
       this.emit('disconnect', { reason: 'offline' })
       return
     }
@@ -380,7 +372,6 @@ export class WsManager {
     if (this.reconnectTimer) return
     if (this.isReconnectCoolingDown()) return
     if (!this.canReconnect(token)) {
-      console.log('[WS] offline, skip scheduleReconnect')
       return
     }
     if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
@@ -389,7 +380,6 @@ export class WsManager {
     }
     const delay = getReconnectDelay(this.reconnectAttempts, delayOverride)
     this.reconnectAttempts++
-    console.log(`[WS] reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
       this.reconnectWithLatestToken(token)
@@ -406,11 +396,6 @@ export class WsManager {
     }
 
     const { event_type, data } = msg
-    console.log(
-      '[WS] received event:',
-      event_type,
-      data?.session_id ? `session_id: ${data.session_id}` : ''
-    )
 
     switch (event_type) {
       case 'connected':
@@ -419,7 +404,6 @@ export class WsManager {
         this.reconnectStoppedUntil = 0
         this.authFailed = false
         this.startHeartbeat()
-        console.log('[WS] authenticated')
         // 有活跃 stream 时发送重连恢复
         {
           const ctx = this._getReconnectContext?.()
@@ -571,14 +555,12 @@ export class WsManager {
       this.isOnline = res.isConnected
 
       if (!wasOnline && res.isConnected) {
-        console.log('[WS] network restored, checking connection...')
         if (!this.connected && this.canReconnect()) {
           this.reconnectAttempts = 0
           this.reconnectStoppedUntil = 0
           this.reconnectWithLatestToken(this.token)
         }
       } else if (!res.isConnected) {
-        console.log('[WS] network lost')
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer)
           this.reconnectTimer = null

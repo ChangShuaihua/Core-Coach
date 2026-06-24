@@ -38,10 +38,8 @@ export default function CreationPage() {
   const [recentList, setRecentList] = useState<RecentCreation[]>([])
 
   const fetchSkills = useCallback(async () => {
-    console.log('开始获取技能列表...')
     try {
       const data = await getSkillList()
-      console.log('获取技能列表成功:', data)
       setSkillList(data)
     } catch (error) {
       console.error('获取技能列表失败:', error)
@@ -51,7 +49,6 @@ export default function CreationPage() {
   const fetchRecent = useCallback(async () => {
     try {
       const data = await getRecentCreations()
-      console.log('最近创作数据:', data)
       setRecentList(data)
       return data
     } catch (error) {

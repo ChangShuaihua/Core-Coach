@@ -23,6 +23,7 @@ function App({ children }) {
         logoutAndRedirect(data?.message || '当前账号在线人数已达上限')
       }
     }
+
     ws.on('auth_failed', handleAuthFailed)
     return () => {
       ws.off('auth_failed', handleAuthFailed)
