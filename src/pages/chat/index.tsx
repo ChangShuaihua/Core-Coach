@@ -4,7 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
 import Layout from '@/components/Layout'
-import { useAuthCheck } from '@/hooks'
+import { useLoginStatus } from '@/hooks/useLoginStatus'
 import { ws } from '@/services/ws'
 import { useChatStore } from '@/store/chatStore'
 import { initWsHandlers } from '@/store/chatWsHandlers'
@@ -18,7 +18,7 @@ import WelcomeScreen from './components/WelcomeScreen'
 const STOP_CLICK_DEBOUNCE_MS = 800
 
 export default function ChatPage() {
-  useAuthCheck()
+  const { isLoggedIn } = useLoginStatus()
 
   const [showPopup, setShowPopup] = useState(false)
   const [showLeft, setShowLeft] = useState(false)
@@ -61,8 +61,9 @@ export default function ChatPage() {
   }, [setWsConnected])
 
   useEffect(() => {
+    if (!isLoggedIn) return
     loadConversations().then(() => ensurePendingConversation())
-  }, [loadConversations, ensurePendingConversation])
+  }, [isLoggedIn, loadConversations, ensurePendingConversation])
 
   useDidShow(() => {
     loadWorkflows()
@@ -101,6 +102,10 @@ export default function ChatPage() {
 
   const handleSend = useCallback(
     async (content: string) => {
+      if (!isLoggedIn) {
+        Taro.navigateTo({ url: '/pages/login/index' })
+        return
+      }
       if (isResponding) return
       sendingRef.current = true
       setScrollToBottomTrigger((prev) => prev + 1)
@@ -110,7 +115,7 @@ export default function ChatPage() {
         sendingRef.current = false
       }
     },
-    [isResponding, sendMessage]
+    [isLoggedIn, isResponding, sendMessage]
   )
 
   const handleStop = useCallback(() => {
@@ -144,11 +149,13 @@ export default function ChatPage() {
   }, [ensurePendingConversation])
 
   const showWelcome = messages.length === 0
-  const disabledReason = !wsConnected
-    ? '连接中，请稍后再发'
-    : isViewer
-      ? '当前为浏览模式，无法发送消息'
-      : ''
+  const disabledReason = !isLoggedIn
+    ? '登录后体验完整功能'
+    : !wsConnected
+      ? '连接中，请稍后再发'
+      : isViewer
+        ? '当前为浏览模式，无法发送消息'
+        : ''
   const optionDisabled = isResponding || isViewer || !wsConnected
 
   return (
@@ -158,7 +165,9 @@ export default function ChatPage() {
         <View
           onClick={() => {
             setShowLeft(true)
-            loadConversations()
+            if (isLoggedIn) {
+              loadConversations()
+            }
           }}
         >
           <Clock />
@@ -250,15 +259,31 @@ export default function ChatPage() {
         onClose={() => setShowLeft(false)}
       >
         <View className="h-full flex flex-col">
-          <View
-            className="text-white mt-16 mx-6 py-3 flex-shrink-0 flex items-center justify-center bg-orange-5 rounded-lg"
-            onClick={handleNewConversation}
-          >
-            <Add style={{ marginRight: '4px', color: '#fff' }} /> 添加新对话
-          </View>
-          <View className="flex-1 overflow-hidden">
-            <ConversationList onSelect={() => setShowLeft(false)} />
-          </View>
+          {!isLoggedIn ? (
+            <View className="h-full flex items-center justify-center">
+              <View
+                className="text-white py-3 px-6 bg-orange-5 rounded-lg"
+                onClick={() => {
+                  setShowLeft(false)
+                  Taro.navigateTo({ url: '/pages/login/index' })
+                }}
+              >
+                登录查看历史会话
+              </View>
+            </View>
+          ) : (
+            <>
+              <View
+                className="text-white mt-16 mx-6 py-3 flex-shrink-0 flex items-center justify-center bg-orange-5 rounded-lg"
+                onClick={handleNewConversation}
+              >
+                <Add style={{ marginRight: '4px', color: '#fff' }} /> 添加新对话
+              </View>
+              <View className="flex-1 overflow-hidden">
+                <ConversationList onSelect={() => setShowLeft(false)} />
+              </View>
+            </>
+          )}
         </View>
       </Popup>
     </Layout>

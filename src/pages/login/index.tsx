@@ -82,7 +82,7 @@ export default function Login() {
       }
       Taro.hideLoading()
       setShowProfilePopup(false)
-      Taro.switchTab({ url: '/pages/chat/index' })
+      handleLoginSuccess()
     } catch {
       Taro.hideLoading()
       Taro.showToast({ title: '保存失败', icon: 'none' })
@@ -92,10 +92,20 @@ export default function Login() {
   // 跳过填写
   const handleSkipProfile = () => {
     setShowProfilePopup(false)
-    Taro.switchTab({ url: '/pages/chat/index' })
+    handleLoginSuccess()
   }
 
   const [logging, setLogging] = useState(false)
+
+  const handleLoginSuccess = () => {
+    const { accessToken } = useUserStore.getState()
+    if (accessToken && !ws.connected) {
+      ws.connect(accessToken)
+    }
+    Taro.navigateBack({
+      fail: () => Taro.switchTab({ url: '/pages/chat/index' }),
+    })
+  }
 
   const handleWechatLogin = async () => {
     if (logging) return
@@ -110,7 +120,7 @@ export default function Login() {
       setUserInfo(res.userInfo)
       ws.connect(res.accessToken)
       if (!afterLogin(res.userInfo)) {
-        Taro.switchTab({ url: '/pages/chat/index' })
+        handleLoginSuccess()
       }
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '微信登录失败，请重试', icon: 'none' })

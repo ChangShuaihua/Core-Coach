@@ -9,7 +9,7 @@ import gameIcon from '@/assets/images/icon.png'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { STATUS_CONFIG } from '@/constants/creation'
-import { useAuthCheck } from '@/hooks'
+import { useLoginStatus } from '@/hooks/useLoginStatus'
 import { useCreationStore } from '@/store'
 import { onGameGenerateStatus, mapWsStatus } from '@/store/taskWsHandler'
 import type { Skill } from '@/types/creation'
@@ -30,7 +30,7 @@ const statusColorMap: Record<number, string> = {
 }
 
 export default function CreationPage() {
-  useAuthCheck()
+  const { isLoggedIn } = useLoginStatus()
   const setMode = useCreationStore((state) => state.setMode)
   const skillList = useCreationStore((state) => state.skillList)
   // const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
@@ -47,6 +47,7 @@ export default function CreationPage() {
   }, [setSkillList])
 
   const fetchRecent = useCallback(async () => {
+    if (!isLoggedIn) return null
     try {
       const data = await getRecentCreations()
       setRecentList(data)
@@ -55,7 +56,7 @@ export default function CreationPage() {
       console.error('获取最近创作失败:', error)
       return null
     }
-  }, [])
+  }, [isLoggedIn])
 
   // 页面每次可见时刷新创作列表和技能列表
   // 页面每次可见时刷新创作列表和技能列表
@@ -86,27 +87,38 @@ export default function CreationPage() {
     return unsub
   }, [])
 
-  const handleToggleFavorite = useCallback(async (item: RecentCreation) => {
-    try {
-      if (item.favorite_id) {
-        await removeFavoriteGame(item.favorite_id)
-        setRecentList((prev) =>
-          prev.map((g) => (g.id === item.id ? { ...g, is_like: 0, favorite_id: undefined } : g))
-        )
-        Taro.showToast({ title: '已取消收藏', icon: 'success' })
-      } else {
-        const res = await collectGame(item.id)
-        setRecentList((prev) =>
-          prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g))
-        )
-        Taro.showToast({ title: '已收藏', icon: 'success' })
+  const handleToggleFavorite = useCallback(
+    async (item: RecentCreation) => {
+      if (!isLoggedIn) {
+        Taro.navigateTo({ url: '/pages/login/index' })
+        return
       }
-    } catch {
-      Taro.showToast({ title: '操作失败', icon: 'none' })
-    }
-  }, [])
+      try {
+        if (item.favorite_id) {
+          await removeFavoriteGame(item.favorite_id)
+          setRecentList((prev) =>
+            prev.map((g) => (g.id === item.id ? { ...g, is_like: 0, favorite_id: undefined } : g))
+          )
+          Taro.showToast({ title: '已取消收藏', icon: 'success' })
+        } else {
+          const res = await collectGame(item.id)
+          setRecentList((prev) =>
+            prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g))
+          )
+          Taro.showToast({ title: '已收藏', icon: 'success' })
+        }
+      } catch {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
+    },
+    [isLoggedIn]
+  )
 
   const handleSkillClick = (skill: Skill) => {
+    if (!isLoggedIn) {
+      Taro.navigateTo({ url: '/pages/login/index' })
+      return
+    }
     if (skill.status !== 1) {
       Taro.showToast({
         title: getStatusText(skill.status),
@@ -197,7 +209,13 @@ export default function CreationPage() {
             <Text className="text-lg font-semibold text-gray-900">最近创作</Text>
             <Text
               className="text-sm text-orange-600"
-              onClick={() => Taro.navigateTo({ url: '/pages/more/index' })}
+              onClick={() => {
+                if (!isLoggedIn) {
+                  Taro.navigateTo({ url: '/pages/login/index' })
+                  return
+                }
+                Taro.navigateTo({ url: '/pages/more/index' })
+              }}
             >
               全部 ›
             </Text>

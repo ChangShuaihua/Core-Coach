@@ -79,7 +79,7 @@ interface WorkflowItem {
 }
 
 export async function getWorkflows(): Promise<Skill[]> {
-  const res = await get<WorkflowItem[]>('/app/ai-qa/workflows')
+  const res = await get<WorkflowItem[]>('/app/ai-qa/workflows', undefined, { withToken: false })
   return (res.data || []).map((item) => ({
     id: item.flow_id,
     title: item.description,
