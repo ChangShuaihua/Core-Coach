@@ -7,7 +7,6 @@ export const TAB_PAGES = [
 
 // 普通页面路径
 export const PAGES = [
-  'pages/login/index',
   'pages/wizard/index',
   'pages/edit-info/index',
   'pages/account-settings/index',
@@ -16,10 +15,12 @@ export const PAGES = [
   'pages/more/index',
   'pages/detail/index',
   'pages/result/index',
+  'pages/login/index',
 ] as const
 
 // 所有页面合并（app.config.ts 用这个）
-export const ALL_PAGES = [...PAGES, ...TAB_PAGES]
+// TAB_PAGES 放前面，确保小程序启动时进入第一个 tab 页（chat）
+export const ALL_PAGES = [...TAB_PAGES, ...PAGES]
 
 // 路由常量（跳转时用，避免硬编码字符串）
 export const ROUTES = {

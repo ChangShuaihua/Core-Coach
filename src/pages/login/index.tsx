@@ -82,7 +82,7 @@ export default function Login() {
       }
       Taro.hideLoading()
       setShowProfilePopup(false)
-      Taro.switchTab({ url: '/pages/chat/index' })
+      handleLoginSuccess()
     } catch (err: any) {
       Taro.hideLoading()
       Taro.showToast({ title: err?.message || '保存失败', icon: 'none' })
@@ -92,10 +92,26 @@ export default function Login() {
   // 跳过填写
   const handleSkipProfile = () => {
     setShowProfilePopup(false)
-    Taro.switchTab({ url: '/pages/chat/index' })
+    handleLoginSuccess()
   }
 
   const [logging, setLogging] = useState(false)
+
+  const handleLoginSuccess = () => {
+    const { accessToken } = useUserStore.getState()
+    if (accessToken && !ws.connected) {
+      ws.connect(accessToken)
+    }
+    Taro.navigateBack({
+      fail: () => Taro.switchTab({ url: '/pages/chat/index' }),
+    })
+  }
+
+  const handleCancelLogin = () => {
+    Taro.navigateBack({
+      fail: () => Taro.switchTab({ url: '/pages/chat/index' }),
+    })
+  }
 
   const handleWechatLogin = async () => {
     if (logging) return
@@ -110,7 +126,7 @@ export default function Login() {
       setUserInfo(res.userInfo)
       ws.connect(res.accessToken)
       if (!afterLogin(res.userInfo)) {
-        Taro.switchTab({ url: '/pages/chat/index' })
+        handleLoginSuccess()
       }
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '微信登录失败，请重试', icon: 'none' })
@@ -153,12 +169,28 @@ export default function Login() {
             type="primary"
             size="large"
             color="var(--gradient-orange)"
-            className="w-full mb-4"
+            className="w-full mb-3"
             disabled={logging}
             onClick={handleWechatLogin}
           >
             <View className="flex flex-row items-center justify-center">
               <Text className="text-base font-medium">{logging ? '登录中...' : '微信登录'}</Text>
+            </View>
+          </Button>
+
+          <Button
+            size="large"
+            className="w-full mb-4"
+            style={{
+              margin: '8px 0 0 0',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              color: '#f57b3a87',
+            }}
+            onClick={handleCancelLogin}
+          >
+            <View className="flex flex-row items-center justify-center">
+              <Text className="text-sm font-medium">暂不登录，先逛逛</Text>
             </View>
           </Button>
 
@@ -219,10 +251,28 @@ export default function Login() {
             color="var(--gradient-orange)"
             type="primary"
             size="large"
-            className="w-full mb-4"
+            className="w-full mb-3"
             onClick={handleAccountLogin}
           >
-            登录
+            <View className="flex flex-row items-center justify-center">
+              <Text className="text-base font-medium">登录</Text>
+            </View>
+          </Button>
+
+          <Button
+            size="large"
+            className="w-full mb-4"
+            style={{
+              margin: '8px 0 0 0',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              color: '#f57b3a87',
+            }}
+            onClick={handleCancelLogin}
+          >
+            <View className="flex flex-row items-center justify-center">
+              <Text className="text-sm font-medium">暂不登录，先逛逛</Text>
+            </View>
           </Button>
 
           <View className="text-center mt-1">

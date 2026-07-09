@@ -4,9 +4,7 @@ import { ws } from '@/services/ws'
 import type { ChatStore } from '@/types/chat'
 import {
   clearSendTimeout,
-  setSendTimeout,
-  deleteSendTimeout,
-  SEND_TIMEOUT_MS,
+  restartSendTimeout,
   clearRuntime,
   setAbortFallbackTimer,
   deleteAbortFallbackTimer,
@@ -225,16 +223,9 @@ export const createMessageSlice: Slice<
       create_time: Math.floor(Date.now() / 1000),
     })
 
-    // 启动发送超时定时器
-    const timer = setTimeout(() => {
-      deleteSendTimeout(targetSessionId)
-      const runtime = get().sessionRuntimes[targetSessionId]
-      if (runtime && runtime.assistantMsgId === aiMsgId) {
-        get().updateMessageStatus(targetSessionId, aiMsgId, 'error', '请求超时，请重试')
-        clearRuntime(targetSessionId)
-      }
-    }, SEND_TIMEOUT_MS)
-    setSendTimeout(targetSessionId, timer)
+    restartSendTimeout(requestId, () => {
+      markRequestTimeout(get, requestId, aiMsgId)
+    })
 
     return targetSessionId
   },
@@ -251,7 +242,7 @@ export const createMessageSlice: Slice<
       return
     }
 
-    clearSendTimeout(currentConversationId)
+    clearSendTimeout(runtime.requestId)
 
     if (!ws.canSend()) {
       // 连接不可用，直接清理本地状态
@@ -380,4 +371,19 @@ function withRemotePendingIfNeeded(
 function omitSession(record: Record<string, boolean>, sessionId: string) {
   const { [sessionId]: _, ...rest } = record
   return rest
+}
+
+function markRequestTimeout(get: () => ChatStore, requestId: string, assistantMsgId: string) {
+  const sessionId = get().requestToSession[requestId]
+  if (!sessionId) return
+
+  const runtime = get().sessionRuntimes[sessionId]
+  if (runtime?.requestId !== requestId || runtime.assistantMsgId !== assistantMsgId) return
+
+  const messages = get().messagesBySession[sessionId] || []
+  const msg = messages.find((m) => m.id === assistantMsgId)
+  if (!msg || msg.status === 'success' || msg.status === 'error') return
+
+  get().updateMessageStatus(sessionId, assistantMsgId, 'error', '请求超时，请重试')
+  clearRuntime(sessionId)
 }
