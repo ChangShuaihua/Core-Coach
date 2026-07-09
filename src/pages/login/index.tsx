@@ -107,6 +107,12 @@ export default function Login() {
     })
   }
 
+  const handleCancelLogin = () => {
+    Taro.navigateBack({
+      fail: () => Taro.switchTab({ url: '/pages/chat/index' }),
+    })
+  }
+
   const handleWechatLogin = async () => {
     if (logging) return
     setLogging(true)
@@ -163,12 +169,28 @@ export default function Login() {
             type="primary"
             size="large"
             color="var(--gradient-orange)"
-            className="w-full mb-4"
+            className="w-full mb-3"
             disabled={logging}
             onClick={handleWechatLogin}
           >
             <View className="flex flex-row items-center justify-center">
               <Text className="text-base font-medium">{logging ? '登录中...' : '微信登录'}</Text>
+            </View>
+          </Button>
+
+          <Button
+            size="large"
+            className="w-full mb-4"
+            style={{
+              margin: '8px 0 0 0',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              color: '#f57b3a87',
+            }}
+            onClick={handleCancelLogin}
+          >
+            <View className="flex flex-row items-center justify-center">
+              <Text className="text-sm font-medium">暂不登录，先逛逛</Text>
             </View>
           </Button>
 
@@ -229,10 +251,28 @@ export default function Login() {
             color="var(--gradient-orange)"
             type="primary"
             size="large"
-            className="w-full mb-4"
+            className="w-full mb-3"
             onClick={handleAccountLogin}
           >
-            登录
+            <View className="flex flex-row items-center justify-center">
+              <Text className="text-base font-medium">登录</Text>
+            </View>
+          </Button>
+
+          <Button
+            size="large"
+            className="w-full mb-4"
+            style={{
+              margin: '8px 0 0 0',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              color: '#f57b3a87',
+            }}
+            onClick={handleCancelLogin}
+          >
+            <View className="flex flex-row items-center justify-center">
+              <Text className="text-sm font-medium">暂不登录，先逛逛</Text>
+            </View>
           </Button>
 
           <View className="text-center mt-1">
