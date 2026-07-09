@@ -7,7 +7,7 @@ import { collectGame, removeFavoriteGame } from '@/api/profile'
 import Card from '@/components/Card'
 import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
-import { useAuthCheck } from '@/hooks'
+import { useLoginStatus } from '@/hooks/useLoginStatus'
 import { useCreationStore } from '@/store'
 import { onGameGenerateStatus, mapWsStatus } from '@/store/taskWsHandler'
 import type { Skill } from '@/types/creation'
@@ -16,7 +16,7 @@ import { formatTime } from '@/utils/date'
 import { getStatusText, getModeBySkillId } from './constants/skills'
 
 export default function CreationPage() {
-  useAuthCheck()
+  const { isLoggedIn } = useLoginStatus()
   const setMode = useCreationStore((state) => state.setMode)
   const skillList = useCreationStore((state) => state.skillList)
   // const skillListLoaded = useCreationStore((state) => state.skillListLoaded)
@@ -33,6 +33,7 @@ export default function CreationPage() {
   }, [setSkillList])
 
   const fetchRecent = useCallback(async () => {
+    if (!isLoggedIn) return null
     try {
       const data = await getRecentCreations()
       setRecentList(data)
@@ -41,7 +42,7 @@ export default function CreationPage() {
       console.error('获取最近创作失败:', error)
       return null
     }
-  }, [])
+  }, [isLoggedIn])
 
   // 页面每次可见时刷新创作列表和技能列表
   useDidShow(() => {
@@ -73,6 +74,10 @@ export default function CreationPage() {
 
   const handleToggleFavorite = useCallback(
     async (item: RecentCreation) => {
+      if (!isLoggedIn) {
+        Taro.navigateTo({ url: '/pages/login/index' })
+        return
+      }
       try {
         if (item.favorite_id) {
           await removeFavoriteGame(item.favorite_id)
@@ -81,18 +86,24 @@ export default function CreationPage() {
           )
           Taro.showToast({ title: '已取消收藏', icon: 'success' })
         } else {
-          await collectGame(item.id)
-          await fetchRecent()
+          const res = await collectGame(item.id)
+          setRecentList((prev) =>
+            prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g))
+          )
           Taro.showToast({ title: '已收藏', icon: 'success' })
         }
-      } catch (err: any) {
-        Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
+      } catch {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
       }
     },
-    [fetchRecent]
+    [isLoggedIn]
   )
 
   const handleSkillClick = (skill: Skill) => {
+    if (!isLoggedIn) {
+      Taro.navigateTo({ url: '/pages/login/index' })
+      return
+    }
     if (skill.status !== 1) {
       Taro.showToast({
         title: getStatusText(skill.status),
@@ -183,7 +194,13 @@ export default function CreationPage() {
             <Text className="text-lg font-semibold text-gray-900">最近创作</Text>
             <Text
               className="text-sm text-orange-600"
-              onClick={() => Taro.navigateTo({ url: '/pages/more/index' })}
+              onClick={() => {
+                if (!isLoggedIn) {
+                  Taro.navigateTo({ url: '/pages/login/index' })
+                  return
+                }
+                Taro.navigateTo({ url: '/pages/more/index' })
+              }}
             >
               全部 ›
             </Text>

@@ -12,20 +12,29 @@ const abortFallbackTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
 // ============ 超时清理 ============
 
-export function clearSendTimeout(sessionId: string) {
-  const timer = sendTimeouts.get(sessionId)
+export function clearSendTimeout(requestId: string) {
+  const timer = sendTimeouts.get(requestId)
   if (timer) {
     clearTimeout(timer)
-    sendTimeouts.delete(sessionId)
+    sendTimeouts.delete(requestId)
   }
 }
 
-export function setSendTimeout(sessionId: string, timer: ReturnType<typeof setTimeout>) {
-  sendTimeouts.set(sessionId, timer)
+export function setSendTimeout(requestId: string, timer: ReturnType<typeof setTimeout>) {
+  sendTimeouts.set(requestId, timer)
 }
 
-export function deleteSendTimeout(sessionId: string) {
-  sendTimeouts.delete(sessionId)
+export function deleteSendTimeout(requestId: string) {
+  sendTimeouts.delete(requestId)
+}
+
+export function restartSendTimeout(requestId: string, onTimeout: () => void) {
+  clearSendTimeout(requestId)
+  const timer = setTimeout(() => {
+    deleteSendTimeout(requestId)
+    onTimeout()
+  }, SEND_TIMEOUT_MS)
+  setSendTimeout(requestId, timer)
 }
 
 export { SEND_TIMEOUT_MS }

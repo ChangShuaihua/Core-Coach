@@ -13,6 +13,7 @@ import { createMessageSlice } from './chatMessageSlice'
 
 export {
   clearSendTimeout,
+  restartSendTimeout,
   clearRuntime,
   clearAbortFallbackTimer,
   clearSkillStorage,
@@ -70,8 +71,8 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   resetChat: () => {
     const { sessionRuntimes } = get()
-    Object.entries(sessionRuntimes).forEach(([sessionId, runtime]) => {
-      clearSendTimeout(sessionId)
+    Object.values(sessionRuntimes).forEach((runtime) => {
+      clearSendTimeout(runtime.requestId)
       clearAbortFallbackTimer(runtime.requestId)
     })
     persistSkill(null)

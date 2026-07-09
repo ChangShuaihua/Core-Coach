@@ -6,13 +6,18 @@ import type { MenuGroup } from '@/types/profile'
 
 interface MenuListProps {
   menuGroup: MenuGroup
+  onItemClick?: (item: any) => boolean
 }
 
-export default function MenuList({ menuGroup }: MenuListProps) {
+export default function MenuList({ menuGroup, onItemClick }: MenuListProps) {
   return (
     <Cell.Group>
       {menuGroup.items.map((item) => {
         const handleClick = () => {
+          if (onItemClick) {
+            const shouldProceed = onItemClick(item)
+            if (!shouldProceed) return
+          }
           if (item.onClick) {
             item.onClick()
           } else if (item.path) {

@@ -31,8 +31,8 @@ const MORE_SKILL: Skill = {
  * 返回: { code: 0, message: "成功", data: { list: Skill[] } }
  */
 export const getSkillList = async (): Promise<Skill[]> => {
-  // 调用真实接口
-  const res = await get<{ list: Skill[] }>('/creation/skills')
+  // 调用真实接口（公开接口，不需要 token）
+  const res = await get<{ list: Skill[] }>('/creation/skills', undefined, { withToken: false })
 
   // 接口返回格式: { code: 0, message: "成功", data: { list: [...] } }
   // res.data 就是接口返回的 data 字段
