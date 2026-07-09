@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { StarFill, Star } from '@nutui/icons-react-taro'
 import { getSkillList } from '@/api/creation'
 import { getRecentCreations } from '@/api/more'
 import { collectGame, removeFavoriteGame } from '@/api/profile'
-import gameIcon from '@/assets/images/icon.png'
 import Card from '@/components/Card'
+import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
-import { STATUS_CONFIG } from '@/constants/creation'
 import { useLoginStatus } from '@/hooks/useLoginStatus'
 import { useCreationStore } from '@/store'
 import { onGameGenerateStatus, mapWsStatus } from '@/store/taskWsHandler'
@@ -16,18 +14,6 @@ import type { Skill } from '@/types/creation'
 import type { RecentCreation } from '@/types/creation-list'
 import { formatTime } from '@/utils/date'
 import { getStatusText, getModeBySkillId } from './constants/skills'
-
-const typeIconMap: Record<string, string> = {
-  game: gameIcon,
-  lesson: '📋',
-}
-
-// 状态对应的 Tailwind 文本颜色
-const statusColorMap: Record<number, string> = {
-  0: 'text-red-500',
-  2: 'text-orange-500',
-  3: 'text-orange-500',
-}
 
 export default function CreationPage() {
   const { isLoggedIn } = useLoginStatus()
@@ -58,7 +44,6 @@ export default function CreationPage() {
     }
   }, [isLoggedIn])
 
-  // 页面每次可见时刷新创作列表和技能列表
   // 页面每次可见时刷新创作列表和技能列表
   useDidShow(() => {
     fetchRecent()
@@ -227,85 +212,29 @@ export default function CreationPage() {
                 <Text className="text-sm text-gray-400">暂无创作记录</Text>
               </View>
             )}
-            {recentList.map((item) => {
-              const isProcessing = item.status === 2 || item.status === 3
-              const isFailed = item.status === 0
-              const safeStatus = item.status as number
-              const config = item.status !== undefined ? STATUS_CONFIG[safeStatus] : null
-
-              return (
-                <View
-                  key={item.id}
-                  className={`bg-white rounded-lg p-4 border flex items-center gap-4 ${
-                    isProcessing ? 'border-orange-300 bg-orange-50' : 'border-orange-600'
-                  }`}
-                  onClick={() => {
-                    if (isProcessing) {
-                      Taro.navigateTo({ url: `/pages/result/index?recordId=${item.id}` })
-                    } else {
-                      Taro.navigateTo({
-                        url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
-                      })
-                    }
-                  }}
-                >
-                  <View
-                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      isProcessing ? 'bg-orange-200' : isFailed ? 'bg-red-100' : 'bg-orange-500'
-                    }`}
-                  >
-                    {isProcessing ? (
-                      <Text className="text-2xl">{config?.icon || '✨'}</Text>
-                    ) : isFailed ? (
-                      <Text className="text-2xl">😢</Text>
-                    ) : typeIconMap[item.type]?.length > 2 ? (
-                      <Image
-                        src={typeIconMap[item.type]}
-                        style={{ width: '48px', height: '48px' }}
-                        mode="aspectFit"
-                      />
-                    ) : (
-                      <Text className="text-2xl">{typeIconMap[item.type] || '✨'}</Text>
-                    )}
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-medium text-gray-900 block mb-1">
-                      {item.title}
-                    </Text>
-                    <View className="flex items-center gap-2">
-                      <Text className="text-xs text-gray-500">{formatTime(item.created_at)}</Text>
-                      {isProcessing && (
-                        <Text className={`text-xs font-medium ${statusColorMap[safeStatus] || ''}`}>
-                          {config?.text}
-                        </Text>
-                      )}
-                      {isFailed && (
-                        <Text className="text-xs font-medium text-red-500">生成失败</Text>
-                      )}
-                    </View>
-                  </View>
-                  {isProcessing ? (
-                    <View className="w-5 h-5 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-                  ) : (
-                    <View className="flex items-center gap-2">
-                      <View
-                        onTap={(e) => {
-                          e.stopPropagation()
-                          handleToggleFavorite(item)
-                        }}
-                      >
-                        {item.is_like === 1 ? (
-                          <StarFill size="18" color="#ff9500" />
-                        ) : (
-                          <Star size="18" color="#d1d5db" />
-                        )}
-                      </View>
-                      <Text className="text-gray-400 text-xl">›</Text>
-                    </View>
-                  )}
-                </View>
-              )
-            })}
+            {recentList.map((item) => (
+              <GameCard
+                key={item.id}
+                title={item.title}
+                age={item.age}
+                gameType={item.game_type}
+                extra={formatTime(item.created_at)}
+                status={item.status}
+                className="mb-3"
+                onClick={() => {
+                  if (item.status === 2 || item.status === 3) {
+                    Taro.navigateTo({ url: `/pages/result/index?recordId=${item.id}` })
+                  } else {
+                    Taro.navigateTo({
+                      url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
+                    })
+                  }
+                }}
+                favorited={item.is_like === 1}
+                onToggleFavorite={() => handleToggleFavorite(item)}
+                rightSlot={<Text className="text-gray-400 text-xl">›</Text>}
+              />
+            ))}
           </View>
         </View>
       </View>

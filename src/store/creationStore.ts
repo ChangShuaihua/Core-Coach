@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Skill } from '@/types/creation'
 
-export type CreationMode = 'game' | 'lesson' | 'video' | null
+export type CreationMode = 'game' | null
 
 interface CreationState {
   mode: CreationMode

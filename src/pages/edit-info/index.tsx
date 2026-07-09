@@ -93,10 +93,10 @@ export default function EditInfoPage() {
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)
-    } catch (error) {
+    } catch (err: any) {
       Taro.hideLoading()
-      Taro.showToast({ title: '保存失败', icon: 'none' })
-      console.error('保存失败:', error)
+      Taro.showToast({ title: err?.message || '保存失败', icon: 'none' })
+      console.error('保存失败:', err)
     }
   }
 
