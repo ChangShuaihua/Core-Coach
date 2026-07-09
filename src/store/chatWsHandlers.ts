@@ -18,7 +18,13 @@ import { migratePendingSession } from './chat-ws/pendingSession'
 import { createRemoteRuntimeForChunk } from './chat-ws/remoteRuntime'
 import { findSessionByRequestId, findSourcePending } from './chat-ws/runtimeResolver'
 import { enterChatSession } from './chat-ws/sessionHandlers'
-import { useChatStore, clearSendTimeout, clearRuntime, clearAbortFallbackTimer } from './chatStore'
+import {
+  useChatStore,
+  clearSendTimeout,
+  restartSendTimeout,
+  clearRuntime,
+  clearAbortFallbackTimer,
+} from './chatStore'
 
 // chunk 幂等：记录每个 request 已处理的最大 chunk_index（requestId 维度）
 const processedChunkIndex = new Map<string, number>()
@@ -60,8 +66,8 @@ export function initWsHandlers() {
     if (!runtimeKey && data.session_id) {
       const sourcePending = findSourcePending(data.request_id)
       if (sourcePending) {
-        runtimeKey = sourcePending
         migratePendingSession(sourcePending, data.session_id)
+        runtimeKey = data.session_id
       }
     }
 
@@ -82,8 +88,6 @@ export function initWsHandlers() {
     if (data.chunk_index <= lastIdx) return
     processedChunkIndex.set(data.request_id, data.chunk_index)
 
-    clearSendTimeout(runtimeKey)
-
     const runtime = useChatStore.getState().sessionRuntimes[runtimeKey]
     if (!runtime) return
     const msgSessionId = runtimeKey.startsWith('pending-') ? data.session_id : runtimeKey
@@ -101,6 +105,10 @@ export function initWsHandlers() {
         [msgSessionId]: { ...runtime, status: 'streaming' },
       },
     }))
+
+    restartSendTimeout(data.request_id, () => {
+      markRequestTimeout(data.request_id, runtime.assistantMsgId)
+    })
   })
 
   // ---- 流式结束（优先 session_id，兜底 request_id，含 pending 迁移兜底） ----
@@ -117,7 +125,7 @@ export function initWsHandlers() {
       return
     }
 
-    clearSendTimeout(runtimeKey)
+    clearSendTimeout(data.request_id)
     processedChunkIndex.delete(data.request_id)
 
     const runtime = useChatStore.getState().sessionRuntimes[runtimeKey]
@@ -153,7 +161,7 @@ export function initWsHandlers() {
       return
     }
 
-    clearSendTimeout(runtimeKey)
+    clearSendTimeout(data.request_id)
     processedChunkIndex.delete(data.request_id)
 
     const runtime = useChatStore.getState().sessionRuntimes[runtimeKey]
@@ -186,7 +194,7 @@ export function initWsHandlers() {
       return
     }
 
-    clearSendTimeout(runtimeKey)
+    clearSendTimeout(data.request_id)
     processedChunkIndex.delete(data.request_id)
 
     const runtime = useChatStore.getState().sessionRuntimes[runtimeKey]
@@ -233,7 +241,9 @@ export function initWsHandlers() {
         : null)
 
     if (targetSessionId) {
-      clearSendTimeout(targetSessionId)
+      if (data.request_id) {
+        clearSendTimeout(data.request_id)
+      }
       if (data.request_id) processedChunkIndex.delete(data.request_id)
 
       const runtime = sessionRuntimes[targetSessionId]
@@ -282,10 +292,7 @@ export function initWsHandlers() {
 
     if (!runtimeKey) return
 
-    clearSendTimeout(runtimeKey)
-    if (data.session_id && data.session_id !== runtimeKey) {
-      clearSendTimeout(data.session_id)
-    }
+    clearSendTimeout(data.request_id)
     processedChunkIndex.delete(data.request_id)
     // 取消 abort 兜底定时器
     clearAbortFallbackTimer(data.request_id)
@@ -340,6 +347,7 @@ export function initWsHandlers() {
 
     // 服务端没有活跃流且本地还有 runtime，清理
     if (!data.has_active_stream && runtime) {
+      clearSendTimeout(runtime.requestId)
       clearRuntime(sessionId)
       clearLastStreamId(sessionId)
     }
@@ -371,4 +379,20 @@ export function initWsHandlers() {
     get().setWsConnected(false)
     processedChunkIndex.clear()
   })
+}
+
+function markRequestTimeout(requestId: string, assistantMsgId: string) {
+  const state = useChatStore.getState()
+  const sessionId = state.requestToSession[requestId]
+  if (!sessionId) return
+
+  const runtime = state.sessionRuntimes[sessionId]
+  if (runtime?.requestId !== requestId || runtime.assistantMsgId !== assistantMsgId) return
+
+  const messages = state.messagesBySession[sessionId] || []
+  const msg = messages.find((m) => m.id === assistantMsgId)
+  if (!msg || msg.status === 'success' || msg.status === 'error') return
+
+  state.updateMessageStatus(sessionId, assistantMsgId, 'error', '请求超时，请重试')
+  clearRuntime(sessionId)
 }
