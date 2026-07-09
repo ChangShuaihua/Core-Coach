@@ -101,9 +101,10 @@ export default function CreationWizardPage() {
   }
 
   /**
-   * 任务提交成功：toast 提示 → 等待 → 弹订阅（仅新建任务）→ 跳转
+   * 任务提交成功：toast 提示 → 等待 → 跳转
+   * 注意：订阅请求已在用户点击按钮时同步触发（微信要求必须在 TAP 手势上下文中调用）
    */
-  const handleTaskSubmitted = async (recordId: number, isNewlyCreated: boolean) => {
+  const handleTaskSubmitted = async (recordId: number, _isNewlyCreated: boolean) => {
     const store = useTaskStore.getState()
     if (
       store.recordId === recordId &&
@@ -119,13 +120,6 @@ export default function CreationWizardPage() {
     store.startTask(recordId, businessType)
     Taro.showToast({ title: '任务已提交', icon: 'success', duration: 1500 })
     await new Promise((r) => setTimeout(r, 1500))
-    if (isNewlyCreated) {
-      try {
-        await requestTaskCompleteSubscribe()
-      } catch (e) {
-        // 用户拒绝或关闭，忽略
-      }
-    }
     navigateToCreation()
     clearMode()
   }
