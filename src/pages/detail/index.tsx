@@ -78,29 +78,35 @@ export default function DetailPage() {
     )
   }
 
-  const handleRegenerate = async () => {
+  const handleRegenerate = () => {
     const retryParams = genResult?.retry_params
     if (!retryParams) {
       Taro.showToast({ title: '缺少生成参数', icon: 'none' })
       return
     }
-    try {
-      const res = await startGenerateTask(retryParams)
-      Taro.showToast({ title: '任务已提交', icon: 'success', duration: 1500 })
-      await new Promise((r) => setTimeout(r, 1500))
-      if (!res.message?.includes('已有')) {
-        try {
-          await requestTaskCompleteSubscribe()
-        } catch (e) {
-          // 用户拒绝或关闭，忽略
-        }
-      }
-      safeRedirectTo({
-        url: `/pages/result/index?recordId=${res.record_id}`,
-        source: 'detail.regenerate',
+
+    // 立即触发订阅（同步阶段，用户手势有效）
+    requestTaskCompleteSubscribe()
+      .then(() => {
+        doRegenerate(retryParams)
       })
-    } catch (err: any) {
-      Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
+      .catch(() => {
+        // 订阅失败也继续执行
+        doRegenerate(retryParams)
+      })
+
+    async function doRegenerate(params: any) {
+      try {
+        const res = await startGenerateTask(params)
+        Taro.showToast({ title: '任务已提交', icon: 'success', duration: 1500 })
+        await new Promise((r) => setTimeout(r, 1500))
+        safeRedirectTo({
+          url: `/pages/result/index?recordId=${res.record_id}`,
+          source: 'detail.regenerate',
+        })
+      } catch (err: any) {
+        Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
+      }
     }
   }
 

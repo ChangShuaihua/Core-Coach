@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 
 const SUBSCRIBE_TMPL_IDS = {
-  TASK_COMPLETE: 'qdxiOA3uXl4Y-MTffH-glx0EUz3rKbIcPIMp06YtRy0',
+  TASK_COMPLETE: '1V1F8C_45El-vPGNUB4WyM7NH6CiD6wK--UGUSdqT2Q',
 }
 
 /**
@@ -16,16 +16,18 @@ export function requestSubscribe(tmplIds?: string[]): Promise<Record<string, str
   }
 
   return new Promise((resolve, reject) => {
+    console.log('开始请求订阅消息，模板ID:', ids)
     Taro.requestSubscribeMessage({
       tmplIds: ids,
-      entityIds: ids,
+      entityIds: [], // Taro 类型定义 Bug，传空数组消警告，微信运行时会忽略
       success: (res) => {
-        console.log('订阅成功:', res)
         resolve(res)
       },
       fail: (err) => {
-        console.error('订阅失败:', err)
         reject(err)
+      },
+      complete: (res) => {
+        reject(res)
       },
     })
   })

@@ -5,6 +5,7 @@ import { Refresh } from '@nutui/icons-react-taro'
 import StepIndicator from '@/components/Step'
 import StepRenderer from '@/pages/wizard/components/StepRenderer'
 import type { StepConfig } from '@/pages/wizard/components/StepRenderer'
+import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 export interface SkillStepConfig {
   steps: StepConfig[]
@@ -152,12 +153,24 @@ export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitt
                 }}
                 onClick={() => {
                   if (!validateCurrentStep()) return
-                  if (onGenerate) {
-                    onGenerate(data).then((genResult) => {
+
+                  // 立即触发订阅（同步阶段，用户手势有效）
+                  requestTaskCompleteSubscribe()
+                    .then(() => {
+                      handleGenerate()
+                    })
+                    .catch(() => {
+                      // 订阅失败也继续执行业务（降级）
+                      handleGenerate()
+                    })
+
+                  async function handleGenerate() {
+                    if (onGenerate) {
+                      const genResult = await onGenerate(data)
                       if (genResult) {
                         onTaskSubmitted?.(genResult.recordId, genResult.isNewlyCreated)
                       }
-                    })
+                    }
                   }
                 }}
               >
