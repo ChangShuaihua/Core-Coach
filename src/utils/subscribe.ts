@@ -27,7 +27,7 @@ export function requestSubscribe(tmplIds?: string[]): Promise<Record<string, str
         reject(err)
       },
       complete: (res) => {
-        reject(res)
+        console.log('订阅消息完成回调:', res)
       },
     })
   })
