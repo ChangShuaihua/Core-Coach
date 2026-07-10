@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow, useShareAppMessage } from '@tarojs/taro'
 import { ArrowRight } from '@nutui/icons-react-taro'
 import { logout } from '@/api/login'
 import { getUserInfo } from '@/api/profile'
+import chatLogo from '@/assets/images/chatlogo.png'
 import Card from '@/components/Card'
 import Layout from '@/components/Layout'
 import { useLoginStatus } from '@/hooks/useLoginStatus'
@@ -15,6 +16,16 @@ import UserInfoCard from './components/UserInfoCard'
 import { MAIN_MENU_ITEMS, LOGOUT_MENU_ITEM } from './constants/menuConfig'
 
 export default function ProfilePage() {
+  useShareAppMessage(() => ({
+    title: '核心力量少儿跑酷！一起运动一起成长～',
+    path: '/pages/profile/index',
+    imageUrl: chatLogo,
+  }))
+
+  useDidShow(() => {
+    Taro.showShareMenu({ withShareTicket: true })
+  })
+
   const { isLoggedIn } = useLoginStatus()
   const { clearAuth, userInfo: storeUserInfo, setUserInfo } = useUserStore()
   const [isLoggingOut, setIsLoggingOut] = useState(false)

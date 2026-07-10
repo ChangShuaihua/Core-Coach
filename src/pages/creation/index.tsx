@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useShareAppMessage } from '@tarojs/taro'
 import { getSkillList } from '@/api/creation'
 import { getRecentCreations } from '@/api/more'
 import { collectGame, removeFavoriteGame } from '@/api/profile'
+import chatLogo from '@/assets/images/chatlogo.png'
 import Card from '@/components/Card'
 import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
@@ -16,6 +17,16 @@ import { formatTime } from '@/utils/date'
 import { getStatusText, getModeBySkillId } from './constants/skills'
 
 export default function CreationPage() {
+  useShareAppMessage(() => ({
+    title: '快来和我一起创作跑酷游戏！脑洞大开超好玩～',
+    path: '/pages/creation/index',
+    imageUrl: chatLogo,
+  }))
+
+  useDidShow(() => {
+    Taro.showShareMenu({ withShareTicket: true })
+  })
+
   const { isLoggedIn } = useLoginStatus()
   const setMode = useCreationStore((state) => state.setMode)
   const skillList = useCreationStore((state) => state.skillList)

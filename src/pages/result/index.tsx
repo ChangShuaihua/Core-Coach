@@ -13,7 +13,7 @@ import WaitingPage from '@/components/WaitingPage'
 import { useCreationStore } from '@/store'
 import type { TaskStatusCode } from '@/types/creation'
 import { safeRedirectTo } from '@/utils/route'
-import { useShare } from '@/utils/share'
+import { useShare, useShareTimeline } from '@/utils/share'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
@@ -35,10 +35,13 @@ export default function ResultPage() {
   const recordId = router.params.recordId
 
   const genResult = data.generatedResults?.[0]
-  useShare(
-    genResult?.game_name || '我生成了一个游戏，快来看看',
-    `/pages/result/index?recordId=${recordId}`
-  )
+  const shareTitle = genResult?.game_name
+    ? `快来看看我生成的「${genResult.game_name}」跑酷游戏！超好玩～`
+    : '快来和我一起体验少儿跑酷！超有趣的运动游戏～'
+
+  useShare(shareTitle, `/pages/result/index?recordId=${recordId}`)
+
+  useShareTimeline(shareTitle, `recordId=${recordId}`)
 
   useEffect(() => {
     if (!recordId) {
