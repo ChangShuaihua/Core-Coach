@@ -13,6 +13,7 @@ export interface SendOptions {
 }
 
 export interface ReconnectSession {
+  requestId: string
   sessionId: string
   lastStreamId: string
 }

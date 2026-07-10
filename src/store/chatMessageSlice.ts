@@ -224,6 +224,8 @@ export const createMessageSlice: Slice<
     })
 
     restartSendTimeout(requestId, () => {
+      // WS 不在线时不触发超时，等 reconnect 恢复
+      if (!get().wsConnected) return
       markRequestTimeout(get, requestId, aiMsgId)
     })
 

@@ -62,6 +62,7 @@ export interface WsAbortData {
 }
 
 export interface WsReconnectSession {
+  request_id: string
   session_id: string
   last_stream_id: string
 }

@@ -331,12 +331,26 @@ export function initWsHandlers() {
   ws.on('reconnect_result', (data: WsReconnectResultData) => {
     if (!data.success) return
 
-    const { sessionRuntimes } = get()
     const sessionId = data.session_id
-    const runtime = sessionRuntimes[sessionId]
 
-    // 将 missed_messages 重新注入事件系统
+    // 先处理 missed_messages 中的 chat_session_created，完成 pending → real 迁移
+    // 必须在 reemit 之前，否则 stream_done 按 real session_id 找不到还在 pending 下的 runtime
     if (data.missed_messages?.length) {
+      const sessionCreated = data.missed_messages.find(
+        (m) => m.event_type === 'chat_session_created'
+      )
+      if (sessionCreated) {
+        const sourcePending = findSourcePending(sessionCreated.request_id)
+        if (sourcePending) {
+          migratePendingSession(
+            sourcePending,
+            sessionCreated.data.session_id,
+            sessionCreated.data.title || '新对话'
+          )
+        }
+      }
+
+      // reemit 所有 missed_messages（幂等：已处理的 chunk 会被 chunk_index 去重跳过）
       ws.reemit(
         data.missed_messages.map((m) => ({
           event_type: m.event_type,
@@ -346,10 +360,14 @@ export function initWsHandlers() {
     }
 
     // 服务端没有活跃流且本地还有 runtime，清理
-    if (!data.has_active_stream && runtime) {
-      clearSendTimeout(runtime.requestId)
-      clearRuntime(sessionId)
-      clearLastStreamId(sessionId)
+    // 注意：取最新 state，因为 reemit 可能已经触发了 stream_done 清理过 runtime
+    if (!data.has_active_stream) {
+      const currentRuntime = useChatStore.getState().sessionRuntimes[sessionId]
+      if (currentRuntime) {
+        clearSendTimeout(currentRuntime.requestId)
+        clearRuntime(sessionId)
+        clearLastStreamId(sessionId)
+      }
     }
   })
 
