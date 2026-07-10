@@ -151,27 +151,23 @@ export default function Wizard({ stepConfig, onFinish, onGenerate, onTaskSubmitt
                   color: '#fff',
                   lineHeight: '1.5',
                 }}
-                onClick={() => {
+                onClick={async () => {
                   if (!validateCurrentStep()) return
+                  if (!onGenerate) return
 
-                  // 立即触发订阅（同步阶段，用户手势有效）
-                  requestTaskCompleteSubscribe()
-                    .then(() => {
-                      handleGenerate()
-                    })
-                    .catch(() => {
-                      // 订阅失败也继续执行业务（降级）
-                      handleGenerate()
-                    })
+                  // 1. 先调用生成 API（在 TAP 手势上下文中）
+                  const genResult = await onGenerate(data)
+                  if (!genResult) return
 
-                  async function handleGenerate() {
-                    if (onGenerate) {
-                      const genResult = await onGenerate(data)
-                      if (genResult) {
-                        onTaskSubmitted?.(genResult.recordId, genResult.isNewlyCreated)
-                      }
-                    }
+                  // 2. 只有真正新建了任务（不是已有任务、不是409）才弹订阅
+                  // 注意：微任务阶段仍在微信 TAP 手势有效期内
+                  if (genResult.isNewlyCreated) {
+                    requestTaskCompleteSubscribe().catch(() => {
+                      // 用户拒绝或关闭，忽略
+                    })
                   }
+
+                  onTaskSubmitted?.(genResult.recordId, genResult.isNewlyCreated)
                 }}
               >
                 <Text className="text-base font-semibold text-white">生成结果</Text>

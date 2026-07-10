@@ -9,7 +9,6 @@ import type { SkillStepConfig } from '@/components/Wizard'
 import { useCreationStore } from '@/store'
 import { useTaskStore } from '@/store/taskStore'
 import type { GenerateGameParams } from '@/types/creation'
-import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 import { getConfigByType } from './constants/skillConfig'
 
 /**
@@ -59,7 +58,8 @@ export default function CreationWizardPage() {
       return {
         recordId: result.record_id,
         businessType,
-        isNewlyCreated: !result.message?.includes('已有'),
+        // status: 2 = 排队中（真正新建），status: 3 = 生成中（已有任务）
+        isNewlyCreated: result.status === 2,
       }
     } catch (error: any) {
       console.error('❌ 生成失败:', error)

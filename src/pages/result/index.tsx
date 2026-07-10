@@ -115,35 +115,29 @@ export default function ResultPage() {
     )
   }
 
-  const handleRegenerate = () => {
+  const handleRegenerate = async () => {
     const retryParams = genResult?.retry_params
     if (!retryParams) {
       Taro.showToast({ title: '缺少生成参数', icon: 'none' })
       return
     }
 
-    // 立即触发订阅（同步阶段，用户手势有效）
-    requestTaskCompleteSubscribe()
-      .then(() => {
-        doRegenerate(retryParams)
-      })
-      .catch(() => {
-        // 订阅失败也继续执行
-        doRegenerate(retryParams)
-      })
+    try {
+      const res = await startGenerateTask(retryParams)
+      Taro.showToast({ title: '任务已提交', icon: 'success', duration: 1500 })
 
-    async function doRegenerate(params: any) {
-      try {
-        const res = await startGenerateTask(params)
-        Taro.showToast({ title: '任务已提交', icon: 'success', duration: 1500 })
-        await new Promise((r) => setTimeout(r, 1500))
-        safeRedirectTo({
-          url: `/pages/result/index?recordId=${res.record_id}`,
-          source: 'result.regenerate',
-        })
-      } catch (err: any) {
-        Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
+      // 只有真正新建了任务才弹订阅（微任务阶段仍在微信 TAP 手势有效期内）
+      if (res.status === 2) {
+        requestTaskCompleteSubscribe().catch(() => {})
       }
+
+      await new Promise((r) => setTimeout(r, 1500))
+      safeRedirectTo({
+        url: `/pages/result/index?recordId=${res.record_id}`,
+        source: 'result.regenerate',
+      })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
     }
   }
 
