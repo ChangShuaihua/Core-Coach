@@ -13,7 +13,6 @@ export default function Card({ children, className = '', style, onClick }: CardP
       className={`overflow-hidden rounded-2xl bg-white shadow-md ${className}`}
       style={style}
       onClick={onClick}
-      onTap={onClick}
     >
       {children}
     </View>

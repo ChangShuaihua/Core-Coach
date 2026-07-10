@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getTaskStatus, startGenerateTask } from '@/api/creation'
 import { collectGame } from '@/api/profile'
@@ -13,7 +13,6 @@ import WaitingPage from '@/components/WaitingPage'
 import { useCreationStore } from '@/store'
 import type { TaskStatusCode } from '@/types/creation'
 import { safeRedirectTo } from '@/utils/route'
-import { useShare } from '@/utils/share'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
@@ -35,10 +34,29 @@ export default function ResultPage() {
   const recordId = router.params.recordId
 
   const genResult = data.generatedResults?.[0]
-  useShare(
-    genResult?.game_name || '我生成了一个游戏，快来看看',
-    `/pages/result/index?recordId=${recordId}`
-  )
+
+  // 用 ref 确保分享回调始终取到最新游戏名（useShareAppMessage 在 mount 时注册，不会随渲染更新）
+  const shareTitleRef = useRef('快来和我一起体验少儿跑酷！超有趣的运动游戏～')
+  shareTitleRef.current = genResult?.game_name
+    ? '快来看看我生成的跑酷游戏！超好玩～'
+    : '快来和我一起体验少儿跑酷！超有趣的运动游戏～'
+
+  useShareAppMessage(() => ({
+    title: shareTitleRef.current,
+    path: `/pages/result/index?recordId=${recordId}`,
+  }))
+
+  useShareTimeline(() => ({
+    title: shareTitleRef.current,
+    query: `recordId=${recordId}`,
+  }))
+
+  useEffect(() => {
+    Taro.showShareMenu({
+      withShareTicket: true,
+      showShareItems: ['shareAppMessage', 'shareTimeline'],
+    })
+  }, [])
 
   useEffect(() => {
     if (!recordId) {
@@ -185,7 +203,15 @@ export default function ResultPage() {
   ]
 
   return (
-    <Layout title="生成结果" showTabBar>
+    <Layout
+      title="生成结果"
+      showTabBar={false}
+      renderLeft={
+        <View onClick={() => Taro.navigateBack()}>
+          <ArrowLeft size={22} color="#333" />
+        </View>
+      }
+    >
       {createdAt && (
         <View className="px-4 py-2 bg-gray-50">
           <Text className="text-xs text-gray-400">创建时间：{formatTime(createdAt)}</Text>

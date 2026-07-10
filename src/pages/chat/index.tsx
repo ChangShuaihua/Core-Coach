@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useShareAppMessage } from '@tarojs/taro'
 import { Clock, Add } from '@nutui/icons-react-taro'
 import { Popup } from '@nutui/nutui-react-taro'
+import chatLogo from '@/assets/images/chatlogo.png'
 import Layout from '@/components/Layout'
 import { useLoginStatus } from '@/hooks/useLoginStatus'
 import { ws } from '@/services/ws'
@@ -18,6 +19,16 @@ import WelcomeScreen from './components/WelcomeScreen'
 const STOP_CLICK_DEBOUNCE_MS = 800
 
 export default function ChatPage() {
+  useShareAppMessage(() => ({
+    title: '快来和我一起体验少儿跑酷！超有趣的运动游戏～',
+    path: '/pages/chat/index',
+    imageUrl: chatLogo,
+  }))
+
+  useEffect(() => {
+    Taro.showShareMenu({ withShareTicket: true })
+  }, [])
+
   const { isLoggedIn } = useLoginStatus()
 
   const [showPopup, setShowPopup] = useState(false)

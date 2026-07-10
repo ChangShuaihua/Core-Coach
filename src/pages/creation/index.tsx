@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useShareAppMessage } from '@tarojs/taro'
 import { getSkillList } from '@/api/creation'
 import { getRecentCreations } from '@/api/more'
 import { collectGame, removeFavoriteGame } from '@/api/profile'
+import chatLogo from '@/assets/images/chatlogo.png'
 import Card from '@/components/Card'
 import GameCard from '@/components/GameCard'
 import Layout from '@/components/Layout'
@@ -13,9 +14,20 @@ import { onGameGenerateStatus, mapWsStatus } from '@/store/taskWsHandler'
 import type { Skill } from '@/types/creation'
 import type { RecentCreation } from '@/types/creation-list'
 import { formatTime } from '@/utils/date'
+import { safeNavigateTo } from '@/utils/route'
 import { getStatusText, getModeBySkillId } from './constants/skills'
 
 export default function CreationPage() {
+  useShareAppMessage(() => ({
+    title: '快来和我一起创作跑酷游戏！脑洞大开超好玩～',
+    path: '/pages/creation/index',
+    imageUrl: chatLogo,
+  }))
+
+  useEffect(() => {
+    Taro.showShareMenu({ withShareTicket: true })
+  }, [])
+
   const { isLoggedIn } = useLoginStatus()
   const setMode = useCreationStore((state) => state.setMode)
   const skillList = useCreationStore((state) => state.skillList)
@@ -75,7 +87,7 @@ export default function CreationPage() {
   const handleToggleFavorite = useCallback(
     async (item: RecentCreation) => {
       if (!isLoggedIn) {
-        Taro.navigateTo({ url: '/pages/login/index' })
+        safeNavigateTo({ url: '/pages/login/index' })
         return
       }
       try {
@@ -101,7 +113,7 @@ export default function CreationPage() {
 
   const handleSkillClick = (skill: Skill) => {
     if (!isLoggedIn) {
-      Taro.navigateTo({ url: '/pages/login/index' })
+      safeNavigateTo({ url: '/pages/login/index' })
       return
     }
     if (skill.status !== 1) {
@@ -114,7 +126,7 @@ export default function CreationPage() {
 
     const mode = getModeBySkillId(skill.id)
     setMode(mode)
-    Taro.navigateTo({
+    safeNavigateTo({
       url: `/pages/wizard/index?mode=${mode}`,
     })
   }
@@ -196,10 +208,10 @@ export default function CreationPage() {
               className="text-sm text-orange-600"
               onClick={() => {
                 if (!isLoggedIn) {
-                  Taro.navigateTo({ url: '/pages/login/index' })
+                  safeNavigateTo({ url: '/pages/login/index' })
                   return
                 }
-                Taro.navigateTo({ url: '/pages/more/index' })
+                safeNavigateTo({ url: '/pages/more/index' })
               }}
             >
               全部 ›
@@ -223,9 +235,9 @@ export default function CreationPage() {
                 className="mb-3"
                 onClick={() => {
                   if (item.status === 2 || item.status === 3) {
-                    Taro.navigateTo({ url: `/pages/result/index?recordId=${item.id}` })
+                    safeNavigateTo({ url: `/pages/result/index?recordId=${item.id}` })
                   } else {
-                    Taro.navigateTo({
+                    safeNavigateTo({
                       url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
                     })
                   }
