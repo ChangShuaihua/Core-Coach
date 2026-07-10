@@ -535,6 +535,7 @@ export class WsManager {
     const data: WsReconnectData = {
       token: accessToken || this.token,
       sessions: ctx.sessions.map((s) => ({
+        request_id: s.requestId,
         session_id: s.sessionId,
         last_stream_id: s.lastStreamId,
       })),

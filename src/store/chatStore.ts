@@ -104,10 +104,35 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
 ws.setReconnectContextGetter(() => {
   const state = useChatStore.getState()
-  const sessions = Object.entries(state.lastStreamIds).map(([sessionId, lastStreamId]) => ({
+
+  // 用 Map 去重，key = sessionId
+  const sessionMap = new Map<string, { requestId: string; lastStreamId: string }>()
+
+  // 1. 有 lastStreamId 的 session（已收到过 chunk）
+  for (const [sessionId, lastStreamId] of Object.entries(state.lastStreamIds)) {
+    const runtime = state.sessionRuntimes[sessionId]
+    sessionMap.set(sessionId, {
+      requestId: runtime?.requestId || '',
+      lastStreamId,
+    })
+  }
+
+  // 2. 有 active runtime 但没有 lastStreamId 的 session（首个 chunk 前断线）
+  for (const [sessionId, runtime] of Object.entries(state.sessionRuntimes)) {
+    if (!sessionMap.has(sessionId)) {
+      sessionMap.set(sessionId, {
+        requestId: runtime.requestId,
+        lastStreamId: '',
+      })
+    }
+  }
+
+  const sessions = Array.from(sessionMap, ([sessionId, { requestId, lastStreamId }]) => ({
+    requestId,
     sessionId,
     lastStreamId,
   }))
+
   return {
     currentSessionId: state.currentConversationId || '',
     sessions,
