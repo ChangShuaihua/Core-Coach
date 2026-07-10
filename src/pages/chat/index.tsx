@@ -25,9 +25,9 @@ export default function ChatPage() {
     imageUrl: chatLogo,
   }))
 
-  useDidShow(() => {
+  useEffect(() => {
     Taro.showShareMenu({ withShareTicket: true })
-  })
+  }, [])
 
   const { isLoggedIn } = useLoginStatus()
 

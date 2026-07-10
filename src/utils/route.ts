@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro'
 
-type RouteMethod = 'redirectTo' | 'reLaunch'
+type RouteMethod = 'redirectTo' | 'reLaunch' | 'navigateTo' | 'switchTab'
 
 interface RouteOptions {
   url: string
@@ -106,6 +106,32 @@ export function safeReLaunch(options: RouteOptions) {
     fail: (error) => {
       clearPendingRoute('reLaunch', options)
       logRouteFail('reLaunch', options, error)
+    },
+  })
+}
+
+export function safeNavigateTo(options: RouteOptions) {
+  if (shouldSkipRoute('navigateTo', options)) return Promise.resolve()
+
+  return Taro.navigateTo({
+    url: options.url,
+    success: () => clearPendingRoute('navigateTo', options),
+    fail: (error) => {
+      clearPendingRoute('navigateTo', options)
+      logRouteFail('navigateTo', options, error)
+    },
+  })
+}
+
+export function safeSwitchTab(options: RouteOptions) {
+  if (shouldSkipRoute('switchTab', options)) return Promise.resolve()
+
+  return Taro.switchTab({
+    url: options.url,
+    success: () => clearPendingRoute('switchTab', options),
+    fail: (error) => {
+      clearPendingRoute('switchTab', options)
+      logRouteFail('switchTab', options, error)
     },
   })
 }

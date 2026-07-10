@@ -10,6 +10,7 @@ import PaginatedList from '@/components/PaginatedList'
 import { getGameConfig } from '@/types/creation'
 import type { RecentCreation } from '@/types/creation-list'
 import { formatTime, isToday, isWithinDays, matchAge } from '@/utils/date'
+import { safeNavigateTo } from '@/utils/route'
 
 const TIME_TABS = [
   { key: 'all' as const, label: '全部' },
@@ -192,9 +193,9 @@ export default function MorePage() {
             className="mb-3"
             onClick={() => {
               if (item.status === 2 || item.status === 3) {
-                Taro.navigateTo({ url: `/pages/result/index?recordId=${item.id}` })
+                safeNavigateTo({ url: `/pages/result/index?recordId=${item.id}` })
               } else {
-                Taro.navigateTo({
+                safeNavigateTo({
                   url: `/pages/detail/index?id=${item.id}&type=${item.type}`,
                 })
               }

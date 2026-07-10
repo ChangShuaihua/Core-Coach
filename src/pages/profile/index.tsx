@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro, { useDidShow, useShareAppMessage } from '@tarojs/taro'
+import Taro, { useShareAppMessage } from '@tarojs/taro'
 import { ArrowRight } from '@nutui/icons-react-taro'
 import { logout } from '@/api/login'
 import { getUserInfo } from '@/api/profile'
@@ -22,9 +22,9 @@ export default function ProfilePage() {
     imageUrl: chatLogo,
   }))
 
-  useDidShow(() => {
+  useEffect(() => {
     Taro.showShareMenu({ withShareTicket: true })
-  })
+  }, [])
 
   const { isLoggedIn } = useLoginStatus()
   const { clearAuth, userInfo: storeUserInfo, setUserInfo } = useUserStore()

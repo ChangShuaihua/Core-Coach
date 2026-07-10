@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
 import { getTaskStatus, startGenerateTask } from '@/api/creation'
 import { collectGame } from '@/api/profile'
@@ -13,7 +13,6 @@ import WaitingPage from '@/components/WaitingPage'
 import { useCreationStore } from '@/store'
 import type { TaskStatusCode } from '@/types/creation'
 import { safeRedirectTo } from '@/utils/route'
-import { useShare, useShareTimeline } from '@/utils/share'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
 const RESULT_CONFIG: ResultPreviewConfig = {
@@ -35,13 +34,29 @@ export default function ResultPage() {
   const recordId = router.params.recordId
 
   const genResult = data.generatedResults?.[0]
-  const shareTitle = genResult?.game_name
-    ? `快来看看我生成的「${genResult.game_name}」跑酷游戏！超好玩～`
+
+  // 用 ref 确保分享回调始终取到最新游戏名（useShareAppMessage 在 mount 时注册，不会随渲染更新）
+  const shareTitleRef = useRef('快来和我一起体验少儿跑酷！超有趣的运动游戏～')
+  shareTitleRef.current = genResult?.game_name
+    ? '快来看看我生成的跑酷游戏！超好玩～'
     : '快来和我一起体验少儿跑酷！超有趣的运动游戏～'
 
-  useShare(shareTitle, `/pages/result/index?recordId=${recordId}`)
+  useShareAppMessage(() => ({
+    title: shareTitleRef.current,
+    path: `/pages/result/index?recordId=${recordId}`,
+  }))
 
-  useShareTimeline(shareTitle, `recordId=${recordId}`)
+  useShareTimeline(() => ({
+    title: shareTitleRef.current,
+    query: `recordId=${recordId}`,
+  }))
+
+  useEffect(() => {
+    Taro.showShareMenu({
+      withShareTicket: true,
+      showShareItems: ['shareAppMessage', 'shareTimeline'],
+    })
+  }, [])
 
   useEffect(() => {
     if (!recordId) {
