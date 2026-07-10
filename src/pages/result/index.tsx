@@ -185,7 +185,15 @@ export default function ResultPage() {
   ]
 
   return (
-    <Layout title="生成结果" showTabBar>
+    <Layout
+      title="生成结果"
+      showTabBar={false}
+      renderLeft={
+        <View onClick={() => Taro.navigateBack()}>
+          <ArrowLeft size={22} color="#333" />
+        </View>
+      }
+    >
       {createdAt && (
         <View className="px-4 py-2 bg-gray-50">
           <Text className="text-xs text-gray-400">创建时间：{formatTime(createdAt)}</Text>
