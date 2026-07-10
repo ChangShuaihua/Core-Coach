@@ -9,7 +9,6 @@ import type { SkillStepConfig } from '@/components/Wizard'
 import { useCreationStore } from '@/store'
 import { useTaskStore } from '@/store/taskStore'
 import type { GenerateGameParams } from '@/types/creation'
-import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 import { getConfigByType } from './constants/skillConfig'
 
 /**
