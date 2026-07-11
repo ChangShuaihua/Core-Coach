@@ -9,6 +9,7 @@ import type { ActionConfig } from '@/components/ActionBar'
 import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
+import { useAuthCheck } from '@/hooks/useAuthCheck'
 import { safeRedirectTo } from '@/utils/route'
 import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
 
@@ -27,6 +28,10 @@ export default function DetailPage() {
 
   const genResult = data.generatedResults?.[0]
   const detailId = router.params?.id
+  const returnUrl = detailId
+    ? `/pages/detail/index?id=${encodeURIComponent(detailId)}`
+    : '/pages/detail/index'
+  const canLoad = useAuthCheck(returnUrl)
 
   // 用 ref 确保分享回调始终取到最新游戏名（useShareAppMessage 在 mount 时注册，不会随渲染更新）
   const shareTitleRef = useRef('快来和我一起体验少儿跑酷！超有趣的运动游戏～')
@@ -52,10 +57,9 @@ export default function DetailPage() {
   }, [])
 
   useEffect(() => {
-    if (detailId) {
-      fetchGameDetail(detailId)
-    }
-  }, [detailId])
+    if (!canLoad || !detailId) return
+    fetchGameDetail(detailId)
+  }, [canLoad, detailId])
 
   const fetchGameDetail = async (id: string) => {
     try {
@@ -74,6 +78,16 @@ export default function DetailPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!canLoad) {
+    return (
+      <Layout title="登录验证中" showTabBar={false}>
+        <View className="flex items-center justify-center h-screen">
+          <Text className="text-gray-400">正在跳转登录…</Text>
+        </View>
+      </Layout>
+    )
   }
 
   if (loading) {
