@@ -134,13 +134,22 @@ export default function ResultPage() {
     )
   }
 
+  const handleBack = () => {
+    const pages = Taro.getCurrentPages()
+    if (pages.length > 1) {
+      Taro.navigateBack()
+    } else {
+      Taro.switchTab({ url: '/pages/creation/index' })
+    }
+  }
+
   if (status === 2 || status === 3) {
     return (
       <Layout
         title="生成中"
         showTabBar={false}
         renderLeft={
-          <View onClick={() => Taro.navigateBack()}>
+          <View onClick={handleBack}>
             <ArrowLeft size={22} color="#333" />
           </View>
         }
