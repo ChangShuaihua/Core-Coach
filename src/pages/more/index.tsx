@@ -100,23 +100,30 @@ export default function MorePage() {
     await fetchData(pageRef.current + 1, true)
   }, [fetchData])
 
-  const handleToggleFavorite = useCallback(async (item: RecentCreation) => {
-    try {
-      if (item.favorite_id) {
-        await removeFavoriteGame(item.favorite_id)
-        setList((prev) =>
-          prev.map((g) => (g.id === item.id ? { ...g, is_like: 0, favorite_id: undefined } : g))
-        )
-        Taro.showToast({ title: '已取消收藏', icon: 'success' })
-      } else {
-        const res = await collectGame(item.id)
-        setList((prev) => prev.map((g) => (g.id === item.id ? { ...g, is_like: res.is_like } : g)))
-        Taro.showToast({ title: '已收藏', icon: 'success' })
+  const handleToggleFavorite = useCallback(
+    async (item: RecentCreation) => {
+      try {
+        if (item.is_like === 1) {
+          // 已收藏 → 取消收藏，必须使用 favorite_id
+          if (!item.favorite_id) {
+            Taro.showToast({ title: '请刷新列表后再取消收藏', icon: 'none' })
+            return
+          }
+          await removeFavoriteGame(item.favorite_id)
+          Taro.showToast({ title: '已取消收藏', icon: 'success' })
+        } else {
+          // 未收藏 → 添加收藏
+          await collectGame(item.id)
+          Taro.showToast({ title: '已收藏', icon: 'success' })
+        }
+        // 操作成功后重新获取最新列表数据
+        fetchData(1, false)
+      } catch (err: any) {
+        Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
       }
-    } catch (err: any) {
-      Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
-    }
-  }, [])
+    },
+    [fetchData]
+  )
 
   const filteredList = list.filter((item) => {
     if (gameTypeFilter !== 'all' && item.game_type !== gameTypeFilter) return false

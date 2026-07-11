@@ -40,7 +40,9 @@ export interface TokenRefreshCheckResult {
 }
 
 function isBusinessSuccess(response: ApiResponse<any>): boolean {
-  return response.code === 0 || response.code === 200
+  return (
+    response.code === 0 || response.code === 200 || response.code === 204 || response.code === 3002
+  )
 }
 
 function log(...args: any[]) {
