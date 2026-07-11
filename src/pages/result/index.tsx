@@ -10,6 +10,7 @@ import Layout from '@/components/Layout'
 import ResultPreview from '@/components/ResultPreview'
 import type { ResultPreviewConfig } from '@/components/ResultPreview'
 import WaitingPage from '@/components/WaitingPage'
+import { useAuthCheck } from '@/hooks/useAuthCheck'
 import { useCreationStore } from '@/store'
 import type { TaskStatusCode } from '@/types/creation'
 import { safeRedirectTo } from '@/utils/route'
@@ -32,6 +33,10 @@ export default function ResultPage() {
   const { setMode } = useCreationStore()
 
   const recordId = router.params.recordId
+  const returnUrl = recordId
+    ? `/pages/result/index?recordId=${encodeURIComponent(recordId)}`
+    : '/pages/result/index'
+  const canLoad = useAuthCheck(returnUrl)
 
   const genResult = data.generatedResults?.[0]
 
@@ -59,6 +64,8 @@ export default function ResultPage() {
   }, [])
 
   useEffect(() => {
+    if (!canLoad) return
+
     if (!recordId) {
       setError('缺少记录ID')
       setLoading(false)
@@ -95,7 +102,17 @@ export default function ResultPage() {
     }
 
     fetchData()
-  }, [recordId])
+  }, [canLoad, recordId])
+
+  if (!canLoad) {
+    return (
+      <Layout title="登录验证中" showTabBar={false}>
+        <View className="flex items-center justify-center h-screen">
+          <Text className="text-gray-400">正在跳转登录…</Text>
+        </View>
+      </Layout>
+    )
+  }
 
   if (loading) {
     return (

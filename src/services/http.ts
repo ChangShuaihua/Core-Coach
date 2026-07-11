@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/store/useUserStore'
+import { saveAuthReturnUrl } from '@/utils/authRedirect'
 import { safeReLaunch } from '@/utils/route'
 
 const BASE_URL = process.env.TARO_APP_API_URL || ''
@@ -135,9 +136,22 @@ export function isLogoutRedirecting() {
   return isLoggingOut
 }
 
+function getCurrentPageUrl(): string {
+  const pages = Taro.getCurrentPages()
+  const page = pages[pages.length - 1]
+  if (!page?.route) return ''
+
+  const query = Object.entries(page.options || {})
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&')
+
+  return `/${page.route}${query ? `?${query}` : ''}`
+}
+
 export function logoutAndRedirect(message = '登录已失效，请重新登录') {
   if (isLoggingOut) return
   isLoggingOut = true
+  saveAuthReturnUrl(getCurrentPageUrl())
   useUserStore.getState().clearAuth()
   Taro.showToast({ title: message, icon: 'none' })
   setTimeout(() => {

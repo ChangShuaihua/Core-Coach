@@ -11,6 +11,8 @@ import { validateLogin } from '@/schemas/user'
 import { refreshTokenIfNeeded } from '@/services/http'
 import { ws } from '@/services/ws'
 import { useUserStore } from '@/store/useUserStore'
+import { clearAuthReturnUrl, consumeAuthReturnUrl } from '@/utils/authRedirect'
+import { safeReLaunch } from '@/utils/route'
 
 type LoginMode = 'wechat' | 'account'
 
@@ -35,7 +37,7 @@ export default function Login() {
     if (!accessToken || !refreshToken) return
     refreshTokenIfNeeded().then((success) => {
       if (success) {
-        Taro.switchTab({ url: '/pages/chat/index' })
+        handleLoginSuccess()
       }
     })
   }, [])
@@ -102,12 +104,17 @@ export default function Login() {
     if (accessToken && !ws.connected) {
       ws.connect(accessToken)
     }
-    Taro.navigateBack({
-      fail: () => Taro.switchTab({ url: '/pages/chat/index' }),
-    })
+    const returnUrl = consumeAuthReturnUrl()
+    if (returnUrl) {
+      safeReLaunch({ url: returnUrl, source: 'login.returnUrl' })
+      return
+    }
+
+    Taro.switchTab({ url: '/pages/chat/index' })
   }
 
   const handleCancelLogin = () => {
+    clearAuthReturnUrl()
     Taro.navigateBack({
       fail: () => Taro.switchTab({ url: '/pages/chat/index' }),
     })
@@ -150,7 +157,7 @@ export default function Login() {
       setRefreshExpireTime(res.refreshExpire)
       setUserInfo(res.userInfo)
       ws.connect(res.accessToken)
-      Taro.switchTab({ url: '/pages/chat/index' })
+      handleLoginSuccess()
     } catch (err: any) {
       Taro.showToast({ title: err?.message || '登录失败，请重试', icon: 'none' })
     }
