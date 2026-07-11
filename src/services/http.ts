@@ -1,7 +1,6 @@
 import Taro from '@tarojs/taro'
 import { useUserStore } from '@/store/useUserStore'
 import { saveAuthReturnUrl } from '@/utils/authRedirect'
-import { safeReLaunch } from '@/utils/route'
 
 const BASE_URL = process.env.TARO_APP_API_URL || ''
 if (!BASE_URL) {
@@ -148,16 +147,49 @@ function getCurrentPageUrl(): string {
   return `/${page.route}${query ? `?${query}` : ''}`
 }
 
+const LOGIN_URL = '/pages/login/index'
+const FALLBACK_TAB_URL = '/pages/chat/index'
+
+function finishLogoutRedirect() {
+  isLoggingOut = false
+}
+
+function fallbackToHome() {
+  Taro.switchTab({
+    url: FALLBACK_TAB_URL,
+    success: finishLogoutRedirect,
+    fail: (error) => {
+      console.error('[Auth] fallback switchTab failed:', error)
+      finishLogoutRedirect()
+    },
+  })
+}
+
+function redirectToLoginAfterLogout() {
+  Taro.redirectTo({
+    url: LOGIN_URL,
+    success: finishLogoutRedirect,
+    fail: (redirectError) => {
+      console.warn('[Auth] redirectTo login failed, retrying reLaunch:', redirectError)
+      Taro.reLaunch({
+        url: LOGIN_URL,
+        success: finishLogoutRedirect,
+        fail: (reLaunchError) => {
+          console.error('[Auth] reLaunch login failed, falling back to home:', reLaunchError)
+          fallbackToHome()
+        },
+      })
+    },
+  })
+}
+
 export function logoutAndRedirect(message = '登录已失效，请重新登录') {
   if (isLoggingOut) return
   isLoggingOut = true
   saveAuthReturnUrl(getCurrentPageUrl())
   useUserStore.getState().clearAuth()
   Taro.showToast({ title: message, icon: 'none' })
-  setTimeout(() => {
-    safeReLaunch({ url: '/pages/login/index', source: 'http.logoutAndRedirect' })
-    isLoggingOut = false
-  }, 1000)
+  setTimeout(redirectToLoginAfterLogout, 0)
 }
 
 async function doRefreshToken(): Promise<string> {
