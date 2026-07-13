@@ -201,7 +201,16 @@ export default function DetailPage() {
       title="游戏详情"
       showTabBar={false}
       renderLeft={
-        <View onClick={() => Taro.navigateBack()}>
+        <View
+          onClick={() => {
+            const pages = Taro.getCurrentPages()
+            if (pages.length > 1) {
+              Taro.navigateBack()
+            } else {
+              Taro.switchTab({ url: '/pages/creation/index' })
+            }
+          }}
+        >
           <ArrowLeft />
         </View>
       }
