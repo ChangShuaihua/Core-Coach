@@ -26,7 +26,11 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
     try {
       setLoading(true)
       const res = await getMusicList(recordId ? { record_id: recordId } : undefined)
-      setCurrentMusic(res.current_music || null)
+      setCurrentMusic(
+        res.current_music
+          ? { ...res.current_music, duration: res.current_music.duration || '2:00' }
+          : null
+      )
       setMusicList(res.music_list || [])
     } catch (e) {
       console.error('获取音乐列表失败:', e)
@@ -51,6 +55,7 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
         updateData('selectedMusic', selected.music_name)
         updateData('selectedMusicId', selectedId)
         updateData('selectedMusicUrl', selected.music_url)
+        updateData('selectedMusicDuration', selected.duration)
         if (!isCurrentMusic && recordId) {
           try {
             await selectMusic({ music_id: selectedId, record_id: recordId })
@@ -297,13 +302,13 @@ export default function MusicSettings({ data, updateData, onBack }: MusicSetting
         {/* 试听播放器 */}
         {selectedId !== null &&
           (() => {
-            const url =
+            const item =
               selectedId === CURRENT_MUSIC_ID
-                ? currentMusic?.music_url
-                : musicList.find((m) => m.id === selectedId)?.music_url
-            return url ? (
+                ? currentMusic
+                : musicList.find((m) => m.id === selectedId)
+            return item?.music_url ? (
               <View style={{ marginTop: '16px' }}>
-                <MusicPlayer musicUrl={url} />
+                <MusicPlayer musicUrl={item.music_url} duration={item.duration} />
               </View>
             ) : null
           })()}

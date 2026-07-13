@@ -5,21 +5,31 @@ import { Play, Loading } from '@nutui/icons-react-taro'
 
 interface MusicPlayerProps {
   musicUrl: string
+  /** 音频时长（格式："3:46"），不传则自动从音频获取 */
+  duration?: string
   /** 点击"更换音乐"的回调，不传则菜单不显示该项 */
   onChangeMusicClick?: () => void
 }
 
-export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlayerProps) {
+const parseDuration = (timeStr: string): number => {
+  const parts = timeStr.split(':').map(Number)
+  if (parts.length === 2) return parts[0] * 60 + parts[1]
+  return 0
+}
+
+export default function MusicPlayer({
+  musicUrl,
+  duration: durationProp,
+  onChangeMusicClick,
+}: MusicPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
+  const [duration, setDuration] = useState(() => (durationProp ? parseDuration(durationProp) : 0))
   const [volume, setVolume] = useState(1)
   const [menuOpen, setMenuOpen] = useState(false)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)
   const [loading, setLoading] = useState(false)
   const audioRef = useRef<Taro.InnerAudioContext | null>(null)
-  const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
@@ -29,8 +39,11 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
   const initAudio = useCallback(() => {
     if (musicUrl && !audioRef.current) {
       setCurrentTime(0)
-      setDuration(0)
-      setLoading(true)
+      // 有外部传入 duration 则无需等音频 onCanplay，不显示 loading
+      if (!durationProp) {
+        setDuration(0)
+        setLoading(true)
+      }
 
       const ctx = Taro.createInnerAudioContext()
       ctx.src = musicUrl
@@ -42,21 +55,7 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
         setCurrentTime(ctx.currentTime ?? 0)
       })
       ctx.onCanplay(() => {
-        if (ctx.duration) {
-          setDuration(ctx.duration)
-        } else {
-          // 小程序 onCanplay 时 duration 可能还是 0，轮询获取
-          let retry = 0
-          durationTimerRef.current = setInterval(() => {
-            if (ctx.duration || retry++ > 20) {
-              if (ctx.duration) setDuration(ctx.duration)
-              if (durationTimerRef.current) {
-                clearInterval(durationTimerRef.current)
-                durationTimerRef.current = null
-              }
-            }
-          }, 200)
-        }
+        if (ctx.duration) setDuration(ctx.duration)
         setLoading(false)
       })
       ctx.onPlay(() => setLoading(false))
@@ -71,12 +70,14 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
   }, [musicUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (durationProp) {
+      setDuration(parseDuration(durationProp))
+    }
+  }, [durationProp])
+
+  useEffect(() => {
     initAudio()
     return () => {
-      if (durationTimerRef.current) {
-        clearInterval(durationTimerRef.current)
-        durationTimerRef.current = null
-      }
       if (audioRef.current) {
         audioRef.current.stop()
         audioRef.current.destroy()
@@ -115,34 +116,17 @@ export default function MusicPlayer({ musicUrl, onChangeMusicClick }: MusicPlaye
 
   const handleDownload = () => {
     setMenuOpen(false)
-    Taro.showLoading({ title: '下载中...' })
-    Taro.downloadFile({
-      url: musicUrl,
-      success: (res) => {
-        if (res.statusCode === 200) {
-          Taro.saveFile({
-            tempFilePath: res.tempFilePath,
-            success: (file) => {
-              Taro.hideLoading()
-              Taro.openDocument({
-                filePath: file.savedFilePath,
-                showMenu: true,
-                fail: () => Taro.showToast({ title: '已保存', icon: 'success' }),
-              })
-            },
-            fail: () => {
-              Taro.hideLoading()
-              Taro.showToast({ title: '保存失败', icon: 'none' })
-            },
-          })
-        } else {
-          Taro.hideLoading()
-          Taro.showToast({ title: '下载失败', icon: 'none' })
-        }
+    Taro.setClipboardData({
+      data: musicUrl,
+      success() {
+        Taro.showToast({
+          title: '已复制下载链接，请在浏览器中打开',
+          icon: 'success',
+          duration: 2500,
+        })
       },
-      fail: () => {
-        Taro.hideLoading()
-        Taro.showToast({ title: '下载失败', icon: 'none' })
+      fail() {
+        Taro.showToast({ title: '复制失败', icon: 'none' })
       },
     })
   }

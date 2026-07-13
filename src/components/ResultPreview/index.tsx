@@ -205,7 +205,9 @@ export default function ResultPreview({
         {musicUrl && (
           <View style={{ marginBottom: '24px' }}>
             <MusicPlayer
+              key={musicUrl}
               musicUrl={musicUrl}
+              duration={value.selectedMusicDuration}
               onChangeMusicClick={showMusicSwitch ? () => toggleMusicSettings(true) : undefined}
             />
           </View>

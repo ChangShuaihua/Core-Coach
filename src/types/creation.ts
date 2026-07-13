@@ -128,6 +128,7 @@ export interface MusicItem {
 export interface CurrentMusic {
   music_name: string
   music_url: string
+  duration?: string
 }
 
 // 获取音乐列表请求参数
