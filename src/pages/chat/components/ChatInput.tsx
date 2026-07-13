@@ -1,56 +1,125 @@
 import { useState } from 'react'
 import { View, Textarea, Text } from '@tarojs/components'
+import { Close } from '@nutui/icons-react-taro'
 import SkillButton from './SkillButton'
 
 interface ChatInputProps {
   onSend: (content: string) => void
+  onStop?: () => void
   onSkillClick?: () => void
+  isResponding?: boolean
+  stopDisabled?: boolean
+  selectedSkillName?: string | null
+  disabled?: boolean
+  disabledReason?: string
 }
 
-const ChatInput = ({ onSend, onSkillClick }: ChatInputProps) => {
+const ChatInput = ({
+  onSend,
+  onStop,
+  onSkillClick,
+  isResponding,
+  stopDisabled,
+  selectedSkillName,
+  disabled,
+  disabledReason,
+}: ChatInputProps) => {
   const [value, setValue] = useState('')
+  const showStop = !!isResponding && !disabled
+  const canSend = !!value.trim() && !disabled && !isResponding
+  const canStop = showStop && !stopDisabled
 
   const handleSend = () => {
-    if (!value.trim()) return
+    if (!value.trim() || isResponding || disabled) return
     onSend(value)
     setValue('')
   }
 
+  const handleAction = () => {
+    if (showStop) {
+      if (!canStop) return
+      onStop?.()
+    } else {
+      handleSend()
+    }
+  }
+
   return (
-    <View>
+    <View className="bg-white">
       {onSkillClick && (
-        <View className="py-2">
-          <SkillButton onClick={onSkillClick} />
+        <View className="ml-2 px-4 pt-2 pb-2 flex flex-row items-center">
+          <SkillButton onClick={onSkillClick} selectedSkillName={selectedSkillName} />
+          {disabledReason && !showStop && (
+            <Text
+              style={{
+                marginLeft: '12px',
+                fontSize: '12px',
+                color: '#9ca3af',
+                flex: 1,
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {disabledReason}
+            </Text>
+          )}
         </View>
       )}
 
-      <View className="px-4 pb-3 bg-white flex flex-row items-center gap-2">
+      <View className="px-4 pb-3 flex flex-row items-end gap-2">
         <View
-          className="shadow-md flex-1 rounded-2xl px-4 py-3"
+          className="flex-1 px-3 py-2"
           style={{
-            border: '1px solid #d1d5db',
+            minHeight: '40px',
+            borderRadius: '12px',
+            border: '1px solid #b8b8b8',
+            backgroundColor: '#fff',
+            boxShadow: '0 4px 8px rgba(15,23,42,0.08)',
+            boxSizing: 'border-box',
           }}
         >
           <Textarea
             value={value}
             onInput={(e) => setValue(e.detail.value)}
-            placeholder="发送消息..."
+            placeholder={disabledReason || (disabled ? '暂时无法发送消息' : '发送消息...')}
             placeholderClass="text-gray-400"
+            disabled={disabled}
             adjustPosition={false}
             showConfirmBar={false}
             autoHeight
             maxlength={2000}
             className="text-sm bg-transparent w-full"
-            style={{ minHeight: '50px', maxHeight: '98px', fontSize: '16px' }}
+            style={{
+              maxHeight: '96px',
+              fontSize: '16px',
+              padding: 0,
+            }}
           />
         </View>
 
         <View
-          onClick={handleSend}
-          className="shadow w-7 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: value.trim() ? '#f97316' : '#d1d5db', minHeight: '70px' }}
+          onClick={handleAction}
+          className="shadow flex items-center justify-center"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            backgroundColor: showStop ? '#ef4444' : canSend ? '#f97316' : '#e5e7eb',
+            opacity: showStop && stopDisabled ? 0.6 : 1,
+            flexShrink: 0,
+          }}
         >
-          <Text style={{ color: '#ffffff', fontSize: '18px', fontWeight: 'bold' }}>↑</Text>
+          <Text
+            style={{
+              color: '#fff',
+              fontSize: '22px',
+              fontWeight: 'bold',
+              lineHeight: '22px',
+            }}
+          >
+            {showStop ? <Close size={18} color="#fff" /> : '↑'}
+          </Text>
         </View>
       </View>
     </View>

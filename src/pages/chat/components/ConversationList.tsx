@@ -1,114 +1,113 @@
-import { View, Text } from '@tarojs/components'
-import { PullToRefresh } from '@nutui/nutui-react-taro'
+import { View, Text, ScrollView } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import { Close } from '@nutui/icons-react-taro'
 import { clsx } from 'clsx'
-import dayjs from 'dayjs'
 import { useChatStore } from '@/store/chatStore'
-import { Conversation } from '../types'
-
-// 按日期分组
-function groupByDate(conversations: Conversation[]) {
-  const groups: Record<string, Conversation[]> = {}
-
-  conversations
-    .slice()
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .forEach((conv) => {
-      const date = dayjs(conv.updatedAt)
-      const today = dayjs()
-
-      let label: string
-      if (date.isSame(today, 'day')) {
-        label = '今天'
-      } else if (date.isSame(today.subtract(1, 'day'), 'day')) {
-        label = '昨天'
-      } else if (date.isAfter(today.subtract(7, 'day'))) {
-        label = '最近7天'
-      } else {
-        label = '更早'
-      }
-
-      if (!groups[label]) groups[label] = []
-      groups[label].push(conv)
-    })
-
-  return groups
-}
+import { Conversation } from '@/types/chat'
 
 // 单个会话项
 function ConversationItem({
   conversation,
   isActive,
   onClick,
+  onDelete,
 }: {
   conversation: Conversation
   isActive: boolean
   onClick: () => void
+  onDelete: () => void
 }) {
+  const isPending = conversation.id.startsWith('pending-')
+
+  const handleDelete = (e) => {
+    e.stopPropagation()
+    Taro.showModal({
+      title: '提示',
+      content: '确定删除该对话？删除后不可恢复',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await onDelete()
+            Taro.showToast({ title: '已删除', icon: 'success' })
+          } catch (error: any) {
+            Taro.showToast({ title: error?.message || '删除失败', icon: 'none' })
+          }
+        }
+      },
+    })
+  }
+
   return (
     <View
       className={clsx(
-        'px-4 py-3 mx-2 mb-1 rounded-lg',
+        'px-4 py-3 mx-2 mb-1 rounded-lg flex items-center justify-between',
         isActive ? 'bg-orange-1' : 'bg-transparent'
       )}
       onClick={onClick}
     >
-      <View className="flex items-center justify-between">
-        <Text
-          className={clsx(
-            'text-sm flex-1 truncate',
-            isActive ? 'text-orange-500 font-medium' : 'text-gray-800'
-          )}
-        >
-          {conversation.title}
-        </Text>
-        <Text className="text-xs text-gray-400 ml-2 flex-shrink-0">
-          {dayjs(conversation.updatedAt).format('HH:mm')}
-        </Text>
-      </View>
-      {conversation.lastMessage && (
-        <Text className="text-xs text-gray-400 mt-1 block truncate">
-          {conversation.lastMessage}
-        </Text>
-      )}
+      <Text
+        className={clsx(
+          'text-sm block truncate flex-1',
+          isActive ? 'text-orange-500 font-medium' : 'text-gray-800'
+        )}
+      >
+        {conversation.title}
+      </Text>
+      {!isPending &&
+        (conversation.hasOtherDevice ? (
+          <View className="ml-2 px-1">
+            <Text style={{ fontSize: '12px', color: '#999' }}>被占用</Text>
+          </View>
+        ) : (
+          <View className="ml-2 px-1" onClick={handleDelete}>
+            <Close size={14} color="red" />
+          </View>
+        ))}
     </View>
   )
 }
 
-export default function ConversationList() {
-  const conversations = useChatStore((s) => s.conversations)
+export default function ConversationList({ onSelect }: { onSelect?: () => void }) {
+  const conversationsMap = useChatStore((s) => s.conversations)
   const currentConversationId = useChatStore((s) => s.currentConversationId)
   const switchConversation = useChatStore((s) => s.switchConversation)
-  const refreshConversations = useChatStore((s) => s.refreshConversations)
+  const deleteConversation = useChatStore((s) => s.deleteConversation)
+  const loadMoreConversations = useChatStore((s) => s.loadMoreConversations)
 
-  const grouped = groupByDate(conversations)
+  // 从 Record 转为数组，pending 会话置顶，其余按更新时间倒序
+  const sorted = Object.values(conversationsMap).sort((a, b) => {
+    const aPending = a.id.startsWith('pending-')
+    const bPending = b.id.startsWith('pending-')
+    if (aPending && !bPending) return -1
+    if (!aPending && bPending) return 1
+    return b.updatedAt - a.updatedAt
+  })
 
-  const handleRefresh = async () => {
-    await refreshConversations()
+  const handleClick = (id: string) => {
+    switchConversation(id)
+    onSelect?.()
   }
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="h-full">
-      <View className="h-full overflow-y-auto py-2">
-        {Object.keys(grouped).length === 0 ? (
-          <View className="flex items-center justify-center h-40 text-gray-400 text-sm">
-            暂无对话记录
-          </View>
-        ) : (
-          Object.entries(grouped).map(([label, convs]) => (
-            <View key={label} className="mb-2">
-              <View className="px-4 py-2 text-xs text-gray-400">{label}</View>
-              {convs.map((conv) => (
-                <ConversationItem
-                  key={conv.id}
-                  conversation={conv}
-                  isActive={conv.id === currentConversationId}
-                  onClick={() => switchConversation(conv.id)}
-                />
-              ))}
-            </View>
-          ))
-        )}
-      </View>
-    </PullToRefresh>
+    <ScrollView scrollY className="h-full mt-2" onScrollToLower={loadMoreConversations}>
+      {sorted.length === 0 ? (
+        <View className="flex items-center justify-center h-40 text-gray-400 text-sm">
+          暂无对话记录
+        </View>
+      ) : (
+        <>
+          {sorted.map((conv) => (
+            <ConversationItem
+              key={conv.id}
+              conversation={conv}
+              isActive={conv.id === currentConversationId}
+              onClick={() => handleClick(conv.id)}
+              onDelete={() => deleteConversation(conv.id)}
+            />
+          ))}
+          <View className="h-4"></View>
+        </>
+      )}
+    </ScrollView>
   )
 }

@@ -1,171 +1,140 @@
 import { create } from 'zustand'
-import { Conversation, Message } from '@/pages/chat/types'
+import * as chatApi from '@/api/chat'
+import { ws } from '@/services/ws'
+import type { ChatStore } from '@/types/chat'
+import { createConversationSlice } from './chatConversationSlice'
+import {
+  clearAbortFallbackTimer,
+  clearSendTimeout,
+  loadPersistedSkill,
+  persistSkill,
+} from './chatHelpers'
+import { createMessageSlice } from './chatMessageSlice'
 
-interface ChatStore {
-  conversations: Conversation[]
-  currentConversationId: string | null
-  currentMessages: Message[]
+export {
+  clearSendTimeout,
+  restartSendTimeout,
+  clearRuntime,
+  clearAbortFallbackTimer,
+  clearSkillStorage,
+} from './chatHelpers'
 
-  addConversation: () => void
-  switchConversation: (id: string) => void
-  addMessage: (message: Message) => void
-  refreshConversations: () => Promise<void>
-  deleteConversation: (id: string) => void
-}
+export const useChatStore = create<ChatStore>()((set, get) => ({
+  // ====== 组合 Slices ======
+  ...createMessageSlice(set, get),
+  ...createConversationSlice(set, get),
 
-// 用一个对象按 id 存储每个会话的消息，避免状态丢失
-const messagesMap: Record<string, Message[]> = {}
+  // ====== 技能/工作流 State ======
+  skills: [],
+  defaultWorkflow: null,
+  selectedSkill: loadPersistedSkill(),
 
-// ========== Mock 假数据 ==========
-const now = Date.now()
-const hour = 3600 * 1000
-const day = 24 * hour
+  // ====== 技能/工作流 Actions ======
 
-const mockConversations: Conversation[] = [
-  {
-    id: 'mock-1',
-    title: '如何提高核心力量',
-    lastMessage: '可以尝试平板支撑、死虫式等动作...',
-    updatedAt: now - 0.5 * hour,
-    messageCount: 4,
-  },
-  {
-    id: 'mock-2',
-    title: '深蹲动作要领分析',
-    lastMessage: '深蹲时需要注意膝盖不要超过脚尖太多...',
-    updatedAt: now - 3 * hour,
-    messageCount: 6,
-  },
-  {
-    id: 'mock-3',
-    title: '训练计划制定',
-    lastMessage: '建议每周训练3-4次，每次45-60分钟...',
-    updatedAt: now - 1.5 * day,
-    messageCount: 8,
-  },
-  {
-    id: 'mock-4',
-    title: '蛋白质摄入量建议',
-    lastMessage: '每公斤体重建议摄入1.6-2.2克蛋白质...',
-    updatedAt: now - 2.5 * day,
-    messageCount: 3,
-  },
-  {
-    id: 'mock-5',
-    title: '跑步后膝盖疼痛怎么办',
-    lastMessage: '建议先休息几天，冰敷患处，如果持续疼痛请就医...',
-    updatedAt: now - 10 * day,
-    messageCount: 5,
-  },
-]
+  loadWorkflows: async () => {
+    const all = await chatApi.getWorkflows()
+    const basic =
+      all.find((w) => w.type === 1 && w.title.includes('基础问答')) ||
+      all.find((w) => w.type === 1) ||
+      null
+    const skills = all.filter((w) => w.type === 2)
 
-// 给每个 mock 会话填充一些消息
-mockConversations.forEach((conv) => {
-  messagesMap[conv.id] = [
-    {
-      id: `${conv.id}-u`,
-      role: 'user',
-      content: conv.title,
-      timestamp: conv.updatedAt - 1000,
-    },
-    {
-      id: `${conv.id}-a`,
-      role: 'assistant',
-      content: conv.lastMessage,
-      timestamp: conv.updatedAt,
-    },
-  ]
-})
-// ========== Mock 结束 ==========
-
-export const useChatStore = create<ChatStore>((set, get) => ({
-  conversations: mockConversations,
-  currentConversationId: null,
-  currentMessages: [],
-
-  // 新建会话
-  addConversation: () => {
-    const id = Date.now().toString()
-    const newConversation: Conversation = {
-      id,
-      title: '新对话',
-      lastMessage: '',
-      updatedAt: Date.now(),
-      messageCount: 0,
+    const { selectedSkill } = get()
+    if (!selectedSkill) {
+      set({ defaultWorkflow: basic, skills })
+      return
     }
-    messagesMap[id] = []
-    set((state) => ({
-      conversations: [newConversation, ...state.conversations],
-      currentConversationId: id,
-      currentMessages: [],
-    }))
-  },
 
-  // 切换会话
-  switchConversation: (id: string) => {
-    set({
-      currentConversationId: id,
-      currentMessages: messagesMap[id] || [],
-    })
-  },
+    const latestSelectedSkill = skills.find((w) => w.id === selectedSkill.id)
 
-  // 添加消息到当前会话
-  addMessage: (message: Message) => {
-    const { currentConversationId, conversations } = get()
-    if (!currentConversationId) return
-
-    // 更新 messagesMap
-    if (!messagesMap[currentConversationId]) {
-      messagesMap[currentConversationId] = []
+    if (!latestSelectedSkill) {
+      persistSkill(null)
+      set({ defaultWorkflow: basic, skills, selectedSkill: null })
+      return
     }
-    messagesMap[currentConversationId].push(message)
 
-    // 更新会话元信息
-    const updatedConversations = conversations.map((conv) => {
-      if (conv.id !== currentConversationId) return conv
-      return {
-        ...conv,
-        // 标题：取第一条用户消息的内容（截取前20个字符）
-        title:
-          conv.title === '新对话' && message.role === 'user'
-            ? message.content.slice(0, 20) || '新对话'
-            : conv.title,
-        lastMessage: message.content.slice(0, 30),
-        updatedAt: message.timestamp,
-        messageCount: (messagesMap[currentConversationId] || []).length,
-      }
+    persistSkill(latestSelectedSkill)
+    set({ defaultWorkflow: basic, skills, selectedSkill: latestSelectedSkill })
+  },
+
+  toggleSkill: (skill) => {
+    const { selectedSkill } = get()
+    const next = selectedSkill?.id === skill.id ? null : skill
+    persistSkill(next)
+    set({ selectedSkill: next })
+  },
+
+  getCurrentWorkflowId: () => {
+    const { selectedSkill, defaultWorkflow } = get()
+    return selectedSkill?.id || defaultWorkflow?.id || ''
+  },
+
+  resetChat: () => {
+    const { sessionRuntimes } = get()
+    Object.values(sessionRuntimes).forEach((runtime) => {
+      clearSendTimeout(runtime.requestId)
+      clearAbortFallbackTimer(runtime.requestId)
     })
-
+    persistSkill(null)
     set({
-      conversations: updatedConversations,
-      currentMessages: [...messagesMap[currentConversationId]],
-    })
-  },
-
-  // 下拉刷新（目前先模拟延迟）
-  refreshConversations: async () => {
-    // 后续接 API 时在这里请求数据
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    // mock: 不做任何改变，实际会从服务端拉取
-  },
-
-  // 删除会话
-  deleteConversation: (id: string) => {
-    delete messagesMap[id]
-    set((state) => {
-      const newConversations = state.conversations.filter((c) => c.id !== id)
-      // 如果删的是当前会话，切换到第一个或清空
-      let newCurrentId = state.currentConversationId
-      let newMessages = state.currentMessages
-      if (state.currentConversationId === id) {
-        newCurrentId = newConversations[0]?.id || null
-        newMessages = newCurrentId ? messagesMap[newCurrentId] || [] : []
-      }
-      return {
-        conversations: newConversations,
-        currentConversationId: newCurrentId,
-        currentMessages: newMessages,
-      }
+      conversations: {},
+      messagesBySession: {},
+      currentConversationId: null,
+      skills: [],
+      defaultWorkflow: null,
+      selectedSkill: null,
+      messageCursor: null,
+      hasMoreMessages: true,
+      isLoadingMore: false,
+      conversationCursor: null,
+      hasMoreConversations: true,
+      isLoadingMoreConversations: false,
+      wsConnected: false,
+      sessionRoles: {},
+      sessionRuntimes: {},
+      requestToSession: {},
+      lastStreamIds: {},
+      remoteStreamingSessions: {},
+      remoteDirtySessions: {},
     })
   },
 }))
+
+// ============ 注入 ws 重连上下文 getter ============
+
+ws.setReconnectContextGetter(() => {
+  const state = useChatStore.getState()
+
+  // 用 Map 去重，key = sessionId
+  const sessionMap = new Map<string, { requestId: string; lastStreamId: string }>()
+
+  // 1. 有 lastStreamId 的 session（已收到过 chunk）
+  for (const [sessionId, lastStreamId] of Object.entries(state.lastStreamIds)) {
+    const runtime = state.sessionRuntimes[sessionId]
+    sessionMap.set(sessionId, {
+      requestId: runtime?.requestId || '',
+      lastStreamId,
+    })
+  }
+
+  // 2. 有 active runtime 但没有 lastStreamId 的 session（首个 chunk 前断线）
+  for (const [sessionId, runtime] of Object.entries(state.sessionRuntimes)) {
+    if (!sessionMap.has(sessionId)) {
+      sessionMap.set(sessionId, {
+        requestId: runtime.requestId,
+        lastStreamId: '',
+      })
+    }
+  }
+
+  const sessions = Array.from(sessionMap, ([sessionId, { requestId, lastStreamId }]) => ({
+    requestId,
+    sessionId,
+    lastStreamId,
+  }))
+
+  return {
+    currentSessionId: state.currentConversationId || '',
+    sessions,
+  }
+})

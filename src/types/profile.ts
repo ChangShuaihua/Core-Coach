@@ -2,10 +2,10 @@ import type { ReactNode } from 'react'
 
 // 用户信息类型
 export interface UserInfo {
-  id: string | number
-  uid: string
-  nickname: string
-  avatar?: string
+  account: string | number
+  nickName: string
+  avatarUrl?: string
+  password?: string
 }
 
 // 菜单项类型

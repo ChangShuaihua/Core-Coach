@@ -2,24 +2,48 @@
   "miniprogramRoot": "dist/",
   "projectname": "core-strength",
   "description": "Core Strength Training Assistant Mini-Program",
-  "appid": "wxaf3fd153dff4101e",
+  "appid": "wx062dbac7962f2c9e",
   "setting": {
-    "urlCheck": true,
-    "es6": false,
+    "urlCheck": false,
+    "es6": true,
     "enhance": false,
     "compileHotReLoad": false,
     "postcss": false,
     "preloadBackgroundData": false,
-    "minified": false,
+    "minified": true,
     "newFeature": true,
     "autoAudits": false,
     "coverView": true,
     "showShadowRootInWxmlPanel": false,
     "scopeDataCheck": false,
-    "useCompilerModule": false
+    "useCompilerModule": false,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
   },
   "compileType": "miniprogram",
   "simulatorType": "wechat",
   "simulatorPluginLibVersion": {},
-  "condition": {}
+  "condition": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "editorSetting": {},
+  "libVersion": "3.16.0"
 }

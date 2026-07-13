@@ -1,0 +1,268 @@
+import { useEffect, useRef, useState } from 'react'
+import { View, Text } from '@tarojs/components'
+import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
+import { getTaskStatus, startGenerateTask } from '@/api/creation'
+import { collectGame } from '@/api/profile'
+import ActionBar from '@/components/ActionBar'
+import type { ActionConfig } from '@/components/ActionBar'
+import Layout from '@/components/Layout'
+import ResultPreview from '@/components/ResultPreview'
+import type { ResultPreviewConfig } from '@/components/ResultPreview'
+import WaitingPage from '@/components/WaitingPage'
+import { useAuthCheck } from '@/hooks/useAuthCheck'
+import { useCreationStore } from '@/store'
+import type { TaskStatusCode } from '@/types/creation'
+import { safeRedirectTo } from '@/utils/route'
+import { requestTaskCompleteSubscribe } from '@/utils/subscribe'
+
+const RESULT_CONFIG: ResultPreviewConfig = {
+  step: 1,
+  title: '生成结果',
+}
+
+export default function ResultPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<Record<string, any>>({})
+  const [status, setStatus] = useState<TaskStatusCode | null>(null)
+  const [createdAt, setCreatedAt] = useState('')
+  const [liked, setLiked] = useState(false)
+
+  const { setMode } = useCreationStore()
+
+  const recordId = router.params.recordId
+  const returnUrl = recordId
+    ? `/pages/result/index?recordId=${encodeURIComponent(recordId)}`
+    : '/pages/result/index'
+  const canLoad = useAuthCheck(returnUrl)
+
+  const genResult = data.generatedResults?.[0]
+
+  // 用 ref 确保分享回调始终取到最新游戏名（useShareAppMessage 在 mount 时注册，不会随渲染更新）
+  const shareTitleRef = useRef('快来和我一起体验少儿跑酷！超有趣的运动游戏～')
+  shareTitleRef.current = genResult?.game_name
+    ? '快来看看我生成的跑酷游戏！超好玩～'
+    : '快来和我一起体验少儿跑酷！超有趣的运动游戏～'
+
+  useShareAppMessage(() => ({
+    title: shareTitleRef.current,
+    path: `/pages/result/index?recordId=${recordId}`,
+  }))
+
+  useShareTimeline(() => ({
+    title: shareTitleRef.current,
+    query: `recordId=${recordId}`,
+  }))
+
+  useEffect(() => {
+    Taro.showShareMenu({
+      withShareTicket: true,
+      showShareItems: ['shareAppMessage', 'shareTimeline'],
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!canLoad) return
+
+    if (!recordId) {
+      setError('缺少记录ID')
+      setLoading(false)
+      return
+    }
+
+    const fetchData = async () => {
+      try {
+        const res = await getTaskStatus(Number(recordId))
+        setStatus(res.status)
+        setCreatedAt(res.created_at || '')
+
+        if (res.status === 1 && res.generated_content) {
+          setData({
+            age: res.age,
+            gameType: res.game_type,
+            generatedResults: [res],
+          })
+        } else if (res.status === 3 || res.status === 2) {
+          setData({
+            age: res.age,
+            gameType: res.game_type,
+            userMessage: res.user_message || '正在生成中...',
+            estimatedSeconds: res.estimated_seconds,
+          })
+        } else if (res.status === 0) {
+          setError(res.user_message || '生成失败')
+        }
+      } catch (e: any) {
+        setError(e?.message || '加载失败，请重试')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [canLoad, recordId])
+
+  if (!canLoad) {
+    return (
+      <Layout title="登录验证中" showTabBar={false}>
+        <View className="flex items-center justify-center h-screen">
+          <Text className="text-gray-400">正在跳转登录…</Text>
+        </View>
+      </Layout>
+    )
+  }
+
+  if (loading) {
+    return (
+      <Layout title="加载中" showTabBar>
+        <View className="flex items-center justify-center h-screen">
+          <Text className="text-gray-400">加载中...</Text>
+        </View>
+      </Layout>
+    )
+  }
+
+  if (error) {
+    return (
+      <Layout title="提示" showTabBar>
+        <View className="flex flex-col items-center justify-center h-screen">
+          <Text className="text-gray-500 mb-4">{error}</Text>
+        </View>
+      </Layout>
+    )
+  }
+
+  const handleBack = () => {
+    const pages = Taro.getCurrentPages()
+    if (pages.length > 1) {
+      Taro.navigateBack()
+    } else {
+      Taro.switchTab({ url: '/pages/creation/index' })
+    }
+  }
+
+  if (status === 2 || status === 3) {
+    return (
+      <Layout
+        title="生成中"
+        showTabBar={false}
+        renderLeft={
+          <View onClick={handleBack}>
+            <ArrowLeft size={22} color="#333" />
+          </View>
+        }
+      >
+        <WaitingPage title="游戏" />
+      </Layout>
+    )
+  }
+
+  const handleRegenerate = async () => {
+    const retryParams = genResult?.retry_params
+    if (!retryParams) {
+      Taro.showToast({ title: '缺少生成参数', icon: 'none' })
+      return
+    }
+
+    try {
+      const res = await startGenerateTask(retryParams)
+      Taro.showToast({ title: '任务已提交', icon: 'success', duration: 1500 })
+
+      // 只有真正新建了任务才弹订阅（微任务阶段仍在微信 TAP 手势有效期内）
+      if (res.status === 2) {
+        requestTaskCompleteSubscribe().catch(() => {})
+      }
+
+      await new Promise((r) => setTimeout(r, 1500))
+      safeRedirectTo({
+        url: `/pages/result/index?recordId=${res.record_id}`,
+        source: 'result.regenerate',
+      })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '重新生成失败', icon: 'none' })
+    }
+  }
+
+  const handleCollect = async () => {
+    if (liked) {
+      Taro.showToast({ title: '请在收藏列表中取消收藏', icon: 'none' })
+      return
+    }
+    const generatedResults = data.generatedResults || []
+    const rid = generatedResults[0]?.record_id || recordId
+    if (!rid) {
+      Taro.showToast({ title: '无法获取记录ID', icon: 'none' })
+      return
+    }
+    try {
+      const res = await collectGame(Number(rid))
+      setLiked(res.is_like === 1)
+      Taro.showToast({ title: '收藏成功', icon: 'success' })
+    } catch (err: any) {
+      Taro.showToast({ title: err?.message || '操作失败', icon: 'none' })
+    }
+  }
+
+  const handlePrev = () => {
+    setMode('game')
+    safeRedirectTo({ url: '/pages/wizard/index', source: 'result.prev' })
+  }
+
+  const actions: ActionConfig[] = [
+    { key: 'prev', type: 'back', onClick: handlePrev },
+    { key: 'regenerate', type: 'regenerate', onClick: handleRegenerate },
+    {
+      key: 'share',
+      type: 'share-image',
+      shareData: genResult
+        ? {
+            gameName: genResult.game_name || '游戏',
+            gameType: genResult.game_type || data.gameType || '团队游戏',
+            age: genResult.age || data.age || 6,
+            content: genResult.generated_content || '',
+          }
+        : undefined,
+    },
+    { key: 'collect', type: 'collect', liked, onClick: handleCollect },
+  ]
+
+  return (
+    <Layout
+      title="生成结果"
+      showTabBar={false}
+      renderLeft={
+        <View onClick={() => Taro.navigateBack()}>
+          <ArrowLeft size={22} color="#333" />
+        </View>
+      }
+    >
+      {createdAt && (
+        <View className="px-4 py-2 bg-gray-50">
+          <Text className="text-xs text-gray-400">创建时间：{formatTime(createdAt)}</Text>
+        </View>
+      )}
+      <ResultPreview
+        config={RESULT_CONFIG}
+        value={data}
+        onChange={(newData) => setData((prev) => ({ ...prev, ...newData }))}
+      />
+      <ActionBar actions={actions} />
+    </Layout>
+  )
+}
+
+function formatTime(dateStr: string): string {
+  if (!dateStr) return ''
+  try {
+    const date = new Date(dateStr)
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const hour = date.getHours().toString().padStart(2, '0')
+    const minute = date.getMinutes().toString().padStart(2, '0')
+    return `${month}-${day} ${hour}:${minute}`
+  } catch {
+    return dateStr
+  }
+}

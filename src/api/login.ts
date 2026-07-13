@@ -1,39 +1,59 @@
 import Taro from '@tarojs/taro'
-import { USE_MOCK } from '@/config/mock'
-import type { UserInfo } from '@/pages/profile/types'
 import { post } from '@/services/http'
+import type { LoginData, LoginParams, LoginResult, RefreshData } from '@/types/login'
 
-interface LoginResponse {
-  token: string
-  userInfo: UserInfo
+function mapLoginData(data: LoginData): LoginResult {
+  return {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    accessExpire: data.accessExpire,
+    refreshExpire: data.refreshExpire,
+    userInfo: {
+      account: data.user.account,
+      nickName: data.user.nickName,
+      avatarUrl: data.user.avatarUrl,
+      password: data.user.password,
+    },
+  }
 }
 
-// 模拟延迟
-const mockDelay = (ms = 800) => new Promise((r) => setTimeout(r, ms))
+export async function login(params: LoginParams): Promise<LoginResult> {
+  Taro.showToast({ title: '登录中', icon: 'loading', duration: 1000000 })
 
-// 微信登录
-export async function wechatLogin(): Promise<LoginResponse> {
-  if (USE_MOCK) {
-    await mockDelay()
-    return {
-      token: 'mock-token-wechat-' + Date.now(),
-      userInfo: { id: 1, uid: '10086', nickname: '微信用户', avatar: '' },
-    }
+  const res = await post<LoginData>(
+    '/app/auth/login',
+    {
+      login_type: params.login_type,
+      code: params.code,
+      account: params.account,
+      password: params.password,
+    },
+    { withToken: false }
+  )
+
+  Taro.hideToast()
+
+  // 后端可能不返回 data（如登录人数满载），需要检查
+  if (!res.data) {
+    throw new Error(res.message || '登录失败')
   }
 
-  const { code } = await Taro.login()
-  return post<LoginResponse>('/auth/wechat-login', { code }, { withToken: false })
+  return mapLoginData(res.data)
 }
 
-// 账号密码登录
-export async function accountLogin(phone: string, password: string): Promise<LoginResponse> {
-  if (USE_MOCK) {
-    await mockDelay()
-    return {
-      token: 'mock-token-account-' + Date.now(),
-      userInfo: { id: 2, uid: '10010', nickname: '测试账号', avatar: '' },
-    }
-  }
+// 刷新 accessToken
+export async function refreshToken(refreshTokenStr: string): Promise<RefreshData> {
+  const res = await post<RefreshData>(
+    '/app/auth/refresh',
+    {
+      refresh_token: refreshTokenStr,
+    },
+    { withToken: false }
+  )
+  return res.data
+}
 
-  return post<LoginResponse>('/auth/login', { phone, password }, { withToken: false })
+// 登出
+export async function logout(): Promise<void> {
+  await post('/app/auth/logout')
 }

@@ -8,7 +8,7 @@ export interface LoginFormData {
  */
 export function validateLogin(data: LoginFormData): string | null {
   if (!data.account) return '请输入账号'
-  if (data.account.length !== 8) return '账号必须为8位'
+  if (data.account.length < 8) return '账号必须大于8位'
   if (!/^[a-zA-Z0-9]+$/.test(data.account)) return '账号仅限数字和字母'
   if (!data.password) return '请输入密码'
   if (data.password.length < 6) return '密码不能少于6位'

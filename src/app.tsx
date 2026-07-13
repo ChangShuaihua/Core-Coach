@@ -1,31 +1,62 @@
 import { useEffect } from 'react'
 import { View } from '@tarojs/components'
 import { useDidHide, useDidShow } from '@tarojs/taro'
-import { QueryClientProvider } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { queryClient } from '@/lib/reactQuery'
+import { refreshTokenIfNeeded, getStoredState, logoutAndRedirect } from '@/services/http'
+import { ws } from '@/services/ws'
+import { initTaskWsHandlers, syncPendingAndEvents } from '@/store/taskWsHandler'
 import 'dayjs/locale/zh-cn'
 import './app.scss'
 
+dayjs.locale('zh-cn')
+dayjs.extend(relativeTime)
+
 function App({ children }) {
-  dayjs.locale('zh-cn')
-  dayjs.extend(relativeTime)
+  useEffect(() => {
+    ws.initNetworkListener()
+    initTaskWsHandlers()
 
-  // 可以使用所有的 React Hooks
-  useEffect(() => {}, [])
+    // 429 在线人数上限 → 强制登出
+    const handleAuthFailed = (data: any) => {
+      if (data?.code === 429) {
+        logoutAndRedirect(data?.message || '当前账号在线人数已达上限')
+      }
+    }
 
-  // 对应 onShow
-  useDidShow(() => {})
+    ws.on('auth_failed', handleAuthFailed)
+    return () => {
+      ws.off('auth_failed', handleAuthFailed)
+    }
+  }, [])
 
-  // 对应 onHide
-  useDidHide(() => {})
+  // 切后台：通知后端
+  useDidHide(() => {
+    ws.send(
+      'app_hide',
+      { create_time: Math.floor(Date.now() / 1000) },
+      { requireAuth: false, quiet: true }
+    )
+  })
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <View>{children}</View>
-    </QueryClientProvider>
-  )
+  // 切回前台：验证连接 + 补偿数据
+  useDidShow(async () => {
+    const success = await refreshTokenIfNeeded()
+    if (!success) return
+
+    const { accessToken } = getStoredState()
+    if (accessToken) {
+      if (!ws.connected) {
+        ws.connect(accessToken)
+      } else {
+        ws.ensureAlive()
+      }
+    }
+
+    syncPendingAndEvents()
+  })
+
+  return <View>{children}</View>
 }
 
 export default App

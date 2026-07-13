@@ -2,17 +2,22 @@ import { View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowRight } from '@nutui/icons-react-taro'
 import { Cell } from '@nutui/nutui-react-taro'
-import type { MenuGroup } from '../types'
+import type { MenuGroup } from '@/types/profile'
 
 interface MenuListProps {
   menuGroup: MenuGroup
+  onItemClick?: (item: any) => boolean
 }
 
-export default function MenuList({ menuGroup }: MenuListProps) {
+export default function MenuList({ menuGroup, onItemClick }: MenuListProps) {
   return (
     <Cell.Group>
       {menuGroup.items.map((item) => {
         const handleClick = () => {
+          if (onItemClick) {
+            const shouldProceed = onItemClick(item)
+            if (!shouldProceed) return
+          }
           if (item.onClick) {
             item.onClick()
           } else if (item.path) {

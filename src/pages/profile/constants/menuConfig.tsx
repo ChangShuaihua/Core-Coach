@@ -1,6 +1,6 @@
-import { Edit, Setting, Order, Star, Tips, Failure } from '@nutui/icons-react-taro'
+import { Edit, Setting, Star, Tips, Failure } from '@nutui/icons-react-taro'
 import { ROUTES } from '@/config/routes'
-import type { MenuGroup } from '../types'
+import type { MenuGroup } from '@/types/profile'
 
 // 主菜单配置
 export const MAIN_MENU_ITEMS: MenuGroup = {
@@ -17,12 +17,6 @@ export const MAIN_MENU_ITEMS: MenuGroup = {
       title: '账号设置',
       icon: <Setting color="#fe6601" size={18} />,
       path: ROUTES.ACCOUNT_SETTINGS,
-    },
-    {
-      id: 'favorite-lessons',
-      title: '收藏教案',
-      icon: <Order color="#fe6601" size={18} />,
-      path: ROUTES.FAVORITE_LESSONS,
     },
     {
       id: 'favorite-games',

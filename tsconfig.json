@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2017",
+    "strict": true,
+    "target": "es2015",
+    "useDefineForClassFields": false,
     "module": "commonjs",
     "removeComments": false,
     "preserveConstEnums": true,
@@ -12,27 +14,19 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "strictNullChecks": true,
+    "skipLibCheck": true,
     "sourceMap": true,
     "baseUrl": ".",
     "rootDir": ".",
     "jsx": "react-jsx",
     "allowJs": true,
     "resolveJsonModule": true,
-    "typeRoots": [
-      "node_modules/@types"
-    ],
-    "types": [
-      "node"
-    ],
+    "typeRoots": ["node_modules/@types"],
+    "types": ["node"],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "./src",
-    "./types"
-  ],
+  "include": ["./src", "./types"],
   "compileOnSave": false
 }
