@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { View } from '@tarojs/components'
-import { useDidHide, useDidShow } from '@tarojs/taro'
+import { useDidHide, useDidShow } from '@tarojs/taro' //这是 Taro 提供的小程序生命周期 Hook。
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { refreshTokenIfNeeded, getStoredState, logoutAndRedirect } from '@/services/http'
@@ -13,6 +13,7 @@ dayjs.locale('zh-cn')
 dayjs.extend(relativeTime)
 
 function App({ children }) {
+  //小程序初始化
   useEffect(() => {
     ws.initNetworkListener()
     initTaskWsHandlers()
@@ -28,7 +29,7 @@ function App({ children }) {
     return () => {
       ws.off('auth_failed', handleAuthFailed)
     }
-  }, [])
+  }, []) //在组件挂载的时候执行一次
 
   // 切后台：通知后端
   useDidHide(() => {
